@@ -1,0 +1,13 @@
+{
+  "name": "tool-bridge-mobile",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@11.21.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "verify": "node scripts/verify-docs.mjs"
+  }
+}
