@@ -16,9 +16,7 @@
 - [x] CI 执行文档验证；
 - [x] 独立 `pnpm-workspace.yaml`，不误加入父仓库 workspace；
 - [x] MIT License；
-- [ ] GitHub main 首次提交和 verify workflow 成功。
-
-最后一项在远端创建并确认 CI 后勾选。
+- [x] GitHub main 首次提交和 verify workflow 成功。
 
 ## 2. P0 App 骨架 DOD
 
