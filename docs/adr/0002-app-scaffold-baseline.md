@@ -31,6 +31,10 @@ P0 首个脚手架锁定：
 | preview | `ai.tokenroll.toolbridgemobile.preview` |
 | production | `ai.tokenroll.toolbridgemobile` |
 
+三个安装变体共用 Expo/EAS 项目 `@tokenroll/tool-bridge` 与稳定 slug `tool-bridge`；Project ID 固定为
+`378c7a3e-437a-49a6-ae20-fef5af6f6188`。EAS project/slug 只表示云端项目身份，不替代上述平台安装
+标识隔离，也不代表 production transport 已配置。
+
 production transport 在上游 device client、pairing 和 ticket 契约交付前保持 `unconfigured`；脚手架不得
 自创 wire schema 绕过该闸门。
 
@@ -41,6 +45,7 @@ production transport 在上游 device client、pairing 和 ticket 契约交付�
 - Android 24 和 iOS 16.4 是该脚手架实际生成、可由 CI 验证的最低版本；
 - 精确版本、冻结 lockfile 和生成式原生工程共同降低不同开发机的漂移；
 - 环境标识隔离避免 development/preview 构建覆盖 production App 或误连生产配置。
+- 单一 EAS 项目配合独立 build environment 避免为每个安装变体复制项目级权限、构建记录与治理配置。
 
 ## 后果
 
@@ -55,5 +60,7 @@ production transport 在上游 device client、pairing 和 ticket 契约交付�
 - `pnpm install --frozen-lockfile`；
 - `pnpm verify`；
 - `APP_VARIANT=<variant> pnpm exec expo config --type public`；
+- `pnpm --package=eas-cli@22.0.0 dlx eas project:info`；
+- `pnpm --package=eas-cli@22.0.0 dlx eas config --platform android --profile preview`；
 - `pnpm build:android:debug`；
 - `pnpm build:ios:sim`。

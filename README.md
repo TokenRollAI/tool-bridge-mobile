@@ -101,6 +101,19 @@ APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，a
 生成的 debug test key 签名，只用于内部试用；它不是生产签名、商店 release 或 release DOD 证据。
 本地构建与安装证据见 [Android preview APK 验证记录](docs/verification/2026-08-19-android-preview-apk.md)。
 
+仓库同时绑定到 Expo 项目 [`@tokenroll/tool-bridge`](https://expo.dev/accounts/tokenroll/projects/tool-bridge)，
+development / preview / production 共用 EAS Project ID，但继续使用不同的 application id、bundle id、
+scheme 和显示名称。验证绑定或触发 EAS 内部分发 APK：
+
+```bash
+mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas project:info
+mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas build --platform android --profile preview
+```
+
+EAS `preview` profile 固定 Node 22.23.1、`APP_VARIANT=preview`、preview environment 与 APK 输出。EAS
+环境中的 `EXPO_PUBLIC_*` 都会进入客户端，不能存放凭证、token 或私钥；当前未配置 gateway/media/link
+变量时，相应能力保持 unavailable。
+
 Android development debug APK 构建完成、API 36 emulator 已启动且另一个终端正在运行 `pnpm start`
 时，可以执行可重复 UI smoke：
 

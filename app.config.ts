@@ -7,8 +7,11 @@ type VariantConfig = Readonly<{
   iosBundleIdentifier: string
   name: string
   scheme: string
-  slug: string
 }>
+
+export const EXPO_OWNER = 'tokenroll'
+export const EAS_PROJECT_ID = '378c7a3e-437a-49a6-ae20-fef5af6f6188'
+export const EXPO_PROJECT_SLUG = 'tool-bridge'
 
 export const APP_VARIANTS: Readonly<Record<AppVariant, VariantConfig>> = {
   development: {
@@ -16,21 +19,18 @@ export const APP_VARIANTS: Readonly<Record<AppVariant, VariantConfig>> = {
     iosBundleIdentifier: 'ai.tokenroll.toolbridgemobile.dev',
     name: 'Tool Bridge Mobile (Dev)',
     scheme: 'toolbridgemobile-dev',
-    slug: 'tool-bridge-mobile-dev',
   },
   preview: {
     androidPackage: 'ai.tokenroll.toolbridgemobile.preview',
     iosBundleIdentifier: 'ai.tokenroll.toolbridgemobile.preview',
     name: 'Tool Bridge Mobile (Preview)',
     scheme: 'toolbridgemobile-preview',
-    slug: 'tool-bridge-mobile-preview',
   },
   production: {
     androidPackage: 'ai.tokenroll.toolbridgemobile',
     iosBundleIdentifier: 'ai.tokenroll.toolbridgemobile',
     name: 'Tool Bridge Mobile',
     scheme: 'toolbridgemobile',
-    slug: 'tool-bridge-mobile',
   },
 }
 
@@ -66,7 +66,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     name: variant.name,
-    slug: variant.slug,
+    owner: EXPO_OWNER,
+    slug: EXPO_PROJECT_SLUG,
     version: '0.1.0',
     orientation: 'portrait',
     scheme: variant.scheme,
@@ -152,6 +153,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       permissions: ['android.permission.POST_NOTIFICATIONS', 'android.permission.VIBRATE'],
     },
     extra: {
+      eas: {
+        projectId: EAS_PROJECT_ID,
+      },
       appVariant,
       gatewayOrigin: process.env.EXPO_PUBLIC_GATEWAY_ORIGIN ?? null,
       linkHosts: parseLinkHosts(process.env.EXPO_PUBLIC_LINK_HOSTS),

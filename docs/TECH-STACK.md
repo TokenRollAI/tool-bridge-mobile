@@ -247,8 +247,15 @@ E2E 工具只负责驱动 UI；平台是否真正发声、振动、拍照和接�
 - 服务端 protocol compatibility gate；
 - 可回滚到上一 App 版本和关闭 capability flag。
 
-EAS Build 是可选的构建执行器，不是架构依赖；若成本、密钥治理或自托管要求不合适，可以切换
-GitHub-hosted/self-hosted native runner。
+仓库已绑定到单一 Expo 项目 `@tokenroll/tool-bridge`（Project ID
+`378c7a3e-437a-49a6-ae20-fef5af6f6188`）。development / preview / production 共用该项目身份，安装标识、
+scheme、显示名称和 EAS environment 继续隔离；preview profile 显式生成 internal-distribution APK。
+Project ID 是公开项目标识并进入 `app.config.ts`，不是凭证；任何 EAS token、签名私钥或服务密钥不得
+进入仓库。
+
+EAS Build 仍只是可替换的构建执行器，不是架构依赖；若成本、密钥治理或自托管要求不合适，可以切换
+GitHub-hosted/self-hosted native runner。当前 GitHub Actions 继续承担 verify 与双端 clean build gate，
+不能因 EAS 项目已关联就跳过仓库 CI。
 
 当前 Android clean debug build 的工具链、命令和产物摘要记录在
 [2026-08-19 Android debug 验证记录](verification/2026-08-19-android-debug.md)；安装和 UI smoke 记录在

@@ -20,8 +20,8 @@
 - 包管理器：pnpm，锁定版本见 `package.json`；禁止混用 npm/yarn。
 - 运行环境：Expo development build / prebuild；Expo Go 不是验收环境。
 - 通用逻辑优先 TypeScript；平台 API 优先成熟 Expo 模块，确有必要再使用 Expo Modules API。
-- 三个环境使用不同 Android application id、iOS bundle id、scheme 与 slug；配置真源是
-  `app.config.ts`。
+- 三个环境使用不同 Android application id、iOS bundle id、scheme 与显示名称，但共用已绑定的
+  `@tokenroll/tool-bridge` EAS project/slug；配置真源是 `app.config.ts`，构建 profile 真源是 `eas.json`。
 
 ## 继续阅读
 

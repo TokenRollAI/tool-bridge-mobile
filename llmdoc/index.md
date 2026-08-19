@@ -43,6 +43,7 @@
   等价边界与验证证据。
 - `reference/accessibility-semantics.md`：共享 UI 语义、48dp、焦点/公告去重、对比度及 Android 200%
   字号 smoke 的证据上限。
+- `reference/eas-project-binding.md`：单一 EAS project 身份、三变体隔离、profile/environment 与验证边界。
 - `reference/upstream-and-platform-blockers.md`：上游、iOS 和真机阻塞项及其事实真源。
 
 ### 过程记忆
@@ -69,6 +70,8 @@
   并处理 DELETE/refresh 线性化边界的经验。
 - `memory/reflections/2026-08-19-retention-and-accessibility-evidence.md`：避免把 protected command 误算为
   cap 外容量，并区分 UI 语义自动化与真实辅助技术验收的经验。
+- `memory/reflections/2026-08-19-eas-project-binding.md`：从新版 Dashboard 缺少 UUID 展示到安全关联
+  dynamic app config、多变体与证据边界的经验。
 
 ## 路由规则
 
@@ -88,6 +91,8 @@
   `reference/command-retention.md` 和对应 reflection。
 - 修改共享 UI component、tab 语义、焦点、公告或颜色主题前，额外读
   `reference/accessibility-semantics.md` 和对应 reflection。
+- 修改 Expo owner/slug/projectId、EAS profile/environment、云构建或签名配置前，读
+  `reference/eas-project-binding.md` 和对应 reflection。
 - 声称功能“完成”、勾选 DOD 或写 PR 证据前，读 `must/evidence-language.md` 和
   `guides/verification-and-claims.md`。
 - 涉及 pairing、realtime、mailbox、push、objectRef 或 capability profile 时，先读
