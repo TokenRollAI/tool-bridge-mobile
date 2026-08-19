@@ -181,7 +181,7 @@ instrumentation，也不替代 TalkBack/VoiceOver、真机 haptic、音频、位
 ### 4.2 播放媒体
 
 - [ ] 只接受 allowlisted HTTPS/objectRef；
-- [x] play/pause/resume/stop/status 一致；
+- [x] play/pause/resume/seek/stop/status 一致；
 - [ ] 锁屏媒体控制状态同步；
 - [ ] 音频中断（来电/其他 App）正确降级；
 - [ ] 后台播放有系统可见控制；
@@ -296,6 +296,7 @@ SecureStore 或服务端数据，也不撤销配对/transport，因而不能用�
 - [x] 四个标签页各有唯一页面 header，所有状态卡片 title 是 header；
 - [x] label/value 状态行合并为单一可访问名称，视觉文本不会被重复朗读，并支持换行与系统字号；
 - [x] timer、pending confirmation 等重复操作使用不含敏感正文的唯一上下文名称；
+- [x] pending confirmation 使用根布局 Modal 跨标签页显示最早请求、队列数量、截止时间和单次裁决操作；
 - [x] 所有共享操作声明 button role、必要 hint、disabled/busy 状态与至少 48dp 的最小触控区；
 - [x] 仅在标签页获得焦点时聚焦页面标题，普通 snapshot 更新不抢焦点；活动历史 destructive
   confirmation 打开后聚焦标题，取消后返回触发按钮；

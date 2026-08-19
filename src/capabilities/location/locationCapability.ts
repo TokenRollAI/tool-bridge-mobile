@@ -1,4 +1,4 @@
-import { currentLocationArgumentsSchema } from './schema'
+import { currentLocationArgumentsSchema, currentLocationResultSchema } from './schema'
 
 import type { CurrentLocationController, CurrentLocationResult } from './controller'
 import type { CurrentLocationArguments } from './schema'
@@ -35,6 +35,7 @@ export function createCurrentLocationCapability(
       controller.current(argumentsValue, signal, invocation.expiresAt)
     ),
     inputSchema: currentLocationArgumentsSchema,
+    outputSchema: currentLocationResultSchema,
     probe: context => controller.probe(context.appState),
   }
 }

@@ -12,4 +12,15 @@ export const currentLocationArgumentsSchema = z.strictObject({
   timeoutSeconds: z.number().int().min(5).max(30).default(15),
 })
 
+export const currentLocationResultSchema = z.strictObject({
+  capturedAt: z.string(),
+  coordinate: z.strictObject({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  }),
+  horizontalAccuracyMeters: z.number().nonnegative().nullable(),
+  mocked: z.boolean().nullable(),
+  permissionAccuracy: z.enum(['precise', 'approximate', 'unknown']),
+})
+
 export type CurrentLocationArguments = z.infer<typeof currentLocationArgumentsSchema>

@@ -8,6 +8,8 @@
 - package `engines.node >=22` 由仓库 Node 22.23.1 构建环境满足，不代表手机运行 Node。
 - 当前 `dist/device.js` 只有 `partysocket/ws` 外部 import，不导入 Node `ws` 或 `process.env`；
   `scripts/verify-sdk-device-entry.mjs` 是升级漂移 gate。
+- React Native 目标运行时缺失浏览器完整 `MessageEvent` 与 `AbortSignal.throwIfAborted()`；App 入口在加载
+  router/SDK 前只补齐缺失成员，避免 ready 后的 message/cancel 路径因运行时差异抛出 `internal`。
 
 ## 移动 wiring
 
@@ -18,7 +20,8 @@
 - 每次建连从 SecureStore 读取 `DeviceCredentialEnvelope`，并要求 credential audience 与当前连接 origin
   完全一致；
 - 使用 RN WebSocket 第三个参数注入 Authorization，secret 不进 URL；
-- 用本地 registry 生成官方 `DeviceExpose.nodes[].cmds[]`，不复制/扩展 frame；
+- 用本地 registry 生成官方 `DeviceExpose.nodes[].cmds[]`，每个 command 同时包含 input/output schema；
+  静态不可配置的 path 仍以空 `cmds` node 发送来尝试覆盖旧注册，不复制/扩展 frame；
 - active + enabled 时连接/resume，background/inactive/Disabled 时 suspend；
 - 只有 SDK `ready` 映射为 `reachability: online`；
 - 在交给 SDK 的 raw WebSocket factory 外采集脱敏失败分类、阶段与 close code，不复制 SDK 协议状态机；
@@ -74,10 +77,11 @@ gateway compatibility、caller/deadline、U-4 动态 profile、U-5 mailbox、U-6
 
 ## 证据边界
 
-已有 consumer 证据：真实 SDK supervisor + fake WebSocket contract、registry expose、错误映射、凭证
+已有 consumer 证据：真实 SDK supervisor + fake WebSocket contract、双向 schema registry expose、错误映射、凭证
 fail-closed、手工配置事件顺序、raw close 脱敏/旧连接隔离与 secret 不回显、双端 production Metro
 export、全量 `pnpm verify`。
 
-这些不证明真实 gateway、真机 header/diagnostic、弱网/重连、前后台 OS 行为、credential revoke、mailbox
-或 push。诊断 UI 出现固定分类也不等于对应根因已经由真机日志或服务端日志确认。
+这些不证明真实 gateway 对空 command node 的删除语义、真机 header/diagnostic、弱网/重连、前后台 OS
+行为、credential revoke、mailbox 或 push。诊断 UI 出现固定分类也不等于对应根因已经由真机日志或
+服务端日志确认。
 升级版本时必须重跑 frozen install、SDK entry gate、consumer contract、双端 Metro 与真实 gateway matrix。

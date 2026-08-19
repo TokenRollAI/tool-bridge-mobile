@@ -1,3 +1,5 @@
+import { createReactNativeAbortSignal } from '@/testFixtures/reactNativeAbortSignal'
+
 import { BoundedMediaSourceResolver } from '../sourceResolver'
 
 import type {
@@ -95,7 +97,7 @@ describe('BoundedMediaSourceResolver', () => {
     const resolved = await new BoundedMediaSourceResolver(fetcher, store).resolve(
       'https://media.example.com/start?ticket=secret',
       allowlist,
-      new AbortController().signal,
+      createReactNativeAbortSignal(),
     )
 
     expect(calls).toEqual([

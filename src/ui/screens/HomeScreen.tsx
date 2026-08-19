@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
@@ -31,13 +31,15 @@ function transportDescription(snapshot: ApplicationSnapshot): string {
 
 type HomeScreenProps = Readonly<{
   focused?: boolean
-  onApproveConfirmation(commandId: string): void
+  /** @deprecated 确认操作已提升到根布局的全局 Modal。 */
+  onApproveConfirmation?(commandId: string): void
   onCancelTimer(timerId: string): void
   onClearGatewayConfiguration(): Promise<void>
   onEnable(): void
   onEmergencyDisable(): void
   onOpenNotificationSettings(): void
-  onRejectConfirmation(commandId: string): void
+  /** @deprecated 确认操作已提升到根布局的全局 Modal。 */
+  onRejectConfirmation?(commandId: string): void
   onRequestNotificationPermission(): void
   onSaveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void>
   onStopAttention(): void
@@ -46,13 +48,11 @@ type HomeScreenProps = Readonly<{
 
 export function HomeScreen({
   focused = true,
-  onApproveConfirmation,
   onCancelTimer,
   onClearGatewayConfiguration,
   onEnable,
   onEmergencyDisable,
   onOpenNotificationSettings,
-  onRejectConfirmation,
   onRequestNotificationPermission,
   onSaveGatewayConfiguration,
   onStopAttention,
@@ -82,13 +82,6 @@ export function HomeScreen({
     snapshot.error === null ? null : `error:${snapshot.error}`,
     snapshot.error,
     'assertive',
-  )
-  const pendingKey = snapshot.pendingConfirmations.map(item => item.commandId).sort().join(',')
-  useDiscreteAccessibilityAnnouncement(
-    `pending:${pendingKey}`,
-    snapshot.pendingConfirmations.length === 0
-      ? '当前没有等待本地确认的命令'
-      : `有 ${snapshot.pendingConfirmations.length} 个命令等待本地确认`,
   )
   const timerStateKey = snapshot.timers
     .map(timer => `${timer.timerId}:${timer.state}`).sort().join(',')
@@ -209,42 +202,6 @@ export function HomeScreen({
         </StatusCard>
       ))}
 
-      {snapshot.pendingConfirmations.map(confirmation => {
-        const caller = confirmation.callerDisplayName ?? confirmation.callerSubjectId
-        const capability = `${confirmation.path}.${confirmation.tool}`
-        return (
-          <StatusCard key={confirmation.commandId} title="等待本地确认">
-            <StatusRow label="调用方" value={caller} />
-            <StatusRow label="能力" value={capability} />
-            <StatusRow
-              label="风险 / effect"
-              value={`${confirmation.risk} / ${confirmation.effect}`}
-            />
-            <Text style={styles.body}>{confirmation.description}</Text>
-            {confirmation.details.map(detail => (
-              <StatusRow key={detail.label} label={detail.label} value={detail.value} />
-            ))}
-            <Text style={styles.footnote}>完整参数不会显示或写入普通审计日志。</Text>
-            <View style={styles.confirmationActions}>
-              <AccessibleAction
-                accessibilityHint="拒绝这一条命令，不影响其他等待确认的命令"
-                label={`拒绝 ${caller} 调用 ${capability}`}
-                onPress={() => onRejectConfirmation(confirmation.commandId)}
-                style={[styles.action, styles.confirmationAction, styles.rejectAction]}
-                visualLabel="拒绝"
-              />
-              <AccessibleAction
-                accessibilityHint="只允许这一条命令一次，执行前仍会重新检查设备状态"
-                label={`允许 ${caller} 调用 ${capability} 一次`}
-                onPress={() => onApproveConfirmation(confirmation.commandId)}
-                style={[styles.action, styles.confirmationAction, styles.enableAction]}
-                visualLabel="允许一次"
-              />
-            </View>
-          </StatusCard>
-        )
-      })}
-
       <AccessibleAction
         accessibilityHint={isDisabled
           ? '恢复为每条有副作用命令都在设备上确认'
@@ -269,14 +226,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
-  confirmationAction: {
-    flex: 1,
-  },
-  confirmationActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
   disableAction: {
     backgroundColor: colors.danger,
   },
@@ -290,9 +239,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     lineHeight: 19,
-  },
-  rejectAction: {
-    backgroundColor: colors.danger,
   },
   stopAction: {
     backgroundColor: colors.primary,

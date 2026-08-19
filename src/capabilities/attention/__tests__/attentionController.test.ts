@@ -1,9 +1,12 @@
+import { createReactNativeAbortSignal } from '@/testFixtures/reactNativeAbortSignal'
+
 import { createAttentionRingCapability } from '../attentionCapabilities'
 import { AttentionSessionController } from '../controller'
 import { AttentionRateLimiter } from '../rateLimiter'
 import { ringArgumentsSchema } from '../schema'
 
 import type { AttentionHapticsAdapter } from '../hapticsAdapter'
+import type { AttentionSoundAdapter } from '../soundAdapter'
 import type { CapabilityContext } from '@/capabilities/types'
 
 function createHaptics(available = true) {
@@ -38,7 +41,7 @@ describe('AttentionSessionController', () => {
       idGenerator: () => '00000000-0000-4000-8000-000000000001',
       pulseIntervalMs: 1_000,
     })
-    const signal = new AbortController().signal
+    const signal = createReactNativeAbortSignal()
     const result = await controller.start(
       ringArgumentsSchema.parse({ durationSeconds: 3 }),
       'caller_a',
@@ -68,7 +71,7 @@ describe('AttentionSessionController', () => {
       new AttentionSessionController(createHaptics(false).adapter),
     )
     await expect(unavailable.probe(activeContext)).resolves.toEqual({
-      reason: 'haptics_unavailable',
+      reason: 'attention_channels_unavailable',
       status: 'unavailable',
     })
 
@@ -79,6 +82,35 @@ describe('AttentionSessionController', () => {
       reason: 'foreground_required',
       status: 'unavailable',
     })
+  })
+
+  test('haptic 不可用时仍可真实请求内置提示音，并在 stop 时释放', async () => {
+    let starts = 0
+    let stops = 0
+    const sound: AttentionSoundAdapter = {
+      probe: async () => true,
+      start: async () => { starts += 1; return true },
+      stop: async () => { stops += 1 },
+    }
+    const controller = new AttentionSessionController(createHaptics(false).adapter, {
+      clock: () => new Date('2026-08-19T00:00:00.000Z'),
+      idGenerator: () => 'sound-only-fixture',
+      sound,
+    })
+
+    const result = await controller.start(
+      ringArgumentsSchema.parse({ durationSeconds: 3, vibrate: false }),
+      'caller_a',
+      new AbortController().signal,
+    )
+    expect(result.channels).toEqual({
+      flash: { reason: 'not_requested', status: 'unavailable' },
+      sound: { status: 'requested' },
+      vibration: { reason: 'not_requested', status: 'unavailable' },
+    })
+    expect(starts).toBe(1)
+    await controller.stop(result.sessionId)
+    expect(stops).toBe(1)
   })
 
   test('TTL 到期自动停止并取消后续 pulse', async () => {

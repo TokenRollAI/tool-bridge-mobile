@@ -171,87 +171,6 @@ describe('HomeScreen', () => {
     expect(onStopAttention).toHaveBeenCalledTimes(1)
   })
 
-  test('本地确认只展示元数据并提供单次允许/拒绝', async () => {
-    const onApproveConfirmation = jest.fn()
-    const onRejectConfirmation = jest.fn()
-    const rendered = await render(
-      <HomeScreen
-        onApproveConfirmation={onApproveConfirmation}
-        onCancelTimer={jest.fn()}
-        onEmergencyDisable={jest.fn()}
-        onEnable={jest.fn()}
-        onOpenNotificationSettings={jest.fn()}
-        onRejectConfirmation={onRejectConfirmation}
-        onRequestNotificationPermission={jest.fn()}
-        onStopAttention={jest.fn()}
-        snapshot={{
-          ...readySnapshot,
-          pendingConfirmations: [{
-            callerDisplayName: 'Fixture Caller',
-            callerSubjectId: 'caller_a',
-            commandId: 'command_a',
-            description: '播放允许的媒体',
-            details: [{ label: '来源 hostname', value: 'media.example.com' }],
-            effect: 'write',
-            expiresAt: '2026-08-19T00:01:00.000Z',
-            path: 'phone/media',
-            risk: 'medium',
-            tool: 'play',
-          }],
-        }}
-      />,
-    )
-
-    rendered.getByLabelText('调用方：Fixture Caller')
-    rendered.getByLabelText('能力：phone/media.play')
-    await fireEvent.press(rendered.getByRole('button', {
-      name: '允许 Fixture Caller 调用 phone/media.play 一次',
-    }))
-    expect(onApproveConfirmation).toHaveBeenCalledWith('command_a')
-    await fireEvent.press(rendered.getByRole('button', {
-      name: '拒绝 Fixture Caller 调用 phone/media.play',
-    }))
-    expect(onRejectConfirmation).toHaveBeenCalledWith('command_a')
-  })
-
-  test('地图 handoff 确认明确显示目标和本地 provider', async () => {
-    const rendered = await render(
-      <HomeScreen
-        onApproveConfirmation={jest.fn()}
-        onCancelTimer={jest.fn()}
-        onEmergencyDisable={jest.fn()}
-        onEnable={jest.fn()}
-        onOpenNotificationSettings={jest.fn()}
-        onRejectConfirmation={jest.fn()}
-        onRequestNotificationPermission={jest.fn()}
-        onStopAttention={jest.fn()}
-        snapshot={{
-          ...readySnapshot,
-          pendingConfirmations: [{
-            callerDisplayName: 'Fixture Caller',
-            callerSubjectId: 'caller_a',
-            commandId: 'map_command',
-            description: '把结构化地址或坐标交给用户可见的系统地图处理器',
-            details: [{ label: '用途', value: '查看会面地点' }, {
-              label: '地图目标', value: 'Sensitive Street 123',
-            }, {
-              label: '系统处理器', value: 'android_geo_handler',
-            }],
-            effect: 'write',
-            expiresAt: '2026-08-19T00:01:00.000Z',
-            path: 'phone/location',
-            risk: 'medium',
-            tool: 'open_map',
-          }],
-        }}
-      />,
-    )
-
-    rendered.getByLabelText('能力：phone/location.open_map')
-    rendered.getByLabelText('地图目标：Sensitive Street 123')
-    rendered.getByLabelText('系统处理器：android_geo_handler')
-  })
-
   test('系统仍允许请求的通知权限只能由本地 UI 触发', async () => {
     const onRequestNotificationPermission = jest.fn()
     const descriptor = {
@@ -365,22 +284,8 @@ describe('HomeScreen', () => {
     expect(onCancelTimer).toHaveBeenCalledWith(`timer_${'a'.repeat(64)}`)
   })
 
-  test('多个计时器和确认请求的操作名称唯一，且不把敏感 detail 放进操作名', async () => {
-    const onApproveConfirmation = jest.fn()
+  test('多个计时器的操作名称唯一', async () => {
     const onCancelTimer = jest.fn()
-    const onRejectConfirmation = jest.fn()
-    const confirmations = ['one', 'two'].map((suffix, index) => ({
-      callerDisplayName: `Caller ${suffix}`,
-      callerSubjectId: `caller_${suffix}`,
-      commandId: `command_${suffix}`,
-      description: '测试确认',
-      details: [{ label: '敏感目标', value: `Secret ${index}` }],
-      effect: 'write' as const,
-      expiresAt: '2026-08-19T00:01:00.000Z',
-      path: 'phone/test',
-      risk: 'medium' as const,
-      tool: `action_${suffix}`,
-    }))
     const timers = ['one', 'two'].map((suffix, index) => ({
       firesAt: `2026-08-19T00:${10 + index}:00.000Z`,
       ownerSubjectId: `timer_owner_${suffix}`,
@@ -390,15 +295,13 @@ describe('HomeScreen', () => {
     const rendered = await render(
       <HomeScreen
         focused={false}
-        onApproveConfirmation={onApproveConfirmation}
         onCancelTimer={onCancelTimer}
         onEmergencyDisable={jest.fn()}
         onEnable={jest.fn()}
         onOpenNotificationSettings={jest.fn()}
-        onRejectConfirmation={onRejectConfirmation}
         onRequestNotificationPermission={jest.fn()}
         onStopAttention={jest.fn()}
-        snapshot={{ ...readySnapshot, pendingConfirmations: confirmations, timers }}
+        snapshot={{ ...readySnapshot, timers }}
       />,
     )
 
@@ -408,14 +311,7 @@ describe('HomeScreen', () => {
     await fireEvent.press(rendered.getByRole('button', { name: secondTimerLabel }))
     expect(onCancelTimer).toHaveBeenCalledWith(timers[1]?.timerId)
 
-    const approveLabel = '允许 Caller one 调用 phone/test.action_one 一次'
-    const rejectLabel = '拒绝 Caller two 调用 phone/test.action_two'
-    await fireEvent.press(rendered.getByRole('button', { name: approveLabel }))
-    await fireEvent.press(rendered.getByRole('button', { name: rejectLabel }))
-    expect(onApproveConfirmation).toHaveBeenCalledWith('command_one')
-    expect(onRejectConfirmation).toHaveBeenCalledWith('command_two')
     const buttonNames = rendered.getAllByRole('button').map(button => button.props.accessibilityLabel)
     expect(new Set(buttonNames).size).toBe(buttonNames.length)
-    expect(buttonNames.join(' ')).not.toContain('Secret')
   })
 })

@@ -24,6 +24,7 @@ export type MediaPlaybackRequest = Readonly<{
 export interface MediaPlaybackPort {
   pause(): Promise<void>
   resume(): Promise<void>
+  seek(positionSeconds: number): Promise<void>
   start(
     request: MediaPlaybackRequest,
     onStatus: (status: MediaPlaybackStatus) => void,

@@ -19,6 +19,7 @@ import {
 } from '@/capabilities/attention/attentionCapabilities'
 import { AttentionSessionController } from '@/capabilities/attention/controller'
 import { NativeAttentionHapticsAdapter } from '@/capabilities/attention/hapticsAdapter'
+import { ExpoAttentionSoundAdapter } from '@/capabilities/attention/soundAdapter'
 import { CurrentLocationController } from '@/capabilities/location/controller'
 import { ExpoCurrentLocationAdapter } from '@/capabilities/location/locationAdapter'
 import { createCurrentLocationCapability } from '@/capabilities/location/locationCapability'
@@ -32,6 +33,7 @@ import {
   createMediaPauseCapability,
   createMediaPlayCapability,
   createMediaResumeCapability,
+  createMediaSeekCapability,
   createMediaStatusCapability,
   createMediaStopCapability,
 } from '@/capabilities/media/mediaCapabilities'
@@ -46,6 +48,11 @@ import {
 } from '@/capabilities/productivity/timerCapabilities'
 import { LocalTimerController } from '@/capabilities/productivity/timerController'
 import { CapabilityRegistry } from '@/capabilities/registry'
+import {
+  createRuntimeCancelCapability,
+  createRuntimeCapabilitiesCapability,
+  createRuntimePendingCommandsCapability,
+} from '@/capabilities/runtime/runtimeCapabilities'
 import { currentRuntimeAppState, ExpoStatusProbe } from '@/capabilities/status/probe'
 import { createStatusCapability } from '@/capabilities/status/statusCapability'
 import { LOCAL_COMMAND_RETENTION_LIMIT } from '@/commands/repository'
@@ -138,6 +145,7 @@ export class ApplicationRuntime {
   #auditRevision = 0
   #auditRepository: SqliteAuditRepository | null = null
   #commandRepository: SqliteCommandRepository | null = null
+  #confirmationRevision = 0
   #confirmationCoordinator: LocalConfirmationCoordinator | null = null
   #controlModeRepository: SqliteControlModeRepository | null = null
   #deviceCredentialStore: SecureDeviceCredentialStore | null = null
@@ -332,6 +340,7 @@ export class ApplicationRuntime {
     ) return
 
     const auditRevision = this.#auditRevision
+    const confirmationRevision = this.#confirmationRevision
     const transportRevision = this.#transportRevision
     const controlMode = await this.#controlModeRepository.get()
     const context = this.#context(controlMode)
@@ -350,6 +359,7 @@ export class ApplicationRuntime {
     ])
     if (
       auditRevision !== this.#auditRevision
+      || confirmationRevision !== this.#confirmationRevision
       || transportRevision !== this.#transportRevision
     ) return
     this.#publish({
@@ -392,7 +402,10 @@ export class ApplicationRuntime {
       )
       this.#registry.register(createCanOpenUrlCapability(appHandoffController))
       this.#registry.register(createOpenUrlCapability(appHandoffController))
-      this.#attentionController = new AttentionSessionController(new NativeAttentionHapticsAdapter())
+      this.#attentionController = new AttentionSessionController(
+        new NativeAttentionHapticsAdapter(),
+        { sound: new ExpoAttentionSoundAdapter() },
+      )
       this.#attentionController.subscribe(() => { void this.refresh() })
       this.#registry.register(createAttentionRingCapability(this.#attentionController))
       this.#registry.register(createAttentionStopCapability(this.#attentionController))
@@ -428,11 +441,15 @@ export class ApplicationRuntime {
       this.#registry.register(createMediaPlayCapability(this.#mediaController))
       this.#registry.register(createMediaPauseCapability(this.#mediaController))
       this.#registry.register(createMediaResumeCapability(this.#mediaController))
+      this.#registry.register(createMediaSeekCapability(this.#mediaController))
       this.#registry.register(createMediaStopCapability(this.#mediaController))
       this.#registry.register(createMediaStatusCapability(this.#mediaController))
       this.#registry.register(createStatusCapability(new ExpoStatusProbe()))
       this.#confirmationCoordinator = new LocalConfirmationCoordinator()
-      this.#confirmationCoordinator.subscribe(() => { void this.refresh() })
+      this.#confirmationCoordinator.subscribe(() => {
+        this.#confirmationRevision += 1
+        void this.refresh()
+      })
 
       this.#localCommandExecutor = new LocalCommandExecutor({
         auditRepository: this.#auditRepository,
@@ -445,6 +462,14 @@ export class ApplicationRuntime {
         policyEngine: new PolicyEngine(),
         registry: this.#registry,
       })
+      const runtimeCapabilityDependencies = {
+        confirmationCoordinator: this.#confirmationCoordinator,
+        executor: this.#localCommandExecutor,
+        registry: this.#registry,
+      }
+      this.#registry.register(createRuntimeCapabilitiesCapability(runtimeCapabilityDependencies))
+      this.#registry.register(createRuntimePendingCommandsCapability(runtimeCapabilityDependencies))
+      this.#registry.register(createRuntimeCancelCapability(runtimeCapabilityDependencies))
       this.#deviceCredentialStore = new SecureDeviceCredentialStore()
       const storedCredential = await this.#deviceCredentialStore.get()
       this.#deviceTransport = new SdkDeviceTransport({

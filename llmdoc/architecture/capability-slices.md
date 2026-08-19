@@ -2,24 +2,29 @@
 
 ## 共同模式
 
-每个能力拥有 descriptor、strict schema、preflight/probe、handler、稳定错误映射和可注入 adapter。registry
-在展示与执行前读取真实 probe；平台模块不可自行持有 gateway credential。
+每个能力拥有 descriptor、strict input/output schema、preflight/probe、handler、稳定错误映射和可注入
+adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK 前解析 handler output；平台模块不可自行
+持有 gateway credential。依赖静态 allowlist 且配置为空的能力不公开 command，但仍发送对应空 node 来
+覆盖旧注册；真实网关是否正确移除旧命令需单独验证。
 
 ## 当前实现
 
 ### `phone/status.get`
 
 - 从 Expo Battery、Network 与 AppState 读取可得状态；缺失字段返回结构化 unavailable，不填造数据。
-- 低风险、只读、无需确认；仍只通过本地 registry 暴露，尚未进入 Agent `~help`。
+- 低风险、只读、无需确认；通过 SDK registry expose 与 output schema 暴露。
 
 ### `phone/attention.ring|stop`
 
 - 自定义 Expo 模块在 Android 使用 `Vibrator.hasVibrator`，iOS 使用 Core Haptics capability probe；
   Android API 24–25 走兼容 `Vibrator.vibrate(long)`，API 26+ 使用 `VibrationEffect`。
-- controller 提供 TTL、取消、单活动会话、调用方/全局 rate limit 和 UI stop。
-- 当前只请求 haptic；声音、闪光、DND/静音、后台/锁屏和真实物理输出待真机证据。
+- controller 提供 TTL、取消、单活动会话、调用方/全局 rate limit 和 UI stop；声音与 haptic 独立 probe、
+  独立启动并在 stop/到期时共同释放。
+- `find_device` sound 是固定参数生成的短 PCM WAV，只进入 App 私有 cache 后交给 `expo-audio`，不读取远端
+  音频、不请求录音权限，也不设置静音模式播放。闪光仍未实现；DND/静音、后台/锁屏和真实物理输出待
+  双端真机证据。
 
-### `phone/media.play|pause|resume|stop|status`
+### `phone/media.play|pause|resume|seek|stop|status`
 
 - `expo-audio` 单 player controller；远端 source 先由 bounded resolver 解析，不把 HTTPS URL 直接交给
   player。resolver 使用 `expo/fetch` 的 `credentials: omit` 和 `redirect: manual`，每一跳与最终响应 URL
@@ -29,6 +34,8 @@
 - 通过校验的字节写入 `expo-file-system` App 私有 cache，player 只接收 `file://` URI。失败、取消、
   player 启动失败和 stop 均进入对应 cache 清理路径；cache store 初始化时也清理此前遗留项。
 - 原生 port 最多等待 10 秒取得 metadata；直播、无效时长和超过 2 小时的媒体在 `play()` 前被拒绝。
+- `seek` 只接受当前 session id 与 0..7,200,000ms 的位置；未知 duration 或目标超过当前 duration 时拒绝，
+  不猜测直播/无 metadata 会话的可跳转性。
 - App session 与普通审计只保留 hostname、MIME 与大小等安全摘要，不保存完整 URL/query；系统 metadata
   带 Tool Bridge/调用方标识。
 - 已生成 Android media playback foreground service 与 iOS audio background mode 配置，但锁屏控制、
@@ -101,6 +108,14 @@
   fired、delivered、presented、clicked 或 on-time。purpose 不进入 DB、native、outcome 或普通 audit。
 
 完整状态转换、恢复条件和证据边界见 `llmdoc/reference/local-timers.md`。
+
+### `phone/runtime.capabilities|pending_commands|cancel`
+
+- `capabilities` 返回 registry 当前 descriptor 与 live availability，明确区分“本地实现”与“此刻可用”。
+- `pending_commands` 只返回同 gateway credential principal 的安全活动元数据，不返回 arguments；当前查询
+  command 自身不出现在列表中，等待本地确认的命令标记为 `awaiting_user`。
+- `cancel` 只向同 principal、当前进程内的活动命令请求 AbortSignal 取消；它是 write effect，因此 SDK
+  expose 仍标记 confirm，不声称等价于具体 Agent identity、网关 mailbox 或跨进程撤销。
 
 ## 配置来源
 

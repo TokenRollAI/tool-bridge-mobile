@@ -1,4 +1,5 @@
 import { ToolExecutionError } from '@/capabilities/types'
+import { createReactNativeAbortSignal } from '@/testFixtures/reactNativeAbortSignal'
 
 import { CurrentLocationController } from '../controller'
 import { currentLocationArgumentsSchema } from '../schema'
@@ -92,7 +93,7 @@ describe('CurrentLocationController', () => {
     )
     await expect(controller.current(
       argumentsValue,
-      new AbortController().signal,
+      createReactNativeAbortSignal(),
     )).resolves.toEqual({
       capturedAt: '2026-08-19T00:00:01.000Z',
       coordinate: { latitude: 31.2304, longitude: 121.4737 },

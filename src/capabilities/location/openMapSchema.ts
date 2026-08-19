@@ -27,5 +27,13 @@ export const openMapArgumentsSchema = z.strictObject({
   target: z.discriminatedUnion('kind', [coordinateTarget, queryTarget]),
 })
 
+export const openMapResultSchema = z.strictObject({
+  status: z.literal('handed_off'),
+  target: z.strictObject({
+    kind: z.literal('map'),
+    provider: z.enum(['android_geo_handler', 'apple_map_link']),
+  }),
+})
+
 export type OpenMapArguments = z.infer<typeof openMapArgumentsSchema>
 export type OpenMapTarget = OpenMapArguments['target']

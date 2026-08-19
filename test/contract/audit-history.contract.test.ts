@@ -43,6 +43,7 @@ describe('audit history contract', () => {
         return { status: 'committed' }
       },
       inputSchema: z.strictObject({ secret: z.string() }),
+      outputSchema: z.strictObject({ status: z.literal('committed') }),
       probe: async () => ({ status: 'available' }),
     }
     const registry = new CapabilityRegistry()

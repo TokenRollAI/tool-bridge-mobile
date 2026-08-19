@@ -208,6 +208,45 @@ describe('local runtime contract', () => {
     expect(harness.executor.cancelAll()).toBe(0)
   })
 
+  test('活动命令查询和单项取消严格限定 caller subject', async () => {
+    let startedCount = 0
+    let reportBothStarted: (() => void) | null = null
+    const bothStarted = new Promise<void>(resolve => { reportBothStarted = resolve })
+    const harness = createHarness({}, {
+      observe: signal => new Promise((_resolve, reject) => {
+        startedCount += 1
+        if (startedCount === 2) reportBothStarted?.()
+        signal.addEventListener('abort', () => {
+          const error = new Error('Aborted')
+          error.name = 'AbortError'
+          reject(error)
+        }, { once: true })
+      }),
+    })
+    const callerA = harness.executor.execute(
+      { ...command, commandId: 'caller_a_active' },
+      new AbortController().signal,
+    )
+    const callerB = harness.executor.execute(
+      {
+        ...command,
+        caller: { subjectId: 'caller_key_02' },
+        commandId: 'caller_b_active',
+      },
+      new AbortController().signal,
+    )
+
+    await bothStarted
+    expect(harness.executor.listActiveForCaller('caller_key_01')).toEqual([
+      expect.objectContaining({ commandId: 'caller_a_active' }),
+    ])
+    expect(harness.executor.cancelForCaller('caller_b_active', 'caller_key_01')).toBe(false)
+    expect(harness.executor.cancelForCaller('caller_a_active', 'caller_key_01')).toBe(true)
+    await expect(callerA).resolves.toMatchObject({ error: { code: 'cancelled' }, ok: false })
+    expect(harness.executor.cancelAll()).toBe(1)
+    await expect(callerB).resolves.toMatchObject({ error: { code: 'cancelled' }, ok: false })
+  })
+
   test('超过 capability inline 结果字节上限时不把大值写入 command store', async () => {
     const oversizedReason = `oversized_${'界'.repeat(6_000)}`
     const harness = createHarness({}, {

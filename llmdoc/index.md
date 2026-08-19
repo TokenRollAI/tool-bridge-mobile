@@ -86,6 +86,8 @@
   现场信号中分层排障，并把 raw close 压缩为不泄露凭证的固定诊断字段的经验。
 - `memory/reflections/2026-08-19-github-preview-release.md`：统一版本真源、隔离 branch/tag 环境变量，并把
   自动内部发布与 production 资格分层的经验。
+- `memory/reflections/2026-08-20-sdk-capability-completion.md`：从 RN Web API 差异、双向 expose schema、
+  全局确认 modal、principal-scoped runtime control 与本地 attention sound 得出的能力交付经验。
 
 ## 路由规则
 

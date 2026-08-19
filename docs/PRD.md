@@ -95,7 +95,8 @@ Agent 可以发现这台设备当下真实可用的能力，并在权限、确�
 | --- | --- | --- |
 | 找手机 | `phone/attention.ring`、`stop` | 响铃会话和最终状态 |
 | 设备状态 | `phone/status.get` | 电量、网络、权限摘要、可达性 |
-| 播放媒体 | `phone/media.play`、`pause`、`status` | 本 App 播放状态 |
+| 播放媒体 | `phone/media.play/pause/resume/seek/stop/status` | 本 App 播放状态 |
+| 本地运行时 | `phone/runtime.capabilities/pending_commands/cancel` | 当前 credential principal 范围内的安全元数据与取消请求 |
 | 打开内容 | `phone/apps.open_url`、`phone/location.open_map` | 已打开/等待用户/拒绝 |
 | 本地通知 | `phone/productivity.notify` | 通知标识和系统调度状态（不等于展示或点击） |
 | App 内计时器 | `phone/productivity.timer_start/timer_cancel/timer_status` | SQLite 状态和系统 pending 观察（不等于准时展示） |
@@ -147,7 +148,7 @@ pairing、设备专用最小权限凭证或撤销条目，产品发布前仍需�
 
 ### FR-3：能力声明
 
-- 每个工具声明名称、描述、JSON Schema、effect、确认策略和平台约束；
+- 每个工具声明名称、描述、输入/输出 JSON Schema、effect、确认策略和平台约束；
 - capability profile 由实际探测产生，而不是仅由 OS 名称静态生成；
 - 权限被撤销、App 进入后台或控制模式变化时，网关最终可观察到能力变化；
 - Agent 调用过期能力时，返回可操作的结构化错误。
@@ -167,7 +168,8 @@ queued -> delivered -> awaiting_user -> running -> succeeded
 - 所有命令有全局唯一 `commandId`、创建时间和过期时间；
 - 同一 `commandId` 最多产生一次外部副作用；
 - 客户端重试只能回放首次结果，不能重复响铃、通知或拍照；
-- 等待用户确认时调用方可查询状态；
+- 前台 SDK 调用可查询同一 credential principal 的本地活动/等待确认摘要并请求取消；这不是后台 mailbox，
+  也不能冒充具体 Agent 归因；
 - 过期或取消后不得开始新的副作用。
 
 ### FR-5：找手机

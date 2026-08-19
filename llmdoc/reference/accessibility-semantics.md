@@ -9,13 +9,17 @@
   48dp 的 minWidth/minHeight。四个 tab 显式使用“状态/能力/媒体/活动标签页”唯一 label，并投影 selected。
 - Activity destructive confirmation 打开时聚焦确认标题，取消/完成后返回清除触发按钮；组件测试覆盖
   focus 往返和普通更新不抢焦点。
+- 远程 command 的 `PendingConfirmationModal` 挂在 root layout，不受当前 tab 与首页滚动位置影响；打开时
+  聚焦标题，只显示最早一项，并为“允许一次/拒绝”提供包含 caller 与 capability 的唯一名称。
 
 ## 公告与敏感边界
 
 - `useDiscreteAccessibilityAnnouncement` 用 semantic key 去重：初始 render 不公告、相同 key 不重复，
   只在错误、控制模式、pending 数量、timer/media 等离散状态变化时发出安全摘要。
-- confirmation detail、message、purpose、地址、坐标、URL 和完整 outcome 不进入 accessibility label 或
-  announcement。attention 倒计时和媒体 progress 只视觉更新，不改变 semantic key，因此不会高频播报。
+- confirmation detail、message、purpose、地址、坐标、URL 和完整 outcome 不进入 accessibility
+  announcement；全局 confirmation 只公告待处理数量。detail 可作为用户主动查看的 modal 视觉/语义内容，
+  但 action label 只包含 caller 与 capability。attention 倒计时和媒体 progress 只视觉更新，不改变
+  semantic key，因此不会高频播报。
 - 颜色回归 gate 要求普通文本对比至少 4.5:1，交互边界/控件文字至少 3:1；视觉状态不能只依赖颜色。
 
 ## 自动化证据与上限
@@ -35,5 +39,6 @@
 - focus/announcement：`src/ui/accessibility.ts`
 - tab labels：`src/ui/navigation.ts`
 - tests：`src/ui/components/__tests__/accessibilityComponents.test.tsx`、
-  `src/ui/__tests__/accessibility.test.tsx`、`src/ui/__tests__/themeContrast.test.ts`
+  `src/ui/components/__tests__/PendingConfirmationModal.test.tsx`、`src/ui/__tests__/accessibility.test.tsx`、
+  `src/ui/__tests__/themeContrast.test.ts`
 - 验收：`docs/DOD.md`、`docs/verification/2026-08-19-android-emulator.md`

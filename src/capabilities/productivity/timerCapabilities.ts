@@ -1,6 +1,9 @@
 import {
   timerReferenceArgumentsSchema,
+  timerCancelResultSchema,
   timerStartArgumentsSchema,
+  timerStartResultSchema,
+  timerStatusResultSchema,
 } from './timerSchema'
 
 import type {
@@ -45,6 +48,7 @@ export function createTimerStartCapability(
       controller.start(argumentsValue, invocation, signal)
     ),
     inputSchema: timerStartArgumentsSchema,
+    outputSchema: timerStartResultSchema,
     preflight: argumentsValue => { controller.validateStart(argumentsValue.firesAt) },
     probe: context => controller.probeStart(context.appState),
   }
@@ -68,6 +72,7 @@ export function createTimerCancelCapability(
       controller.cancelForCaller(argumentsValue.timerId, invocation.caller.subjectId)
     ),
     inputSchema: timerReferenceArgumentsSchema,
+    outputSchema: timerCancelResultSchema,
     probe: () => controller.probeControl(),
   }
 }
@@ -90,6 +95,7 @@ export function createTimerStatusCapability(
       controller.status(argumentsValue.timerId, invocation.caller.subjectId)
     ),
     inputSchema: timerReferenceArgumentsSchema,
+    outputSchema: timerStatusResultSchema,
     probe: () => controller.probeControl(),
   }
 }

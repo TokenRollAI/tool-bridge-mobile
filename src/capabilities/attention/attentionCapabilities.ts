@@ -1,7 +1,12 @@
 import { ToolExecutionError } from '@/capabilities/types'
 
 import { AttentionRateLimiter } from './rateLimiter'
-import { ringArgumentsSchema, stopArgumentsSchema } from './schema'
+import {
+  ringArgumentsSchema,
+  ringResultSchema,
+  stopArgumentsSchema,
+  stopResultSchema,
+} from './schema'
 
 import type { AttentionSessionController } from './controller'
 import type { RingArguments, RingResult, StopArguments, StopResult } from './schema'
@@ -18,7 +23,7 @@ export function createAttentionRingCapability(
     }],
     descriptor: {
       confirmation: 'when_locked',
-      description: '在前台设备上重复请求可探测的 haptic；声音和闪光尚未实现',
+      description: '在前台设备上播放内置提示音并可重复请求 haptic；闪光灯未实现',
       effect: 'write',
       limits: {
         maxResultBytes: 8_192,
@@ -46,13 +51,15 @@ export function createAttentionRingCapability(
       )
     },
     inputSchema: ringArgumentsSchema,
+    outputSchema: ringResultSchema,
     probe: async context => {
       if (context.appState !== 'active') {
         return { reason: 'foreground_required', status: 'unavailable' }
       }
-      return await controller.probeHaptics()
+      const channels = await controller.probeChannels()
+      return channels.haptics || channels.sound
         ? { status: 'available' }
-        : { reason: 'haptics_unavailable', status: 'unavailable' }
+        : { reason: 'attention_channels_unavailable', status: 'unavailable' }
     },
   }
 }
@@ -82,6 +89,7 @@ export function createAttentionStopCapability(
       return result
     },
     inputSchema: stopArgumentsSchema,
+    outputSchema: stopResultSchema,
     probe: async () => ({ status: 'available' }),
   }
 }

@@ -20,7 +20,8 @@ Expo 模块的 Android manifests 默认可能合并 legacy external storage、de
 development debug manifest 的 overlay 声明；配置 introspection 与安装后 `dumpsys package` 都必须
 证明它们未进入最终 App。
 
-当前本地确认队列最多 10 条，只显示调用元数据，不显示/持久化完整参数。批准只对单个 commandId
+当前本地确认队列最多 10 条，并以根布局 Modal 覆盖所有标签页，优先显示最早一条及安全挑选的确认
+详情；它不持久化完整参数。批准只对单个 commandId
 有效；executor 在批准后重新执行过期、取消、probe 和 Disabled 检查。并发重复 commandId 共用同一
 in-flight Promise，避免确认后出现第二个副作用。确认页、系统媒体 metadata 等用户可见远端文本会在
 schema 层拒绝 C0/C1 control 与 bidi override/isolate 字符，避免方向覆盖伪装系统文案。
@@ -29,6 +30,14 @@ schema 层拒绝 C0/C1 control 与 bidi override/isolate 字符，避免方向�
 confirmation 前 admission，防止先塞满确认队列；SQLite claim 返回后再复检取消/到期。command
 deadline 会截断 attention session 和 location wait，emergency disable 会 abort 进行中 handler。
 这些窗口当前在进程重启后重置，因此不替代上游账户/设备配额。
+
+`phone/runtime.pending_commands/cancel` 只能观察或取消同一 gateway credential principal 的本地活动
+命令，不返回 arguments、确认正文或结果，也不泄露其他 principal 是否存在目标 commandId。当前 SDK
+没有具体 Agent caller，因此 UI、审计和工具结果均不得把这一边界描述成 per-Agent ownership。
+
+attention 内置提示音是 App 本地生成的固定短 WAV，只写 App 私有 cache，不接受 URL/objectRef 或远端
+音频字节。播放请求明确不启用 silent-mode bypass，也不声称越过 DND；flash 仍未实现，App 不为其声明
+Camera 权限。
 
 command 防重放记录不能只在 App 启动时清理：每次从 running 写入终态都与 retention prune 共用同一
 SQLite exclusive transaction，终态总数持续限制为 10,000 条。裁剪按 receivedAt/commandId 淘汰最旧

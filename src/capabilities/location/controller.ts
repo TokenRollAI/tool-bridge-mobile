@@ -1,3 +1,4 @@
+import { throwIfSignalAborted } from '@/capabilities/abortSignal'
 import { ToolExecutionError } from '@/capabilities/types'
 
 import type {
@@ -104,7 +105,7 @@ export class CurrentLocationController {
   }
 
   #assertMayContinue(signal: AbortSignal, commandExpiresAt: string | undefined): void {
-    signal.throwIfAborted()
+    throwIfSignalAborted(signal)
     if (
       commandExpiresAt !== undefined
       && Date.parse(commandExpiresAt) <= this.clock().getTime()

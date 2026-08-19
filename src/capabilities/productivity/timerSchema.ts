@@ -17,6 +17,35 @@ const purpose = z.string().max(120).refine(
 export const timerStartArgumentsSchema = z.strictObject({ firesAt, purpose })
 export const timerReferenceArgumentsSchema = z.strictObject({ timerId })
 
+export const timerStartResultSchema = z.strictObject({
+  accuracy: z.literal('system_determined'),
+  firesAt,
+  scheduling: z.literal('system_accepted'),
+  state: z.literal('scheduled'),
+  timerId,
+})
+
+export const timerCancelResultSchema = z.strictObject({
+  presentation: z.literal('unknown'),
+  state: z.literal('cancelled'),
+  timerId,
+})
+
+export const timerStatusResultSchema = z.strictObject({
+  firesAt,
+  observedAt: z.string(),
+  presentation: z.enum(['system_determined', 'unknown']),
+  scheduling: z.enum(['pending_observed', 'not_pending', 'unknown']),
+  state: z.enum([
+    'scheduled',
+    'schedule_missing',
+    'deadline_elapsed',
+    'cancelled',
+    'status_unknown',
+  ]),
+  timerId,
+})
+
 export type TimerStartArguments = z.infer<typeof timerStartArgumentsSchema>
 export type TimerReferenceArguments = z.infer<typeof timerReferenceArgumentsSchema>
 
