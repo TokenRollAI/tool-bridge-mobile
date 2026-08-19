@@ -168,7 +168,7 @@ await adb('install', apkPath)
 await adb('reverse', `tcp:${devServerPort}`, `tcp:${devServerPort}`)
 
 const packageInfo = await adb('shell', 'dumpsys', 'package', appId)
-for (const expected of ['versionCode=1 minSdk=24 targetSdk=36', 'versionName=0.1.0']) {
+for (const expected of ['versionCode=2 minSdk=24 targetSdk=36', 'versionName=0.0.2']) {
   if (!packageInfo.includes(expected)) throw new Error(`安装包信息缺少: ${expected}`)
 }
 for (const forbidden of forbiddenPermissions) {

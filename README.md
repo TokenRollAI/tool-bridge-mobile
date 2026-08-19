@@ -114,7 +114,7 @@ APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，a
 
 ## 版本与 GitHub 预发布
 
-当前 App/package 版本为 `0.0.1`。推送匹配 `vX.Y.Z` 的 tag 时，
+当前 App/package 版本为 `0.0.2`。推送匹配 `vX.Y.Z` 的 tag 时，
 [`release-preview`](.github/workflows/release.yml) 会先验证 tag、`package.json`、Expo App 版本和对应
 `docs/releases/<tag>.md` 完全一致，再执行 frozen install、全量 verify、peer/dependency gate、Android
 preview APK clean build 与 iOS simulator build。所有门禁成功后才创建 GitHub Pre-release，并附带

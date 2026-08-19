@@ -371,7 +371,7 @@ command 有界清理不再只依赖启动：每次终态 UPDATE 与 prune 在同
 
 ## 8. Release DOD
 
-`v0.0.1` 可以作为 GitHub 内测 Pre-release：tag workflow 必须先验证版本/发布说明一致，重跑 frozen
+`v0.0.2` 可以作为 GitHub 内测 Pre-release：tag workflow 必须先验证版本/发布说明一致，重跑 frozen
 install、全量验证、Android Preview APK 与 iOS simulator，再附上 APK/SHA-256。该过程仍使用 Preview
 application id 与 debug test key，以下 production/store Release 条目不会因此提前勾选。
 
