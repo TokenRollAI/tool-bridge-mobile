@@ -153,7 +153,6 @@ export class SdkDeviceTransport {
   readonly #clock: () => Date
   readonly #connect: DeviceConnect
   readonly #webSocketFactory: DeviceWebSocketFactory
-  #appState = 'unknown'
   #baseUrl: string | null
   #connection: DeviceConnection | null = null
   #diagnosticRevision = 0
@@ -176,8 +175,10 @@ export class SdkDeviceTransport {
     return this.#snapshot
   }
 
+  // appState 仅作为“生命周期已变化，请重新评估连接”的触发信号；其具体值不再参与连接门禁
+  // （见 #applyLifecycle），保留形参是为了让调用方与传输层测试能表达当前 AppState。
   updateLifecycle(appState: string, enabled: boolean): Promise<void> {
-    this.#appState = appState
+    void appState
     this.#enabled = enabled
     const revision = ++this.#lifecycleRevision
     this.#transition = this.#transition
@@ -240,12 +241,12 @@ export class SdkDeviceTransport {
       return
     }
 
-    // 允许在 active 与 background 两种状态下保持连接，使 App 退到后台时命令仍能到达。
-    // inactive/unknown 是短暂过渡态（如来电、切换动画、锁屏瞬间），仍 suspend 以避免抖动。
-    // enabled=false（Disabled/紧急停用）始终 suspend。真正的后台进程存活需要平台前台服务，
+    // 不再按 AppState 主动断连：active/background/inactive/unknown 都保持连接。inactive 是失焦、
+    // 台前调度切换、通知中心下拉、来电弹窗等短暂过渡态，按 AppState 变化 suspend/resume 反而会把
+    // 每次失焦放大成一次断线重连（ready→suspended→connecting→ready），这正是抖动的来源。
+    // 只有 enabled=false（Disabled/紧急停用）才主动 suspend。真正的后台进程存活需要平台前台服务，
     // 这里只放开逻辑门禁；系统仍可能在后台回收进程并中断连接。
-    const connectable = this.#appState === 'active' || this.#appState === 'background'
-    if (!this.#enabled || !connectable) {
+    if (!this.#enabled) {
       this.#suppressActiveSocketDiagnostic?.()
       this.#connection?.suspend()
       if (this.#connection === null) {
