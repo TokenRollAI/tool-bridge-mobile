@@ -1,5 +1,8 @@
 # tool-bridge-mobile
 
+[![verify](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/verify.yml)
+[![release-preview](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/release.yml/badge.svg)](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/release.yml)
+
 让 Agent 的能力边界从云端延伸到用户明确授权的手机。
 
 `tool-bridge-mobile` 是 HTBP / Tool Bridge 生态中的移动设备运行时。它把 Android 和 iOS
@@ -108,6 +111,18 @@ pnpm build:ios:sim
 APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，artifact 保留 14 天。该包使用
 生成的 debug test key 签名，只用于内部试用；它不是生产签名、商店 release 或 release DOD 证据。
 本地构建与安装证据见 [Android preview APK 验证记录](docs/verification/2026-08-19-android-preview-apk.md)。
+
+## 版本与 GitHub 预发布
+
+当前 App/package 版本为 `0.0.1`。推送匹配 `vX.Y.Z` 的 tag 时，
+[`release-preview`](.github/workflows/release.yml) 会先验证 tag、`package.json`、Expo App 版本和对应
+`docs/releases/<tag>.md` 完全一致，再执行 frozen install、全量 verify、peer/dependency gate、Android
+preview APK clean build 与 iOS simulator build。所有门禁成功后才创建 GitHub Pre-release，并附带
+版本化 APK 与 SHA-256。
+
+版本页面：[GitHub Releases](https://github.com/TokenRollAI/tool-bridge-mobile/releases)。当前自动发布仍是
+内部 Preview：APK 使用 debug test key，且不会自动上传商店、创建 production AAB/IPA 或假装满足
+[Release DOD](docs/DOD.md#8-release-dod)。
 
 仓库同时绑定到 Expo 项目 [`@tokenroll/tool-bridge`](https://expo.dev/accounts/tokenroll/projects/tool-bridge)，
 development / preview / production 共用 EAS Project ID，但继续使用不同的 application id、bundle id、

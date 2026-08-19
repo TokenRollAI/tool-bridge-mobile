@@ -47,6 +47,8 @@
 - `reference/manual-gateway-configuration.md`：手工 Gateway HTTPS origin/API key 的输入、身份、SecureStore、
   配置切换顺序与证据边界。
 - `reference/sdk-device-transport.md`：官方 RN SDK 子入口、凭证/header、生命周期、call 归一化与证据边界。
+- `reference/github-preview-release.md`：稳定 tag、版本真源、双端门禁、最小发布权限与内部 Preview 的
+  production 证据边界。
 - `reference/upstream-and-platform-blockers.md`：上游、iOS 和真机阻塞项及其事实真源。
 
 ### 过程记忆
@@ -79,6 +81,8 @@
   验证，并处理缺失 caller/deadline 的 transport 接入经验。
 - `memory/reflections/2026-08-19-manual-gateway-credential.md`：在 pairing 前加入手工 API key fallback 时，
   分离 installation/device/caller 身份并保证 transport 与 SecureStore 切换顺序的经验。
+- `memory/reflections/2026-08-19-github-preview-release.md`：统一版本真源、隔离 branch/tag 环境变量，并把
+  自动内部发布与 production 资格分层的经验。
 
 ## 路由规则
 
@@ -102,6 +106,8 @@
   `reference/eas-project-binding.md` 和对应 reflection。
 - 修改 Gateway 设置、SecureStore credential、SDK transport origin 或鉴权 header 前，额外读
   `reference/manual-gateway-configuration.md` 和对应 reflection。
+- 修改 App version/build number、release notes、tag workflow 或 GitHub Release 前，额外读
+  `reference/github-preview-release.md` 和对应 reflection。
 - 声称功能“完成”、勾选 DOD 或写 PR 证据前，读 `must/evidence-language.md` 和
   `guides/verification-and-claims.md`。
 - 涉及 pairing、realtime、mailbox、push、objectRef 或 capability profile 时，先读

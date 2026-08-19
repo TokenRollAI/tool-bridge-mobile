@@ -97,8 +97,9 @@
   production signer 或 Play release。
 - API 36 emulator 上显式冷启动 preview MainActivity 成功，内嵌 bundle 进入本地运行时首页并显示
   transport `unconfigured` 与四个 tab；启动窗口没有 preview `FATAL EXCEPTION`。
-- workflow 已声明在 verify 后构建同一 preview APK、生成 SHA-256 并上传 14 天 artifact；远端 Actions
-  尚未产生本提交的成功 run，因此 CI artifact 仍待远端证据。
+- commit `a4edb73` 的 Actions run 32239849273 已从 clean checkout 完成 frozen install、全量 verify、
+  Android Preview APK 与 iOS simulator build。artifact `9360956142` 的 workflow head SHA 为 `a4edb73`，
+  APK SHA-256 为 `802a3e8cbd9de1378f0295c22c26bfcef7effe2002f203302f195e372d009165`。
 - 完整命令和限制以 `docs/verification/2026-08-19-android-preview-apk.md` 为事实真源。
 
 ## Android emulator smoke
@@ -141,7 +142,9 @@
 - command sqlite3 fixture 不证明 Expo SQLite 在 Android/iOS 真机上的锁争用、I/O 或 10,000 条性能；
   本地有界 tombstone 也不是 gateway 级永久 dedupe。
 - `objectRef` 及其 MIME/大小/TTL 下载授权仍等待上游契约；HTTPS resolver 不能替代该对象模型。
-- 本机没有完整 Xcode，因此未执行 iOS simulator build；iOS 只完成代码/配置与 autolink 静态检查。
-- 未执行 release build、签名、安装 smoke、性能、24 小时稳定性、CI clean-checkout 或 artifact-to-commit
-  追溯验证。
-- 当前产物来自基线 commit 加未提交实现，不能满足 release DOD 的可追溯要求。
+- 本机没有完整 Xcode；iOS simulator 由上述 macOS CI 成功记录覆盖，但 iOS 真机、签名 archive/IPA 和
+  商店行为仍未验证。
+- 已有 clean-checkout CI 与 artifact-to-commit 追溯，但未执行 production signer/AAB/IPA、Release 安装
+  smoke、性能、24 小时稳定性或 rollout/rollback。
+- `v0.0.1` GitHub Preview 流水线正在本工作树准备；在 tag workflow 和 Release 资产实际成功前，不能把
+  设计写成已发布证据。

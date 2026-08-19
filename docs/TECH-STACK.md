@@ -236,17 +236,26 @@ E2E 工具只负责驱动 UI；平台是否真正发声、振动、拍照和接�
 - lint；
 - unit / component / local runtime contract；
 - SDK device consumer contract；真实 gateway fixture 可用后加入 compatibility matrix；
-- Android debug build；
+- Android preview APK clean build；
 - iOS simulator build（macOS runner）；
 - 依赖、许可证与 secret 扫描；
 - 文档链接检查。
 
 ### 合并 main
 
-- preview build；
-- 安装到测试设备组；
-- golden scenario smoke；
-- 产出可追溯 build metadata。
+- 重跑 frozen install、verify、peer/dependency gate；
+- 重跑 Android preview APK 与 iOS simulator clean build；
+- 上传以 commit SHA 命名、保留 14 天的 preview APK 与 SHA-256；
+- 安装到测试设备组、golden scenario smoke 和更长期 build metadata 仍未自动化。
+
+### 版本 tag / GitHub Pre-release
+
+- 只接受与 `package.json` / Expo `APP_VERSION` 一致的 `vX.Y.Z` tag；
+- tag commit 必须带 `docs/releases/<tag>.md`，否则在任何原生 build 前 fail closed；
+- tag workflow 重跑 frozen install、全量 verify、peer/dependency gate、Android preview APK 与 iOS
+  simulator build；
+- 双端门禁都成功后，自动创建 GitHub Pre-release，附版本化 Preview APK 与 SHA-256；
+- GitHub token 只在最终 publish job 获得 `contents: write`，其他 job 保持只读；仓库不保存签名或服务密钥。
 
 ### Release
 
@@ -257,6 +266,9 @@ E2E 工具只负责驱动 UI；平台是否真正发声、振动、拍照和接�
 - 服务端 protocol compatibility gate；
 - 可回滚到上一 App 版本和关闭 capability flag。
 
+当前 `v0.0.1` 流程只实现前述 GitHub Pre-release，不是本节 production/store Release。它继续使用 Preview
+application id 与 debug test key，不会生成 AAB/IPA、上传商店或绕过 gateway、真机、安全与合规门禁。
+
 仓库已绑定到单一 Expo 项目 `@tokenroll/tool-bridge`（Project ID
 `378c7a3e-437a-49a6-ae20-fef5af6f6188`）。development / preview / production 共用该项目身份，安装标识、
 scheme、显示名称和 EAS environment 继续隔离；preview profile 显式生成 internal-distribution APK。
@@ -264,13 +276,14 @@ Project ID 是公开项目标识并进入 `app.config.ts`，不是凭证；任�
 进入仓库。
 
 EAS Build 仍只是可替换的构建执行器，不是架构依赖；若成本、密钥治理或自托管要求不合适，可以切换
-GitHub-hosted/self-hosted native runner。当前 GitHub Actions 继续承担 verify 与双端 clean build gate，
+GitHub-hosted/self-hosted native runner。当前 GitHub Actions 继续承担 verify、双端 clean build gate 与
+tag 驱动的 GitHub Preview 发布，
 不能因 EAS 项目已关联就跳过仓库 CI。
 
 当前 Android clean debug build 的工具链、命令和产物摘要记录在
 [2026-08-19 Android debug 验证记录](verification/2026-08-19-android-debug.md)；安装和 UI smoke 记录在
-[2026-08-19 Android emulator smoke](verification/2026-08-19-android-emulator.md)。iOS simulator build
-仍需完整 Xcode 环境或 macOS CI 的成功记录，不能由 Android 结果代替；emulator 也不能替代双端真机。
+[2026-08-19 Android emulator smoke](verification/2026-08-19-android-emulator.md)。macOS CI 已有 iOS
+simulator 成功记录；它仍不能替代 iOS 真机、签名 archive 或商店包。
 
 ## 10. 未选择的方案
 

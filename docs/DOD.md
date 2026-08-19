@@ -29,17 +29,22 @@
 - [x] lint 无 warning/error；
 - [ ] unit / component / protocol contract 全绿；
 - [x] Android debug build 成功；
-- [ ] iOS simulator build 成功；
+- [x] iOS simulator build 成功；
 - [x] 没有依赖 Expo Go 才能工作的关键路径；
-- [ ] CI 从全新 checkout 可复现。
+- [x] CI 从全新 checkout 可复现。
 
 当前测试事实：unit、component、本地运行时与 SDK device consumer contract 共 221 项全绿；真实
 gateway wire fixture 尚未
 交付，所以组合项中的 protocol contract 不提前勾选。Android 已用仓库正式 clean build 入口在本地
-构建成功，证据见 [2026-08-19 Android debug 验证记录](verification/2026-08-19-android-debug.md)；iOS
-与 clean-checkout CI 在成功记录产生前继续保持未完成。另有内嵌 JS、debug test key 签名且可安装的
+构建成功，证据见 [2026-08-19 Android debug 验证记录](verification/2026-08-19-android-debug.md)。
+commit `a4edb73` 的
+[GitHub Actions run 32239849273](https://github.com/TokenRollAI/tool-bridge-mobile/actions/runs/32239849273)
+已从 clean checkout 完成 frozen install、全量 verify、Android preview APK 与 iOS simulator build；这只
+关闭工程可复现与 simulator build 条目，不是双端真机、正式签名或商店证据。另有内嵌 JS、debug test
+key 签名且可安装的
 [Android preview APK 本地验证](verification/2026-08-19-android-preview-apk.md)，但它不替代 CI artifact、
-生产签名、真机或 release DOD。
+生产签名、真机或 release DOD。tag 发布门禁与证据边界见
+[GitHub Preview 发布流水线](verification/2026-08-19-github-preview-release.md)。
 
 ### 配置
 
@@ -365,6 +370,10 @@ command 有界清理不再只依赖启动：每次终态 UPDATE 与 prune 在同
 - [ ] release note 标出用户可感知变化。
 
 ## 8. Release DOD
+
+`v0.0.1` 可以作为 GitHub 内测 Pre-release：tag workflow 必须先验证版本/发布说明一致，重跑 frozen
+install、全量验证、Android Preview APK 与 iOS simulator，再附上 APK/SHA-256。该过程仍使用 Preview
+application id 与 debug test key，以下 production/store Release 条目不会因此提前勾选。
 
 ### 构建与供应链
 

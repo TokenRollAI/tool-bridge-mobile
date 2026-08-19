@@ -15,6 +15,12 @@ const easProject = {
   slug: 'tool-bridge',
 }
 
+const releaseMetadata = {
+  androidVersionCode: 1,
+  iosBuildNumber: '1',
+  version: '0.0.1',
+}
+
 for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   const { stdout } = await execFileAsync(
     'pnpm',
@@ -45,6 +51,13 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   }
   if (config.extra?.eas?.projectId !== easProject.id) {
     throw new Error(`${variant}: EAS projectId 不匹配`)
+  }
+  if (
+    config.version !== releaseMetadata.version
+    || config.android?.versionCode !== releaseMetadata.androidVersionCode
+    || config.ios?.buildNumber !== releaseMetadata.iosBuildNumber
+  ) {
+    throw new Error(`${variant}: App 版本或平台 build number 不匹配`)
   }
   if (config.extra?.gatewayOrigin !== 'https://gateway.example.com') {
     throw new Error(`${variant}: gateway HTTPS origin 未规范化`)
