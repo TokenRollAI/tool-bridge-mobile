@@ -9,18 +9,36 @@
 ### 工作项
 
 - [x] 建立独立仓库、产品与架构文档；
-- [ ] 初始化 Expo TypeScript development-build 工程；
-- [ ] 配置 Android applicationId、iOS bundle id 和三环境；
+- [x] 初始化 Expo TypeScript development-build 工程；
+- [x] 配置 Android applicationId、iOS bundle id 和三环境；
 - [ ] 建立严格 TypeScript、lint、test、CI；
-- [ ] 建立 app/service/storage/native module 目录；
+- [x] 建立 app/service/storage/native module 目录；
 - [ ] 接入上游公共 `@tool-bridge/device-client`；
 - [ ] pairing UI + SecureStore；
-- [ ] SQLite command/audit schema 和 migration；
+- [x] SQLite command/audit schema 和 migration；
 - [ ] 前台 WebSocket ticket 连接；
-- [ ] capability registry 与 policy engine；
-- [ ] 权限/能力页、活动页、紧急停用；
+- [x] capability registry 与 policy engine；
+- [x] 权限/能力页、活动页、紧急停用；
 - [ ] fake gateway 和协议 fixture；
 - [ ] 双端 debug build。
+
+### 当前证据与未实现边界
+
+- `pnpm verify` 已覆盖 strict TypeScript、零 warning lint、unit/component/local contract、配置与
+  供应链检查；当前 workflow 已声明 clean checkout 与双端 build，但在本分支 CI 留下成功记录前，
+  CI checkbox 保持未完成；Android clean debug build 已有本地证据，iOS 尚无成功记录，因此“双端”
+  checkbox 也不提前勾选；
+- 本地 slice 已有 `phone/status.get`、SecureStore `installationId`、SQLite 持久化、能力/活动页与
+  emergency disable，并新增 SecureStore credential facade、fail-closed 本地撤销和有界清理；组合
+  工作项仍含权限页、pairing 或网关协议时不因部分实现提前勾选；
+- 本地 executor 已增加 confirmation 前 admission、结果字节上限、claim 后取消/到期复检、deadline
+  传播和进行中命令全局取消；HTTPS 媒体已增加最终 URL、MIME/签名、声明/实际字节与清理边界，
+  production revoke 仍未接入真实 transport；
+- command 终态写入与 retention prune 已进入同一 SQLite transaction，长驻进程也持续保持 10,000 条
+  终态硬上限；running、当前完成项与活动 timer source 不会被该事务误删；
+- API 36 Android emulator smoke 已覆盖干净安装、最小权限、动态能力页、紧急停用与进程重启持久化；
+  这不是 Android/iOS 真机行为证据；
+- 上游 U-1 至 U-6 尚未交付，production transport 明确显示 `unconfigured`。
 
 ### 出口
 
@@ -33,11 +51,11 @@ Android/iOS 真机可配对、显示设备状态、前台注册 `phone/status.ge
 
 ### 工作项
 
-- [ ] `phone/attention.ring/stop` schema 与 capability；
+- [x] `phone/attention.ring/stop` schema 与 capability；
 - [ ] Android sound/vibration/flash adapter；
 - [ ] iOS sound/haptic/notification adapter；
-- [ ] 本地停止 UI；
-- [ ] session TTL、限流、幂等；
+- [x] 本地停止 UI；
+- [x] session TTL、限流、幂等；
 - [ ] DND/静音/权限降级结果；
 - [ ] mailbox + APNs/FCM push；
 - [ ] queued/delivered/running/final 状态；
@@ -55,14 +73,29 @@ Android/iOS 真机可配对、显示设备状态、前台注册 `phone/status.ge
 
 ### 工作项
 
-- [ ] App 自有播放器；
-- [ ] media session / lock screen controls；
-- [ ] `play/pause/resume/stop/status`；
+- [x] App 自有播放器；
+- [x] media session / lock screen controls；
+- [x] `play/pause/resume/stop/status`；
 - [ ] HTTPS/objectRef source policy；
-- [ ] `open_url/can_open_url` allowlist；
-- [ ] `open_map`；
+- [x] `open_url/can_open_url` allowlist；
+- [x] `open_map`；
 - [ ] 通知 deep link；
 - [ ] 后台播放、耳机控制、音频中断测试。
+
+当前本地实现使用精确锁定的 `expo-audio`：只接受配置 allowlist 内的标准端口 HTTPS，经手动 redirect、
+最终 URL、MIME/签名、声明/实际 25 MiB 校验后流式写入 App 私有 cache，player 不接收远程 URL；
+player 在 `play()` 前拒绝直播、无效时长和超过 2 小时的媒体；单会话阻止重叠播放，并配置 Android
+可见 media foreground service 与 iOS `audio` background mode。
+完整 URL 不进入 session projection 或普通审计。`objectRef` 和双端真机锁屏/后台行为仍未完成；
+“media session / lock screen controls”勾选只代表代码与原生配置存在，不替代真机 DOD。
+
+`phone/apps.open_url/can_open_url` 当前只接受 `EXPO_PUBLIC_LINK_HOSTS` 中的精确 HTTPS hostname；
+HTTP、凭证、非 443 端口、fragment、IP literal 与未授权 hostname 在确认提示前被拒绝。`open_url`
+经单次本地确认和系统 `canOpenURL` 后只返回 `handed_off`，不声称浏览器/第三方 App 内动作完成。
+
+`phone/location.open_map` 只接受 strict 结构化坐标/查询，provider URL/scheme 由本地按平台构造；它不
+读取当前位置或申请权限。固定逐次确认，结果和普通审计不回显目标；Android `geo` handler query 已由
+config introspection 验证。双端真机实际地图 handoff 仍未验收。
 
 ### 出口
 
@@ -93,14 +126,46 @@ Agent 能播放一段允许的媒体并控制本 App 会话；第三方 App 只�
 
 ### 工作项
 
-- [ ] `location.current`；
-- [ ] `productivity.notify`；
-- [ ] App 内 timer；
+- [x] `location.current`；
+- [x] `productivity.notify`；
+- [x] App 内 timer；
 - [ ] 动态 capability change 上报；
-- [ ] 完整活动/审计页；
-- [ ] accessibility、国际化和隐私文案；
+- [x] 完整活动/审计页（FR-10 近期本地元数据 + 仅审计历史清除）；
+- [x] accessibility semantics 自动化基线（common RN component + Android semantic/200% font smoke）；
+- [ ] TalkBack / VoiceOver / Switch Access / iOS Dynamic Type 平台验收；
+- [ ] 国际化资源、locale/date/number 格式与 fallback；
+- [ ] 隐私/商店文案与 legal review；
 - [ ] 商店合规材料；
 - [ ] beta 测试与 staged rollout。
+
+当前本地 `phone/location.current` 仅在 App 前台可用，high risk 且每次确认；确认前不会请求系统权限
+或采集位置。它只申请 foreground/when-in-use 权限，以一次性、可取消订阅取得首个 fix，拒绝超过
+30 秒或未来偏移超过 5 秒的结果，并返回采集时间、水平精度和 precise/approximate 状态。普通审计
+不保存坐标。`open_map` 已形成独立结构化 handoff 切片；后台/持续定位、上游发现与双端真机证据不在
+`location.current` 勾选范围内。
+
+`phone/productivity.notify` 当前是前台、即时、local-only 的安全切片：strict schema 只接受 purpose/message，
+OS 标题与来源前缀固定，远程调用不能请求系统权限或附带 URL/data/action/sound/badge；Android 使用固定
+channel，iOS 不声明 APNs entitlement 或 remote-notification background mode。原生 API 返回后只报告
+`scheduled/system_determined`，不声称通知已展示或用户已点击。双端真机授权、前后台呈现与点击观察，
+以及 U-5/U-6 mailbox/push 仍未完成；这些边界不因本项本地实现被勾选而改变。
+
+App 内 timer 已实现为 `timer_start/timer_cancel/timer_status`：SQLite v2 保存非敏感状态并原子限制活动
+容量，Expo 绝对 DATE trigger 只作为 best-effort 提示；purpose 只进入本地确认。crash orphan、迟到
+native promise、caller 隔离、前台 reconciliation、设备本地取消和 emergency disable 均有自动化契约。
+该勾选不表示系统准时展示：Android/iOS 真机、Doze/低电量、进程 kill、Android reboot、权限/channel
+运行中撤销与到点取消竞态仍需 DOD 证据；构建继续不声明 boot/exact/FCM/APNs。
+
+accessibility semantics 基线已覆盖页面/卡片标题、关联后的状态行、唯一且有上下文的操作名称、
+disabled/busy 状态、48dp 最小触控区、离散状态公告去重、焦点往返，以及文本/交互边界对比度 gate。
+API 36 emulator 在 200% 系统字号下走过四个标签页与活动历史确认操作。该勾选只代表 common RN
+自动化与 Android 语义树 smoke；TalkBack/VoiceOver 实际朗读、手势顺序、Switch Access、iOS Dynamic
+Type 和双端真机人工验收仍是独立未完成项。
+
+活动页已展示最近 100 条调用的 caller subject id、path/tool、effect/risk、decision、outcome code 与时间；
+SQLite 在每次写入事务内把本机审计硬限制为 5,000 条。用户清除前必须确认不可恢复范围，且清除只作用
+于 `audit_records`：同一 `commandId` 的持久化防重放、timer、设置、installation identity 与凭证都不受
+影响。该勾选不表示网关撤销、服务端审计或 Release DOD 的完整数据删除已完成。
 
 ## P2：更长的手，但不降低安全
 

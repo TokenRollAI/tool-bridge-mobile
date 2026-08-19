@@ -1,5 +1,5 @@
 import { access, readFile, readdir } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const required = [
@@ -16,6 +16,12 @@ const required = [
   'docs/ROADMAP.md',
   'docs/DOD.md',
   'docs/adr/0001-react-native-expo.md',
+  'docs/adr/0002-app-scaffold-baseline.md',
+  'llmdoc/index.md',
+  'llmdoc/startup.md',
+  'llmdoc/must/evidence-language.md',
+  'llmdoc/must/project-basics.md',
+  'llmdoc/must/safety-boundaries.md',
 ]
 
 const failures = []
@@ -28,10 +34,22 @@ for (const file of required) {
   }
 }
 
+const ignoredDirectories = new Set([
+  '.expo',
+  '.git',
+  '.llmdoc-tmp',
+  'android',
+  'coverage',
+  'dist',
+  'ios',
+  'node_modules',
+])
+
 async function markdownFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true })
   const files = []
   for (const entry of entries) {
+    if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue
     const path = join(directory, entry.name)
     if (entry.isDirectory()) files.push(...await markdownFiles(path))
     else if (entry.name.endsWith('.md')) files.push(path)
@@ -41,11 +59,11 @@ async function markdownFiles(directory) {
 
 for (const file of await markdownFiles(root)) {
   const source = await readFile(file, 'utf8')
-  const relative = file.slice(root.length + 1)
+  const relativePath = relative(root, file)
 
-  if (!source.endsWith('\n')) failures.push(`${relative}: 文件末尾缺少换行`)
+  if (!source.endsWith('\n')) failures.push(`${relativePath}: 文件末尾缺少换行`)
   if (/\b(TODO|TBD)\b/.test(source)) {
-    failures.push(`${relative}: 使用明确的“未决定/未实现”说明，不保留 TODO/TBD`)
+    failures.push(`${relativePath}: 使用明确的“未决定/未实现”说明，不保留 TODO/TBD`)
   }
 
   for (const match of source.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
@@ -62,7 +80,7 @@ for (const file of await markdownFiles(root)) {
     try {
       await access(local)
     } catch {
-      failures.push(`${relative}: 本地链接不存在: ${target}`)
+      failures.push(`${relativePath}: 本地链接不存在: ${target}`)
     }
   }
 }

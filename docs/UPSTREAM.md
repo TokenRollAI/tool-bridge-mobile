@@ -3,6 +3,16 @@
 Tool Bridge Mobile 的产品闭环需要 HTBP 和 `TokenRollAI/tool-bridge` 同步提供若干通用能力。
 本文件是依赖清单，不代表对应上游已经实现。
 
+## 0. 2026-08-19 复核结果
+
+- npm 尚未发布 `@tool-bridge/device-client`；
+- 当前 `@tool-bridge/sdk` 为 `0.10.1`，仍声明 Node `>=22`，不能作为 React Native production
+  runtime；
+- `TokenRollAI/tool-bridge` 当前 main 仍只有内部 device session/frames 资产，未交付 U-2 至 U-7
+  所需的正式 pairing、ticket、dynamic profile、mailbox、push 与 object upload 公共契约；
+- 因此本仓库 production transport 保持 `unconfigured`，本地 contract 不冒充 gateway wire
+  contract。
+
 ## 1. 当前可复用
 
 现有 Tool Bridge device 契约已经提供：
@@ -106,6 +116,14 @@ Tool Bridge Mobile 的产品闭环需要 HTBP 和 `TokenRollAI/tool-bridge` 同�
 ### U-6：push registration / dispatch
 
 所属：gateway
+
+当前移动端的 `phone/productivity.notify` 只是前台即时 local schedule：不获取或上传 APNs/FCM token，
+不接 gateway/mailbox，也不把 `scheduled` 当作 provider delivery。仓库安装 `expo-notifications` 与本地
+能力通过测试，均不能作为 U-6 已交付的证据。
+
+同理，`phone/productivity.timer_*` 只是 SQLite + 系统本地 DATE trigger：它不提供 gateway 定时任务、
+mailbox 唤醒、provider delivery 或跨设备 timer。Android reboot 后不会由本 App 的 boot receiver 恢复，
+因为该权限/receiver 被刻意移除；这不构成 U-5/U-6 的部分交付。
 
 需要：
 

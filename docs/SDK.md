@@ -4,7 +4,8 @@
 
 ## 1. 结论先行
 
-当前公开包 `@tool-bridge/sdk` **不能直接作为 React Native App 的设备客户端使用**。
+截至 2026-08-19，当前公开包 `@tool-bridge/sdk@0.10.1` **不能直接作为 React Native App 的设备
+客户端使用**，且 `@tool-bridge/device-client` 尚未发布。
 
 原因来自当前代码和 package contract：
 
@@ -183,13 +184,24 @@ const client = createDeviceClient({
 await client.start()
 ```
 
+当前 local-only `phone/productivity.notify` 不经过上述提案 client：它只在移动运行时内部使用
+`expo-notifications` 做权限/channel probe 与即时 local schedule，不获取或上传 APNs/FCM token。
+`phone/productivity.timer_start/timer_cancel/timer_status` 同样只存在于本地 registry：SQLite 是状态真源，
+系统绝对 DATE trigger 是 best-effort 提示，结果不构成 wire operation、delivery receipt 或准点证明。
+未来 U-5/U-6 接入时，push registration、opaque wake hint 与 mailbox 必须留在 device client / gateway
+adapter 边界；不得把现有本地通知 identifier 或 schedule result 当成 wire protocol 或 delivery receipt。
+
 移动仓库负责的 adapter：
 
 - `credentialStore`：SecureStore / native key storage；
 - `commandStore`：SQLite 持久化幂等；
 - `createReactNativeRealtimeTransport`：AppState-aware WebSocket；
 - `policyEngine`：本地模式、权限和确认；
-- `capabilityRegistry`：原生能力路由。
+- `capabilityRegistry`：原生能力路由；
+- `mediaSourceResolver`：移动端本地 HTTPS 来源校验、受控下载与私有临时文件清理；它不定义
+  gateway wire 或 `objectRef` 协议；
+- `mapTargetBuilder`：只把归一化结构化目标映射成固定平台 map URI/link；caller 不能通过它注入 URL、
+  scheme、hostname 或 provider。
 
 公共包负责：
 

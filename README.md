@@ -6,8 +6,17 @@
 设备上的状态、提醒、媒体、位置、相机等能力，以可发现、可授权、可审计的 Tool Bridge
 节点暴露给 Agent。
 
-> 当前状态：**规划与协议对齐阶段**。仓库暂不声称已有可运行 App；第一批代码必须从
-> [DOD](docs/DOD.md) 中的 P0 闸门开始。
+> 当前状态：**P0 本地安全运行时已开始实现，尚未达到 MVP**。仓库已有 Expo development-build
+> 双端脚手架、本地状态页、SecureStore `installationId`、SQLite command/audit、动态 probe、
+> policy、单命令本地确认、前台 haptic attention、受 HTTPS allowlist、25 MiB 流式下载与 2 小时
+> 播放时长上限约束的 App 自有媒体会话，
+> 受控 HTTPS App handoff、只接受结构化目标的地图 handoff、逐次确认的一次性前台位置、由用户在
+> App 内主动授权的即时本地通知、以 SQLite 为真源的单次 App 内计时器、可解释且可由用户单独清除的
+> 本机活动审计、跨四个本地页面的无障碍语义自动化基线，以及持久化/并发幂等测试。
+> 本地执行还包含确认前 caller/global admission、inline 结果字节上限、claim 后取消/到期复检和
+> emergency disable 的进行中命令取消。
+> production transport、pairing、realtime ticket、mailbox、objectRef 与远程 push 仍等待
+> [上游交付](docs/UPSTREAM.md)，UI 会明确显示 `unconfigured`，不声称已连接网关。
 
 ## 它解决什么问题
 
@@ -34,7 +43,8 @@ Agent 今天大多只能调用云端 API。这个项目让 Agent 在用户许可
 | [上游依赖](docs/UPSTREAM.md) | Tool Bridge 与 HTBP 需要同步交付的能力 |
 | [路线图](docs/ROADMAP.md) | P0 到 P3 的实现顺序 |
 | [Definition of Done](docs/DOD.md) | 仓库、功能、版本与场景验收闸门 |
-| [ADR](docs/adr/0001-react-native-expo.md) | 首个技术决策记录 |
+| [ADR-0001](docs/adr/0001-react-native-expo.md) | React Native + Expo 技术决策 |
+| [ADR-0002](docs/adr/0002-app-scaffold-baseline.md) | 精确版本、最低平台和环境标识基线 |
 
 ## 仓库边界
 
@@ -62,18 +72,49 @@ Agent 今天大多只能调用云端 API。这个项目让 Agent 在用户许可
 5. **结果可审计**：每次远程调用都有调用方、能力、时间、决策和结果记录。
 6. **大对象走引用**：照片、音频和视频不上塞 HTBP JSON 帧。
 
-## 当前验证
+## 本地启动与验证
 
-仓库在文档阶段提供轻量验证：
+使用仓库锁定的 Node 22.23.1 与 pnpm 11.21.0：
 
 ```bash
 corepack enable
+corepack prepare pnpm@11.21.0 --activate
 pnpm install --frozen-lockfile
 pnpm verify
+pnpm start
 ```
 
-进入 P0 代码阶段后，`pnpm verify` 必须扩展为 typecheck、lint、unit test 和协议契约测试；
-原生构建及真机测试要求见 [DOD](docs/DOD.md)。
+`pnpm start` 面向 development build，不以 Expo Go 为验收环境。`pnpm verify` 当前覆盖文档链接、
+三环境配置、secret/license/dependency 检查、Expo 依赖一致性、strict typecheck、零 warning lint、
+unit/component 和本地运行时契约测试。
+
+原生构建命令：
+
+```bash
+pnpm build:android:debug
+pnpm build:android:preview
+pnpm build:ios:sim
+```
+
+`build:android:preview` 生成 application id 为 `ai.tokenroll.toolbridgemobile.preview`、内嵌 JS 的内部体验
+APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，artifact 保留 14 天。该包使用
+生成的 debug test key 签名，只用于内部试用；它不是生产签名、商店 release 或 release DOD 证据。
+本地构建与安装证据见 [Android preview APK 验证记录](docs/verification/2026-08-19-android-preview-apk.md)。
+
+Android development debug APK 构建完成、API 36 emulator 已启动且另一个终端正在运行 `pnpm start`
+时，可以执行可重复 UI smoke：
+
+```bash
+pnpm verify:android:emulator
+```
+
+该脚本会卸载 emulator 中的 dev application id 后重新安装 APK，并验证安装后权限、首页状态、动态
+能力、local-only 通知/timer 边界、紧急停用重启持久化，以及四个标签页在 200% 系统字号下的语义
+名称、选中状态和关键操作最小尺寸；不会操作 preview/production 包，也不替代 TalkBack、VoiceOver
+或真机验收。
+
+Android 需要 Java 17；iOS 需要 macOS、Xcode 26.4+ 与 CocoaPods。涉及 push、后台、相机、音频、
+位置或权限的功能仍必须按 [DOD](docs/DOD.md) 留下双端真机证据。
 
 ## License
 

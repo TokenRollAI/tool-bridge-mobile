@@ -2,6 +2,83 @@
 
 状态：实现必须遵守的安全基线。
 
+当前原生配置包含：Android 普通权限 `android.permission.VIBRATE`，以及 P1-B 可见媒体播放所需的
+`FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PLAYBACK` 与非导出的 `AudioControlsService`；
+iOS 新增 `audio` background mode。一次性位置只声明 Android coarse/fine foreground location 和 iOS
+`NSLocationWhenInUseUsageDescription`；没有 `ACCESS_BACKGROUND_LOCATION`、location foreground
+service、Always location 或 motion 权限。即时本地通知在 Android 声明 `POST_NOTIFICATIONS`，但显式
+排除 boot 恢复、exact alarm、C2DM 与厂商 badge 权限，并从最终 manifest 移除 FCM
+service/receiver/provider 与 Firebase transport 初始化入口；iOS 不保留 `aps-environment` entitlement，也不启用
+`remote-notification` background mode。未声明相机、麦克风、Face ID 或后台录音权限。
+haptic capability 仍需 native hardware probe、本地 policy 和 session TTL；媒体执行还需 HTTPS
+hostname allowlist、受控下载、单会话控制与系统可见媒体控制。权限/entitlement 存在本身不构成
+执行授权。
+
+Expo 模块的 Android manifests 默认可能合并 legacy external storage、debug overlay、`USE_BIOMETRIC`
+与 `USE_FINGERPRINT`；当前 App 不需要这些能力，也未对 credential/identity 使用
+`requireAuthentication`。因此 `app.config.ts` 显式 block 五项，并由本地 config plugin 清理
+development debug manifest 的 overlay 声明；配置 introspection 与安装后 `dumpsys package` 都必须
+证明它们未进入最终 App。
+
+当前本地确认队列最多 10 条，只显示调用元数据，不显示/持久化完整参数。批准只对单个 commandId
+有效；executor 在批准后重新执行过期、取消、probe 和 Disabled 检查。并发重复 commandId 共用同一
+in-flight Promise，避免确认后出现第二个副作用。确认页、系统媒体 metadata 等用户可见远端文本会在
+schema 层拒绝 C0/C1 control 与 bidi override/isolate 字符，避免方向覆盖伪装系统文案。
+
+每个本地 capability 都声明 caller/global 滑动窗口和 inline JSON 结果字节上限。executor 在 probe 与
+confirmation 前 admission，防止先塞满确认队列；SQLite claim 返回后再复检取消/到期。command
+deadline 会截断 attention session 和 location wait，emergency disable 会 abort 进行中 handler。
+这些窗口当前在进程重启后重置，因此不替代上游账户/设备配额。
+
+command 防重放记录不能只在 App 启动时清理：每次从 running 写入终态都与 retention prune 共用同一
+SQLite exclusive transaction，终态总数持续限制为 10,000 条。裁剪按 receivedAt/commandId 淘汰最旧
+可删记录，但保留所有 running、当前刚完成的 command，以及状态为 preparing/scheduled/cancelling/
+status_unknown 的活动 timer source command；否则可能在结果刚写入或 timer 仍需对账时恢复旧命令的
+副作用执行资格。启动恢复仍保持 command recovery → timer reconciliation → terminal prune 的顺序。
+
+App handoff 与媒体分别使用独立 hostname allowlist。两者都在本地确认前拒绝 HTTP、凭证、非标准
+端口、fragment、IP literal 与未知 hostname；普通审计只记录 capability 元数据。系统接受
+`openURL` 只代表 `handed_off`，不能升级为第三方 App 内任务成功。
+
+通用 App handoff 所谓“凭证”指 URL `userinfo`；query 不写入普通审计，但会原样交给目标 App，因此
+支付、认证、通信或系统设置目标在专用 path/risk policy 交付前不得进入通用 allowlist。Linking handler
+probe 最多等待 5 秒，并在系统打开提交点前重查 command 取消与到期。
+
+地图 handoff 不接收 caller URL/scheme/provider，只接收 strict 结构化地址或坐标；本地 builder 固定
+Android `geo:` 或 Apple Maps HTTPS link 并严格编码参数。它固定逐次确认、只在前台执行，结果/普通审计
+不回显地址、坐标或 query。Android 只声明 `geo` `ACTION_VIEW` query visibility，不指定或枚举某个地图
+package；该 query 不是位置权限。
+
+HTTPS 媒体下载不携带 cookies/HTTP credentials，禁用自动 redirect 并逐跳重验 allowlist；最终
+response URL 也必须通过相同策略。resolver 同时校验音频 MIME allowlist 与字节签名，并分别以
+`Content-Length` 和实际流式读取执行 25 MiB 上限。内容只写入 App 私有 cache；失败、取消、timeout、
+播放停止及下一次 cache 初始化都会清理，player 不接收远程 URL。完整 URL/query 和私有 `file://`
+路径都不进入普通审计。player 最多等待 10 秒取得 metadata，并在任何 `play()` 前拒绝直播、无效时长
+及超过 2 小时的媒体。该边界不代表已支持上游 `objectRef` 或其 TTL。
+
+`phone/location.current` 是 high-risk read 并固定 `confirmation: always`。确认页只投影调用方、用途、
+期望精度和最长等待；在用户允许一次之前不请求系统权限、不启动位置订阅。批准后 executor 会重新
+检查过期、取消、前台状态、系统服务、动态权限与 Disabled policy。订阅在首个 fix、取消、timeout
+或 native error 时立即移除；普通 audit 只记录能力和裁决元数据，不记录坐标。
+
+`phone/productivity.notify` 只接受 strict purpose/message，并拒绝控制字符、bidi 与任何 title、URL、
+data、action、sound、badge 或 schedule 字段。OS 标题固定为 `Tool Bridge`，正文固定带
+`Agent 通知：` 前缀；caller 与 purpose 只在 App 本地确认 UI 中展示，避免远程文本伪装系统来源或
+泄漏 subjectId。前台 handler 只展示 `tb_local_notify_` / `tb_local_timer_` 加 commandId SHA-256 的两类
+精确 identifier，其他未来 remote notification 默认抑制。权限请求只能由首页本地按钮触发；远程 probe
+遇未授权、App 后台
+或 Android channel 关闭均返回 unavailable。caller/global admission 为 5/10 次每分钟，消息正文不进
+command outcome 或普通 audit；成功只表示原生 schedule promise 返回，不表示展示、阅读或点击。
+Android fresh install 可能由 Expo 表达为 `denied + canAskAgain=true`；本地 adapter 将这种仍可由用户
+请求的状态与永久拒绝分开，前者显示教育/请求按钮，后者只给系统设置入口，远程调用两者都不能改变。
+
+App 内 timer 只接受 canonical UTC `firesAt` 与确认用 purpose。purpose 不进入 SQLite、原生固定通知、
+command outcome 或普通 audit；caller 只能 status/cancel 自己创建的 timer。SQLite reserve 在事务中执行
+8/caller、32/device 活动容量，重启不会重置。`preparing/scheduled/cancelling/status_unknown` 与 source
+command 一起对账：未知 crash source 一律清理，不凭 timer 行重放；迟到 schedule promise、emergency
+disable epoch 或 cancel 失败都必须走确定性 identifier 补偿，无法证明清理时返回 unknown。系统 DATE
+trigger 不等于准点、呈现或送达；构建继续移除 boot/exact/FCM/APNs。
+
 ## 1. 威胁模型
 
 需要防御：
@@ -174,7 +251,20 @@ push token 是敏感设备标识：
 - signed URL；
 - 原生绝对文件路径。
 
-审计保留有上限，用户可以清除；安全事件所需服务端审计与用户本地历史分开定义。
+每次新增本机审计都在同一 SQLite transaction 中裁剪，持续硬限制为 5,000 条；活动页只投影最近
+100 条。用户可以在设备本地的 destructive confirmation 后清除当前 `audit_records`，DELETE 完成后
+发生的新调用仍会保留。页面只展示 caller 非秘密 subject id、时间、path/tool、effect/risk、decision
+与 outcome code，不展示 command arguments、完整 outcome、坐标、URL、message/purpose 或凭证。
+
+清除审计绝不删除 `commands`：否则旧 `commandId` 可能再次产生副作用。它也不删除 timer、设置、
+installation identity 或 credential，不取消进行中命令，也不冒充网关撤销、账户级数据删除或服务端
+安全审计清除；这些流程必须独立定义和验收。清除失败时 UI 不显示成功；与新审计并发时，以 SQLite
+DELETE 的线性化点为界，之后完成的记录可以保留。
+
+本地控制台的可访问名称只组合非秘密状态元数据。timer/confirmation 等重复操作可以包含 caller 的
+非秘密 subject/display label、tool 与时间以消除歧义，但不得把 message、purpose、地址、坐标、URL
+或 command outcome 正文塞入自动公告。倒计时和媒体进度不做 live announcement，避免高频播报掩盖
+拒绝、Disabled、错误等安全相关离散变化；视觉状态也不得只依赖颜色。
 
 ## 10. iOS 约束
 
@@ -231,10 +321,24 @@ Android 对后台启动 foreground service 有限制；涉及 camera/microphone/
 
 - Android 13+ 请求 `POST_NOTIFICATIONS`；
 - 在合适的产品语境申请，不在首次启动无解释弹窗；
-- 找手机、后台播放等使用名称清晰的独立 notification channel；
-- 用户关闭 channel 后 capability profile 必须反映降级。
+- 当前 local-only channel 使用固定 versioned id，关闭声音、振动、灯、badge 与 DND bypass；它只发送
+  immediate notification，不申请 boot 恢复或 exact alarm；
+- 用户关闭 channel 后 capability profile 必须反映降级，首页提供系统设置入口，远程命令不得循环
+  请求权限；channel 的 importance 创建后最终由用户控制；
+- Android 前台 `shouldPlaySound: false` 不能宣称 heads-up；双端调度成功统一只写
+  `presentation: system_determined`；
+- iOS 只请求 alert authorization，不请求 sound、badge、critical 或 provisional；当前无 APNs
+  entitlement 和 remote notification background mode；
+- received callback 不等于用户已看见；只有 response listener/last response 才能形成点击观察，而当前
+  local-only slice 尚未把展示/点击写入 command result。
 
-来源：[Android：Notification runtime permission](https://developer.android.com/develop/ui/compose/notifications/notification-permission)。
+来源：
+
+- [Android：Notification runtime permission](https://developer.android.com/develop/ui/compose/notifications/notification-permission)
+- [Android：Create and manage notification channels](https://developer.android.com/develop/ui/views/notifications/channels)
+- [Apple：Asking permission to use notifications](https://developer.apple.com/documentation/usernotifications/asking-permission-to-use-notifications)
+- [Apple：Foreground notification presentation](https://developer.apple.com/documentation/usernotifications/unnotificationpresentationoptions)
+- [Expo SDK 57 Notifications](https://docs.expo.dev/versions/v57.0.0/sdk/notifications/)
 
 ### 后台媒体
 
