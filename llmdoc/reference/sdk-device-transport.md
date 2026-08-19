@@ -21,6 +21,7 @@
 - 用本地 registry 生成官方 `DeviceExpose.nodes[].cmds[]`，不复制/扩展 frame；
 - active + enabled 时连接/resume，background/inactive/Disabled 时 suspend；
 - 只有 SDK `ready` 映射为 `reachability: online`；
+- 在交给 SDK 的 raw WebSocket factory 外采集脱敏失败分类、阶段与 close code，不复制 SDK 协议状态机；
 - gateway rejection 后清 credential，缺 credential 和 audience mismatch fail closed；
 - call 进入既有 `LocalCommandExecutor`，继续受 SQLite 去重、probe、policy、确认、结果上限与审计约束。
 
@@ -49,6 +50,24 @@ Agent 归因；同一 credential 下的调用共享 caller bucket 和 timer owne
 - `ready`：只证明前台 SDK session ready。
 - `disabled` reachability 始终覆盖 transport state。
 
+## Raw WebSocket 诊断边界
+
+`DeviceTransportDiagnostic` 只允许三个固定字段：
+
+- `kind`：`connection_timeout`、`dns_resolution_failed`、`tls_failed`、`upgrade_rejected`、
+  `network_unreachable`、`connection_reset`、`connection_refused`、`abnormal_close` 或 `unknown`；
+- `stage`：`socket_opening`、`gateway_handshake` 或 `session`；
+- `closeCode`：只接受 WebSocket 1000..4999 的有限整数，否则为 `null`。
+
+RN/OkHttp 的 raw close `reason` 最多只在当前调用栈内参与固定分类，随后丢弃。它不能进入 snapshot、日志、
+审计、accessibility announcement 或 UI；URL、query、Authorization、credential 和 deviceId 也不是 diagnostic
+字段。该分类只用于现场排障，不能参与鉴权或安全裁决。
+
+observer 用 logical connection revision 与 raw attempt ordinal 拒绝旧 socket 的迟到事件。本地主动
+suspend、配置切换、local revoke 和 credential invalidation 在调用 SDK 前 suppress/retire 当前 attempt；
+不信任远端可伪造的 close reason 来判断“主动关闭”。重连期间保留最近失败，SDK `ready`、新配置、
+`unconfigured` 与 `credentials_required` 清除旧诊断。
+
 U-1 已由该子入口交付并被消费。手工 URL/API key fallback 不完成 U-2 或 U-3。仍未完成：U-2
 pairing/credential issuance、U-3 短期 ticket、真实
 gateway compatibility、caller/deadline、U-4 动态 profile、U-5 mailbox、U-6 push 和 U-7 objectRef。
@@ -56,7 +75,9 @@ gateway compatibility、caller/deadline、U-4 动态 profile、U-5 mailbox、U-6
 ## 证据边界
 
 已有 consumer 证据：真实 SDK supervisor + fake WebSocket contract、registry expose、错误映射、凭证
-fail-closed、手工配置事件顺序与 secret 不回显、双端 production Metro export、全量 `pnpm verify`。
+fail-closed、手工配置事件顺序、raw close 脱敏/旧连接隔离与 secret 不回显、双端 production Metro
+export、全量 `pnpm verify`。
 
-这些不证明真实 gateway、真机 header、弱网/重连、前后台 OS 行为、credential revoke、mailbox 或 push。
+这些不证明真实 gateway、真机 header/diagnostic、弱网/重连、前后台 OS 行为、credential revoke、mailbox
+或 push。诊断 UI 出现固定分类也不等于对应根因已经由真机日志或服务端日志确认。
 升级版本时必须重跑 frozen install、SDK entry gate、consumer contract、双端 Metro 与真实 gateway matrix。
