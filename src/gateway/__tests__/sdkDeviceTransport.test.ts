@@ -60,10 +60,19 @@ class FakeRawWebSocket extends EventTarget {
   readyState = FakeRawWebSocket.CONNECTING
   readonly sent: string[] = []
 
-  close(): void {
+  close(code = 1000, reason = ''): void {
     if (this.readyState === FakeRawWebSocket.CLOSED) return
     this.readyState = FakeRawWebSocket.CLOSED
-    this.dispatchEvent(new Event('close'))
+    this.emitClose(code, reason)
+  }
+
+  emitClose(code: number, reason: string): void {
+    const event = new Event('close')
+    Object.defineProperties(event, {
+      code: { value: code },
+      reason: { value: reason },
+    })
+    this.dispatchEvent(event)
   }
 
   open(): void {
@@ -249,6 +258,45 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
 
     await transport.updateLifecycle('background', true)
     expect(transport.getSnapshot().state).toBe('suspended')
+    expect(transport.getSnapshot().diagnostic).toBeNull()
+    await transport.stopForLocalRevocation()
+  })
+
+  test('只把底层 WebSocket 原始失败映射成脱敏诊断，并在 ready 后清除', async () => {
+    const harness = createWebSocketHarness()
+    const transport = new SdkDeviceTransport({
+      baseUrl: 'https://gateway.example.com',
+      credentialStore: new MemoryCredentialStore(credential),
+      executeCommand: async () => ({ ok: true, value: null }),
+      registry: createRegistry(),
+      webSocketFactory: harness.factory,
+    })
+
+    await transport.updateLifecycle('active', true)
+    await eventually(() => expect(harness.sockets).toHaveLength(1))
+    const failedSocket = harness.sockets[0]
+    if (failedSocket === undefined) throw new Error('missing failed SDK fixture WebSocket')
+    failedSocket.open()
+    failedSocket.close(1006, 'SSLHandshakeException: Bearer must-not-project')
+    await eventually(() => expect(transport.getSnapshot().diagnostic).toEqual({
+      closeCode: 1006,
+      kind: 'tls_failed',
+      stage: 'gateway_handshake',
+    }))
+    expect(JSON.stringify(transport.getSnapshot())).not.toContain('must-not-project')
+
+    await transport.updateConfiguration('https://gateway.example.com')
+    await eventually(() => expect(harness.sockets).toHaveLength(2))
+    const recoveredSocket = harness.sockets[1]
+    if (recoveredSocket === undefined) throw new Error('missing recovered SDK fixture WebSocket')
+    recoveredSocket.open()
+    recoveredSocket.receive({ type: 'ready', mountPath: 'device/device_01' })
+    await eventually(() => expect(transport.getSnapshot()).toMatchObject({
+      diagnostic: null,
+      issue: null,
+      state: 'ready',
+    }))
+
     await transport.stopForLocalRevocation()
   })
 
@@ -287,6 +335,9 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       url: 'wss://new-gateway.example.com/system/device/ws?deviceId=device_01',
     })
     expect(harness.inputs[1]?.url).not.toContain('new-secret')
+    oldSocket.emitClose(1006, 'SSLHandshakeException: stale-secret')
+    expect(transport.getSnapshot().diagnostic).toBeNull()
+    expect(JSON.stringify(transport.getSnapshot())).not.toContain('stale-secret')
     await transport.stopForLocalRevocation()
   })
 

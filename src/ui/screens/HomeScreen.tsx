@@ -128,6 +128,16 @@ export function HomeScreen({
         {snapshot.transportIssue === null ? null : (
           <StatusRow label="连接问题" value={snapshot.transportIssue} />
         )}
+        {snapshot.transportDiagnostic === null ? null : (
+          <>
+            <StatusRow label="失败类型" value={snapshot.transportDiagnostic.kind} />
+            <StatusRow label="失败阶段" value={snapshot.transportDiagnostic.stage} />
+            <StatusRow
+              label="WS 关闭码"
+              value={snapshot.transportDiagnostic.closeCode?.toString() ?? 'unavailable'}
+            />
+          </>
+        )}
       </StatusCard>
 
       <GatewayConfigurationCard

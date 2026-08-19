@@ -74,6 +74,9 @@ import type {
 } from '@/capabilities/types'
 import type { CommandOutcome, ControlMode } from '@/commands/types'
 import type {
+  DeviceTransportDiagnostic,
+} from '@/gateway/deviceTransportDiagnostic'
+import type {
   DeviceTransportIssue,
   DeviceTransportState,
 } from '@/gateway/sdkDeviceTransport'
@@ -103,6 +106,7 @@ export type ApplicationSnapshot = Readonly<{
   phase: RuntimePhase
   reachability: Reachability
   timers: readonly TimerSnapshot[]
+  transportDiagnostic: DeviceTransportDiagnostic | null
   transportIssue: DeviceTransportIssue | null
   transportState: DeviceTransportState
 }>
@@ -123,6 +127,7 @@ const INITIAL_SNAPSHOT: ApplicationSnapshot = {
   phase: 'loading',
   reachability: 'unconfigured',
   timers: [],
+  transportDiagnostic: null,
   transportIssue: null,
   transportState: 'unconfigured',
 }
@@ -331,6 +336,7 @@ export class ApplicationRuntime {
     const controlMode = await this.#controlModeRepository.get()
     const context = this.#context(controlMode)
     const transport = this.#deviceTransport?.getSnapshot() ?? {
+      diagnostic: null,
       deviceId: null,
       gatewayOrigin: null,
       issue: null,
@@ -362,6 +368,7 @@ export class ApplicationRuntime {
       phase: 'ready',
       reachability: context.reachability,
       timers,
+      transportDiagnostic: transport.diagnostic,
       transportIssue: transport.issue,
       transportState: transport.state,
     })

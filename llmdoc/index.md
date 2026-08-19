@@ -46,7 +46,8 @@
 - `reference/eas-project-binding.md`：单一 EAS project 身份、三变体隔离、profile/environment 与验证边界。
 - `reference/manual-gateway-configuration.md`：手工 Gateway HTTPS origin/API key 的输入、身份、SecureStore、
   配置切换顺序与证据边界。
-- `reference/sdk-device-transport.md`：官方 RN SDK 子入口、凭证/header、生命周期、call 归一化与证据边界。
+- `reference/sdk-device-transport.md`：官方 RN SDK 子入口、凭证/header、生命周期、raw WebSocket 脱敏诊断、
+  call 归一化与证据边界。
 - `reference/github-preview-release.md`：稳定 tag、版本真源、双端门禁、最小发布权限与内部 Preview 的
   production 证据边界。
 - `reference/upstream-and-platform-blockers.md`：上游、iOS 和真机阻塞项及其事实真源。
@@ -81,6 +82,8 @@
   验证，并处理缺失 caller/deadline 的 transport 接入经验。
 - `memory/reflections/2026-08-19-manual-gateway-credential.md`：在 pairing 前加入手工 API key fallback 时，
   分离 installation/device/caller 身份并保证 transport 与 SecureStore 切换顺序的经验。
+- `memory/reflections/2026-08-19-android-websocket-diagnostics.md`：从浏览器可访问但 SDK 长期 reconnecting 的
+  现场信号中分层排障，并把 raw close 压缩为不泄露凭证的固定诊断字段的经验。
 - `memory/reflections/2026-08-19-github-preview-release.md`：统一版本真源、隔离 branch/tag 环境变量，并把
   自动内部发布与 production 资格分层的经验。
 

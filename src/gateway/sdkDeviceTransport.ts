@@ -4,6 +4,12 @@ import {
   TBError,
 } from '@tool-bridge/sdk/device'
 
+import {
+  diagnoseDeviceTransportClose,
+  type DeviceTransportDiagnostic,
+  type DeviceTransportFailureStage,
+} from './deviceTransportDiagnostic'
+
 import type { CapabilityRegistry } from '@/capabilities/registry'
 import type { CommandOutcome, LocalCommand } from '@/commands/types'
 import type {
@@ -31,6 +37,7 @@ export type DeviceTransportIssue =
   | 'transport_error'
 
 export type DeviceTransportSnapshot = Readonly<{
+  diagnostic: DeviceTransportDiagnostic | null
   deviceId: string | null
   gatewayOrigin: string | null
   issue: DeviceTransportIssue | null
@@ -40,6 +47,7 @@ export type DeviceTransportSnapshot = Readonly<{
 
 function disconnectedSnapshot(baseUrl: string | null): DeviceTransportSnapshot {
   return {
+    diagnostic: null,
     deviceId: null,
     gatewayOrigin: baseUrl,
     issue: null,
@@ -148,9 +156,11 @@ export class SdkDeviceTransport {
   #appState = 'unknown'
   #baseUrl: string | null
   #connection: DeviceConnection | null = null
+  #diagnosticRevision = 0
   #enabled = true
   #lifecycleRevision = 0
   #snapshot: DeviceTransportSnapshot
+  #suppressActiveSocketDiagnostic: (() => void) | null = null
   #transition: Promise<void> = Promise.resolve()
 
   constructor(private readonly dependencies: SdkDeviceTransportDependencies) {
@@ -185,6 +195,8 @@ export class SdkDeviceTransport {
       .then(async () => {
         const connection = this.#connection
         this.#connection = null
+        this.#suppressActiveSocketDiagnostic?.()
+        this.#diagnosticRevision += 1
         connection?.close()
         await this.#applyLifecycle(revision)
       })
@@ -205,9 +217,12 @@ export class SdkDeviceTransport {
     await this.#transition
     const connection = this.#connection
     this.#connection = null
+    this.#suppressActiveSocketDiagnostic?.()
+    this.#diagnosticRevision += 1
     connection?.close()
     if (connection !== null) await connection.closed
     this.#publish({
+      diagnostic: null,
       deviceId: null,
       gatewayOrigin: this.#baseUrl,
       issue: null,
@@ -219,12 +234,14 @@ export class SdkDeviceTransport {
   async #applyLifecycle(revision: number): Promise<void> {
     const baseUrl = this.#baseUrl
     if (baseUrl === null) {
+      this.#suppressActiveSocketDiagnostic?.()
       this.#connection?.suspend()
       this.#publish(disconnectedSnapshot(null))
       return
     }
 
     if (!this.#enabled || this.#appState !== 'active') {
+      this.#suppressActiveSocketDiagnostic?.()
       this.#connection?.suspend()
       if (this.#connection === null) {
         this.#publish({
@@ -247,6 +264,7 @@ export class SdkDeviceTransport {
       if (initialCredential !== null) validateCredential(initialCredential, baseUrl)
     } catch {
       this.#publish({
+        diagnostic: null,
         deviceId: null,
         gatewayOrigin: baseUrl,
         issue: 'credential_invalid',
@@ -258,6 +276,7 @@ export class SdkDeviceTransport {
     if (revision !== this.#lifecycleRevision) return
     if (initialCredential === null) {
       this.#publish({
+        diagnostic: null,
         deviceId: null,
         gatewayOrigin: baseUrl,
         issue: null,
@@ -272,6 +291,18 @@ export class SdkDeviceTransport {
 
   #startConnection(baseUrl: string, initialCredential: DeviceCredentialEnvelope): void {
     let createdConnection: DeviceConnection
+    const diagnosticRevision = ++this.#diagnosticRevision
+    let activeAttempt: Readonly<{
+      id: number
+      socket: WebSocket
+    }> | null = null
+    let activeAttemptId = 0
+    let activeStage: DeviceTransportFailureStage = 'socket_opening'
+    let diagnosticsSuppressed = false
+    this.#suppressActiveSocketDiagnostic = () => {
+      activeAttempt = null
+      diagnosticsSuppressed = true
+    }
     const handler = createSdkDeviceCallHandler({
       callerSubjectId: initialCredential.keyId,
       clock: this.#clock,
@@ -279,6 +310,7 @@ export class SdkDeviceTransport {
     })
 
     this.#publish({
+      diagnostic: null,
       deviceId: initialCredential.deviceId,
       gatewayOrigin: baseUrl,
       issue: null,
@@ -304,8 +336,16 @@ export class SdkDeviceTransport {
       expose: () => this.dependencies.registry.deviceExpose(),
       handler,
       onError: () => {
-        if (this.#connection !== createdConnection) return
-        this.#publish({ ...this.#snapshot, issue: 'transport_error' })
+        if (this.#connection !== createdConnection || diagnosticsSuppressed) return
+        this.#publish({
+          ...this.#snapshot,
+          diagnostic: this.#snapshot.diagnostic ?? {
+            closeCode: null,
+            kind: 'unknown',
+            stage: activeStage,
+          },
+          issue: 'transport_error',
+        })
       },
       onProtocolError: () => {
         if (this.#connection !== createdConnection) return
@@ -313,13 +353,46 @@ export class SdkDeviceTransport {
       },
       onStateChange: state => {
         if (this.#connection !== createdConnection) return
+        if (state === 'ready') activeStage = 'session'
         this.#publish({
           ...this.#snapshot,
+          diagnostic: state === 'ready' ? null : this.#snapshot.diagnostic,
           issue: state === 'ready' ? null : this.#snapshot.issue,
           state,
         })
       },
-      webSocketFactory: this.#webSocketFactory,
+      webSocketFactory: {
+        open: input => {
+          diagnosticsSuppressed = false
+          const socket = this.#webSocketFactory.open(input)
+          const attemptId = ++activeAttemptId
+          activeAttempt = { id: attemptId, socket }
+          activeStage = 'socket_opening'
+          socket.addEventListener('open', () => {
+            if (
+              diagnosticRevision !== this.#diagnosticRevision
+              || activeAttempt?.id !== attemptId
+              || activeAttempt.socket !== socket
+            ) return
+            activeStage = 'gateway_handshake'
+          })
+          socket.addEventListener('close', event => {
+            if (
+              diagnosticRevision !== this.#diagnosticRevision
+              || activeAttempt?.id !== attemptId
+              || activeAttempt.socket !== socket
+            ) return
+            const diagnostic = diagnoseDeviceTransportClose(event, activeStage)
+            activeAttempt = null
+            this.#publish({
+              ...this.#snapshot,
+              diagnostic,
+              issue: 'transport_error',
+            })
+          })
+          return socket
+        },
+      },
     })
     this.#connection = createdConnection
     void createdConnection.ready.then(mountPath => {
@@ -334,8 +407,13 @@ export class SdkDeviceTransport {
   async #invalidateCredential(connection: DeviceConnection): Promise<void> {
     try {
       await this.dependencies.credentialStore.clear()
-      if (this.#connection === connection) this.#connection = null
+      if (this.#connection === connection) {
+        this.#suppressActiveSocketDiagnostic?.()
+        this.#diagnosticRevision += 1
+        this.#connection = null
+      }
       this.#publish({
+        diagnostic: null,
         deviceId: null,
         gatewayOrigin: this.#baseUrl,
         issue: null,
@@ -350,6 +428,9 @@ export class SdkDeviceTransport {
   #publish(snapshot: DeviceTransportSnapshot): void {
     if (
       snapshot.deviceId === this.#snapshot.deviceId
+      && snapshot.diagnostic?.closeCode === this.#snapshot.diagnostic?.closeCode
+      && snapshot.diagnostic?.kind === this.#snapshot.diagnostic?.kind
+      && snapshot.diagnostic?.stage === this.#snapshot.diagnostic?.stage
       && snapshot.gatewayOrigin === this.#snapshot.gatewayOrigin
       && snapshot.issue === this.#snapshot.issue
       && snapshot.mountPath === this.#snapshot.mountPath

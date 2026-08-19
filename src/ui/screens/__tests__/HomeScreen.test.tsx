@@ -36,6 +36,7 @@ const readySnapshot: ApplicationSnapshot = {
   phase: 'ready',
   reachability: 'unconfigured',
   timers: [],
+  transportDiagnostic: null,
   transportIssue: null,
   transportState: 'unconfigured',
 }
@@ -89,6 +90,35 @@ describe('HomeScreen', () => {
     rendered.getByLabelText('可达性：online')
     rendered.getByLabelText('SDK deviceId：device_01')
     rendered.getByLabelText('挂载路径：device/device_01')
+  })
+
+  test('展示固定分类、失败阶段和 close code，不接收原始异常文本', async () => {
+    const rendered = await render(
+      <HomeScreen
+        onApproveConfirmation={jest.fn()}
+        onCancelTimer={jest.fn()}
+        onEmergencyDisable={jest.fn()}
+        onEnable={jest.fn()}
+        onOpenNotificationSettings={jest.fn()}
+        onRejectConfirmation={jest.fn()}
+        onRequestNotificationPermission={jest.fn()}
+        onStopAttention={jest.fn()}
+        snapshot={{
+          ...readySnapshot,
+          transportDiagnostic: {
+            closeCode: 1006,
+            kind: 'tls_failed',
+            stage: 'gateway_handshake',
+          },
+          transportIssue: 'transport_error',
+          transportState: 'reconnecting',
+        }}
+      />,
+    )
+
+    rendered.getByLabelText('失败类型：tls_failed')
+    rendered.getByLabelText('失败阶段：gateway_handshake')
+    rendered.getByLabelText('WS 关闭码：1006')
   })
 
   test('Disabled 模式提供显式恢复入口', async () => {

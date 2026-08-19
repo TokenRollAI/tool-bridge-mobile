@@ -66,6 +66,9 @@
   SDK consumer 基线，本次纯 TypeScript/UI 配置切换未重跑 Metro。
 - 随后已重新完成 Android clean build 与 emulator smoke；debug APK 不内嵌 Metro JS，clean build 证明
   当前原生依赖/配置可编译，smoke 证明最新开发 bundle 能启动，但不构成实际地图或媒体 handoff 证据。
+- 后续 Android WebSocket 诊断改动在 Node 26.7.0（仓库要求 22.23.1，故有 engine warning）上再次完成
+  `pnpm verify`：53 suites / 232 tests、typecheck、lint、secret/config/docs gates 全部通过。本次只改
+  TypeScript/UI/llmdoc，未重新生成 APK、运行双端 Metro 或取得真机 diagnostic。
 
 ## Android clean debug build
 
