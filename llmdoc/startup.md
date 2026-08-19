@@ -12,6 +12,7 @@
 - 改设备能力或原生模块：读 `llmdoc/architecture/capability-slices.md`。
 - 做验证、DOD 或交付结论：读 `llmdoc/guides/verification-and-claims.md`。
 - 碰到协议、网关、后台可达或对象传输：读
+  `llmdoc/reference/sdk-device-transport.md` 和
   `llmdoc/reference/upstream-and-platform-blockers.md`。
 
 已有相关 guide 或 reflection 时，在规划和编辑前主动阅读；事实冲突时回到代码、HTBP 正式规范、

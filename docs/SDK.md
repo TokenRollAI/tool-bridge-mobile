@@ -1,324 +1,193 @@
 # SDK 使用与集成边界
 
-状态：当前事实 + 上游 SDK 提案。
+状态：`@tool-bridge/sdk/device@0.11.0` 已接入移动端；pairing、短期 ticket、mailbox 与动态 profile 仍未实现。
 
-## 1. 结论先行
+## 1. 当前结论
 
-截至 2026-08-19，当前公开包 `@tool-bridge/sdk@0.10.1` **不能直接作为 React Native App 的设备
-客户端使用**，且 `@tool-bridge/device-client` 尚未发布。
-
-原因来自当前代码和 package contract：
-
-- package 声明 `node >= 22`；
-- `connect()` 使用 Node 的 `ws` 和 `partysocket/ws`；
-- WebSocket 鉴权通过 Node 握手 `Authorization: Bearer <sk>` 注入；
-- SDK 的主职责是把一个 Node / Workers Tool Bridge 实例嵌入宿主，再反向连接网关；
-- React Native 的 WebSocket 面和后台生命周期不满足上述 Node 假设。
-
-因此：
-
-- 移动 App 不直接依赖当前 `@tool-bridge/sdk` runtime；
-- 当前 SDK 可用于本仓库的 Node 协议 fixture、fake device 和网关契约测试；
-- 移动生产代码等待/推动上游发布公共的跨运行时 device client；
-- 禁止把 `@tool-bridge/core` 私有源码复制到本仓库长期维护。
-
-## 2. 当前 `@tool-bridge/sdk` 能做什么
-
-当前公开面：
+自 `@tool-bridge/sdk@0.11.0` 起，上游通过独立子入口提供 React Native / Hermes-safe 设备客户端：
 
 ```ts
 import {
-  createToolBridge,
-  MemoryStateStore,
-} from '@tool-bridge/sdk'
-
-const tb = createToolBridge({
-  state: new MemoryStateStore(),
-  adminSk: process.env.TB_ADMIN_SK,
-})
-
-tb.registerTool('tools/echo', {
-  List: () => [{
-    name: 'echo',
-    description: '原样返回 text',
-  }],
-  Call: (_name, args) => ({
-    content: { echoed: args.text },
-  }),
-})
-
-const connection = tb.connect(
-  'https://gateway.example.com',
-  process.env.TB_DEVICE_SK,
-  { deviceId: 'fixture-phone-01' },
-)
-
-await connection.ready
+  connectDevice,
+  createReactNativeWebSocketFactory,
+} from '@tool-bridge/sdk/device'
 ```
 
-在本仓库中的合法用途：
+本仓库已经精确锁定并使用该版本。当前移动适配层：
 
-1. 启动一个 Node fake device，验证网关挂载路径和 call/result；
-2. 生成协议 fixture，验证移动 client 编解码兼容；
-3. 在 CI 中做上游发布版本的黑盒兼容测试；
-4. 模拟断线、重复 call id、拒绝帧和心跳。
+- 使用官方 `DeviceExpose`、hello / ready / call / result、ping / pong、cancel 与重连状态机；
+- 通过 React Native WebSocket 第三个参数注入 `Authorization` header，长期 SK 不进入 URL；
+- App 前台恢复连接，后台、inactive 与本地 Disabled 模式暂停连接；
+- call 继续经过 SQLite command 去重、动态 probe、policy、本地确认、结果上限与脱敏审计；
+- 网关拒绝凭证后清除 SecureStore envelope，凭证缺失或 audience 不匹配时 fail closed；
+- 首页只在 SDK 收到 `ready` 后显示 `online`。
 
-它不能替代：
+`@tool-bridge/sdk` 包级 `engines.node` 仍是 `>=22`，包根入口也仍面向 Node。这里的 Node 版本约束作用于
+pnpm 安装、TypeScript、Metro 与 CI 构建环境，不意味着 React Native 设备内运行 Node。移动生产代码必须
+只从 `/device` 子入口导入；禁止从包根导入 `createToolBridge` 或 Node transport。
 
-- APNs / FCM 注册；
-- command mailbox；
-- 本地用户确认；
-- iOS / Android 生命周期；
-- 原生权限；
-- React Native WebSocket ticket 鉴权。
+## 2. 当前移动端用法
 
-## 3. 当前 device wire 契约
-
-当前协议由上游定义，移动端需要兼容：
-
-### 设备到网关
+生产 wiring 位于 `src/gateway/sdkDeviceTransport.ts`，等价于：
 
 ```ts
-type HelloFrame = {
-  type: 'hello'
-  deviceId: string
-  mountPath?: string
-  expose: DeviceExpose
-}
-
-type ResultFrame =
-  | { type: 'result'; id: string; ok: true; value: unknown }
-  | { type: 'result'; id: string; ok: false; error: TBErrorBody }
+const connection = connectDevice({
+  baseUrl: gatewayOrigin,
+  deviceId: credential.deviceId,
+  expose: () => capabilityRegistry.deviceExpose(),
+  credentialProvider: {
+    prepare: async () => {
+      const current = await credentialStore.get()
+      if (current === null) throw new Error('device credential is missing')
+      return {
+        headers: { authorization: `Bearer ${current.material}` },
+      }
+    },
+    invalidate: () => {
+      void credentialStore.clear()
+    },
+  },
+  webSocketFactory: createReactNativeWebSocketFactory(globalThis.WebSocket),
+  handler: async call => executeThroughLocalRuntime(call),
+})
 ```
 
-### 网关到设备
+配置和凭证来自不同信任域：
+
+- `EXPO_PUBLIC_GATEWAY_ORIGIN` 只是非秘密 HTTPS origin，可进入客户端 bundle；
+- `deviceId`、`keyId` 与 secret material 来自 SecureStore `DeviceCredentialEnvelope`；
+- credential 的 `audienceOrigin` 必须与构建配置的 gateway origin 完全一致；
+- 当前没有 pairing UI，所以 fresh install 不会凭空生成 device credential；有 origin 但无凭证时显示
+  `credentials_required`，未配置 origin 时显示 `unconfigured`。
+
+现有 SecureStore envelope 是移动仓库的存储结构，不是新的 wire schema。后续 U-2 pairing 必须使用上游
+正式响应填充它，不能通过 `EXPO_PUBLIC_*`、源码常量、AsyncStorage 或 URL query 注入 secret。
+
+## 3. 能力注册
+
+`CapabilityRegistry.deviceExpose()` 把实际注册的本地 capability 投影成官方 SDK 允许的字段：
 
 ```ts
-type ReadyFrame = {
-  type: 'ready'
-  mountPath: string
+type DeviceNodeCmd = {
+  name: string
+  description?: string
+  inputSchema?: unknown
+  effect?: string
+  confirm?: boolean
 }
+```
 
-type CallFrame = {
-  type: 'call'
+- Zod strict input schema 通过 Zod 官方 JSON Schema 转换进入 `inputSchema`；
+- `effect`、description 和 tool name 来自同一个本地 descriptor；
+- high risk、destructive 或 `confirmation: always` 投影为 `confirm: true`；
+- `when_locked`、availability、risk、queue policy 与本地 limits 不私塞进未正式化的 wire 字段；
+- 本地 policy 始终拥有最终裁决权，gateway/dashboard 的 `confirm` 不能替代设备本地确认。
+
+移动 App 只声明 `nodes`，不声明 `shell` 或 `fs`。
+
+## 4. Call 适配与当前协议缺口
+
+0.11.0 的 `DeviceCallHandler` 当前提供：
+
+```ts
+type DeviceCallHandler = (call: {
   id: string
   path: string
   tool: string
   arguments: Record<string, unknown>
-}
-
-type ErrorFrame = {
-  type: 'error'
-  error: TBErrorBody
-}
+  signal: AbortSignal
+}) => Promise<unknown> | unknown
 ```
 
-双向还有 `ping`、`pong`，网关可发送 `cancel`。当前客户端对重复 call id 缓存并回放首次
-result，这是移动端幂等的最低兼容要求，但 mailbox 副作用仍需持久化去重。
+它没有端到端 caller identity、createdAt 或 expiresAt。为了不绕开已有本地安全执行器，当前适配层：
 
-## 4. 目标公共包
+- 保留 SDK call `id` 作为本地 `commandId`，SQLite 是副作用防重放真源；
+- 把已认证 device credential 的非秘密 `keyId` 记录为当前 gateway principal；
+- `displayName` 固定为“Tool Bridge 网关”，不伪装成具体 Agent；
+- 以本机收到 call 的时间作为 `createdAt`，生成 30 秒本地 commit deadline；
+- SDK cancel 的 `AbortSignal` 直接传播给本地 executor。
 
-建议由 `TokenRollAI/tool-bridge` 发布：
+因此当前 Activity 的 source 只能证明“经哪个 device credential/gateway 信任域到达”，不能证明具体
+Agent、用户或上游 SK。真实 caller attribution、gateway deadline 与跨重连时间语义仍需上游扩展正式
+call contract；在此之前不能把 `keyId` 描述为 Agent 身份。
 
-```text
-@tool-bridge/device-client
-```
+本地 `CommandOutcome` 的成功值直接成为 SDK result；失败按 Tool Bridge 规范错误归一为
+`invalid_argument | not_found | permission_denied | rate_limited | unavailable | internal`，不会把原生堆栈、
+文件路径或 credential 回传。
 
-包必须：
+## 5. 生命周期与可达性
 
-- 只依赖 Web 标准或显式注入 transport；
-- 支持 React Native、浏览器扩展、Node；
-- 导出协议 schema、类型、编解码和纯状态机；
-- 不内置 SecureStore、push、SQLite 或平台 UI；
-- 不读取 `process.env`；
-- 不要求 Node built-in；
-- 对 ESM 和 React Native bundler 有明确 exports；
-- 提供版本协商与兼容矩阵。
+当前只承诺前台实时连接：
 
-建议模块边界：
+| transport state | App reachability | 含义 |
+| --- | --- | --- |
+| `ready` | `online` | 已收到 gateway ready，可接受低延迟 call |
+| `connecting/reconnecting` | `offline` | 尚未 ready，不声称在线 |
+| `suspended/closed/error` | `offline` | 生命周期、Disabled 或错误使连接不可达 |
+| `credentials_required` | `unconfigured` | gateway 已知，但没有可用配对凭证 |
+| `unconfigured` | `unconfigured` | 没有 gateway origin |
+| 任意 state + Disabled | `disabled` | 本地策略优先，拒绝新命令 |
 
-```text
-@tool-bridge/device-client
-  ├── protocol      frames、schema、error
-  ├── session       hello / ready / call / result 状态机
-  ├── realtime      注入 WebSocket transport
-  ├── mailbox       注入 HTTP transport
-  └── testing       fixture 与 fake clock
-```
-
-## 5. 目标移动端用法
-
-下面是**提案 API**，用于约定期望开发体验；在上游包发布前不可复制到生产代码并声称已可运行。
-
-```ts
-import {
-  createDeviceClient,
-  type DeviceCommand,
-} from '@tool-bridge/device-client'
-
-const client = createDeviceClient({
-  identity: {
-    deviceId,
-    mountPath: `device/${deviceId}`,
-  },
-  capabilitySource: {
-    snapshot: () => capabilityRegistry.describeAll(),
-    subscribe: listener => capabilityRegistry.subscribe(listener),
-  },
-  transports: {
-    realtime: createReactNativeRealtimeTransport({
-      getTicket: () => gateway.createWebSocketTicket(),
-    }),
-    mailbox: createMailboxTransport({
-      fetch: globalThis.fetch,
-      getCredential: () => credentialStore.get(),
-    }),
-  },
-  commandStore,
-  onCommand: async (command: DeviceCommand, signal: AbortSignal) => {
-    const decision = await policyEngine.authorize(command)
-    return capabilityRegistry.execute(decision, signal)
-  },
-})
-
-await client.start()
-```
-
-当前 local-only `phone/productivity.notify` 不经过上述提案 client：它只在移动运行时内部使用
-`expo-notifications` 做权限/channel probe 与即时 local schedule，不获取或上传 APNs/FCM token。
-`phone/productivity.timer_start/timer_cancel/timer_status` 同样只存在于本地 registry：SQLite 是状态真源，
-系统绝对 DATE trigger 是 best-effort 提示，结果不构成 wire operation、delivery receipt 或准点证明。
-未来 U-5/U-6 接入时，push registration、opaque wake hint 与 mailbox 必须留在 device client / gateway
-adapter 边界；不得把现有本地通知 identifier 或 schedule result 当成 wire protocol 或 delivery receipt。
-
-移动仓库负责的 adapter：
-
-- `credentialStore`：SecureStore / native key storage；
-- `commandStore`：SQLite 持久化幂等；
-- `createReactNativeRealtimeTransport`：AppState-aware WebSocket；
-- `policyEngine`：本地模式、权限和确认；
-- `capabilityRegistry`：原生能力路由；
-- `mediaSourceResolver`：移动端本地 HTTPS 来源校验、受控下载与私有临时文件清理；它不定义
-  gateway wire 或 `objectRef` 协议；
-- `mapTargetBuilder`：只把归一化结构化目标映射成固定平台 map URI/link；caller 不能通过它注入 URL、
-  scheme、hostname 或 provider。
-
-公共包负责：
-
-- 帧 schema 与 decode/encode；
-- session 状态机；
-- call id 去重的通用语义；
-- 重连策略基础；
-- mailbox API client；
-- 标准错误和协议版本。
+后台模型仍是未来的 push + mailbox，而不是维持永久 WebSocket。当前 SDK transport 不实现 U-5 mailbox、
+U-6 push registration/dispatch，也不会把 local notification/timer 当成后台命令通道。
 
 ## 6. WebSocket 鉴权
 
-### 当前问题
+0.11.0 官方 RN adapter 支持原生 React Native WebSocket 的非 WHATWG 第三个参数，因此 Android/iOS 原生
+环境可以把设备 SK 放在 upgrade `Authorization` header。这个能力不适用于浏览器或 RN Web。
 
-Node 客户端可在 WebSocket 握手加入 `Authorization` header，React Native / 浏览器标准 WebSocket
-不能把这个能力当成可移植契约。长期 SK 也不能放到 URL query，因为 URL 更容易进入代理和日志。
+当前 header 方案解除了“原生 RN 无法接入现有 device WS”的 U-1 阻塞，但没有完成 U-2 pairing 或 U-3
+短期 ticket：
 
-### 推荐方案：短期 ticket
+- secret 仍是配对后持久化的 device credential material；
+- 重连会重新读取 SecureStore，支持后续 credential rotation；
+- secret 不进入 URL、日志、SQLite、审计或 `EXPO_PUBLIC_*`；
+- 若未来 gateway 提供短期 ticket，`DeviceCredentialProvider.prepare()` 可以返回专用 header、protocol 或
+  URL，而无需改本地 executor。
 
-1. App 用 HTTPS `Authorization` 调用网关 ticket endpoint；
-2. 网关返回单次、短 TTL、绑定 deviceId/audience 的 opaque ticket；
-3. App 用 ticket 建立 WebSocket；
-4. 网关验证并消费 ticket；
-5. 重连必须获取新 ticket。
+产品 release 仍优先采用单次、短 TTL、绑定 deviceId/audience/nonce 的 U-3 ticket，并保留当前 header
+方式作为原生兼容路径，具体取舍以届时正式上游契约和 threat review 为准。
 
-ticket 即使进入 URL，也因单次、短期、窄 audience 降低泄漏影响；网关和代理仍必须对 query
-做日志脱敏。
+## 7. SDK 与移动仓库的职责
 
-## 7. 能力注册示例
+官方 SDK 负责：
 
-移动 App 只声明 `nodes`，永不声明 `shell` 或 `fs`：
+- frame schema、encode/decode 与标准 TBError；
+- hello/ready/call/result/ping/pong/cancel；
+- 连接、重连、心跳、suspend/resume；
+- 进程内 call id 结果缓存。
 
-```ts
-const expose = {
-  nodes: [
-    {
-      path: 'phone/attention',
-      kind: 'tool',
-      description: '让设备产生用户可见的声光振动提示',
-      cmds: [
-        {
-          name: 'ring',
-          description: '让设备短时响铃，帮助用户找到它',
-          effect: 'write',
-          confirm: false,
-          inputSchema: {
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              durationSeconds: {
-                type: 'integer',
-                minimum: 1,
-                maximum: 120,
-              },
-              vibrate: { type: 'boolean' },
-              flash: { type: 'boolean' },
-            },
-          },
-        },
-      ],
-    },
-  ],
-}
-```
+移动仓库负责：
 
-`confirm: false` 只代表工具的网关元数据默认值；设备本地策略仍可以要求确认。更丰富的
-confirmation/availability 元数据在 HTBP 正式化前不能私自塞入字段并假设所有消费者理解。
+- SecureStore credential ownership 与 audience 检查；
+- AppState、Disabled 与本地撤销 wiring；
+- SQLite 持久化幂等和 crash recovery；
+- capability probe、policy、权限与本地确认；
+- 原生 handler、结果大小、审计与敏感值 redaction。
 
-## 8. Handler 约定
+SDK 的进程内 cache 不能替代 SQLite tombstone；WebSocket 重连也不能成为自动重试副作用的理由。
 
-handler 必须按以下顺序工作：
+## 8. 当前验证与升级闸门
 
-1. 解析并校验 path/tool；
-2. 用 commandId 检查本地终态；
-3. 检查 expiresAt / cancellation；
-4. 重新探测权限与前后台条件；
-5. 执行本地策略；
-6. 需要时进入等待用户状态；
-7. 持久化执行意图；
-8. 调用 capability；
-9. 持久化结果；
-10. 返回小结果或 objectRef。
+当前仓库已有：
 
-禁止：
+- 官方 SDK supervisor 的 fake WebSocket contract：Authorization header、hello/ready/call/result 与
+  AppState suspend；
+- caller/deadline 适配、标准错误映射、缺凭证和 audience mismatch fail-closed 测试；
+- registry → DeviceExpose JSON Schema 投影测试；
+- `scripts/verify-sdk-device-entry.mjs`：精确版本、package exports 与无 Node `ws/process.env` 泄漏；
+- Android 和 iOS production Metro export 成功。
 
-- 直接用 `as` 把未知 arguments 断言成业务类型；
-- 捕获所有错误后返回 `{ ok: true }`；
-- 因 WebSocket 重连重复执行；
-- 把原生错误堆栈、文件路径或凭证发给 Agent。
+尚未证明：
 
-## 9. 版本和兼容
+- 对真实 gateway 的兼容矩阵、弱网/重连和服务器拒绝；
+- pairing、credential issuance/rotation/revoke 端到端；
+- gateway caller/deadline attribution；
+- iOS/Android 真机前后台连接和长期稳定性；
+- mailbox、push 与后台可达。
 
-App hello/profile 应携带：
+升级 SDK 时必须继续精确锁版本，并通过 frozen install、入口漂移 gate、unit/contract、双端 Metro、
+真实 gateway fixture 和按风险选择的双端原生/真机验证。
 
-- `protocolVersion`；
-- `clientVersion`；
-- `capabilityProfileVersion`；
-- `platform` 和 OS major；
-- 可选 feature flags。
-
-兼容原则：
-
-- 协议新增可选字段走向后兼容；
-- 改变既有字段语义必须升协议版本；
-- App 至少支持当前和上一稳定协议版本；
-- 网关拒绝不支持版本时返回明确升级提示；
-- 上游 SDK 升级必须先过 fixture + fake gateway + 真机 smoke。
-
-## 10. 上游 SDK 验收清单
-
-- React Native Metro 可无 polyfill 导入；
-- 包入口不引用 Node built-in、`ws` 或 `process.env`；
-- 注入 fake transport 可覆盖完整状态机；
-- 标准 WebSocket adapter 与 Node adapter 都有测试；
-- duplicate call、disconnect、reconnect、cancel、invalid frame 有契约测试；
-- mailbox claim/ack/result 支持 crash recovery；
-- 所有 frame 通过同一份 schema 验证；
-- README 明确 credential ownership 和日志脱敏；
-- package exports、types 和 source map 正确；
-- 示例不会把长期 SK 放 URL。
+本次 consumer 验证命令、结果与未覆盖项见
+[2026-08-19 SDK device integration 验证](verification/2026-08-19-sdk-device-integration.md)。

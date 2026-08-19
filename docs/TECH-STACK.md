@@ -14,6 +14,7 @@
 - SQLite 持久化命令、审计和偏好；
 - SecureStore / 平台安全存储保存凭证；
 - Zod 做所有远端输入的运行时校验；
+- `@tool-bridge/sdk/device` 提供官方 React Native device transport 与 wire 状态机；
 - APNs / FCM 原生 device token + Tool Bridge gateway 推送；
 - Jest / React Native Testing Library 做组件和逻辑测试；
 - Maestro 做关键真机/模拟器 E2E；
@@ -22,7 +23,8 @@
 交付策略：**Android 首个端到端切片，iOS 从第一天保持可构建和协议对等。**
 
 当前精确基线：Node `22.23.1`、pnpm `11.21.0`、Expo `57.0.14`、React Native `0.86.2`、
-React `19.2.3`、TypeScript `6.0.3`。Android min/compile/target 为 `24/36/36`，iOS deployment
+React `19.2.3`、TypeScript `6.0.3`、`@tool-bridge/sdk 0.11.0`。Android min/compile/target 为
+`24/36/36`，iOS deployment
 target 为 `16.4`。`package.json`、`.node-version`、`pnpm-lock.yaml` 和 App config 是版本事实真源。
 
 ## 2. 为什么选 React Native + Expo
@@ -107,6 +109,7 @@ e2e/
 
 | 需求 | 选择 | 说明 |
 | --- | --- | --- |
+| 前台 device transport | `@tool-bridge/sdk/device` `0.11.0` | 官方 hello/ready/call/result、心跳、重连、cancel 与 RN WebSocket header adapter |
 | 路由/深链 | `expo-router`、`expo-linking` | 配对、通知 action、确认页 |
 | 本地通知与 timer 提示 | `expo-notifications` `57.0.12` | 当前：双端权限/channel probe、固定内容、即时/绝对 DATE local schedule |
 | push | `expo-notifications` + gateway APNs/FCM | 目标：token、mailbox 提示与点击观察；U-5/U-6 未实现 |
@@ -122,6 +125,12 @@ e2e/
 | 后台回调 | `expo-task-manager` | push/background callback 编排 |
 | schema | `zod` | 与 Tool Bridge 现有技术栈一致 |
 | attention haptic | 本地 Expo Module `tool-bridge-attention` | Expo/RN 公共 API 无硬件 probe；仅封装 hasVibrator/CoreHaptics 与单次 pulse |
+
+`@tool-bridge/sdk` 由 Tool Bridge 上游同仓维护，0.11.0 首次提供正式 `/device` export；已有依赖没有
+官方 device frame/session 状态机，移动仓库也不得复制 `@tool-bridge/core` 私有源码。包根仍有 Node
+依赖并声明 Node `>=22`，所以生产代码只导入 `/device`；仓库脚本锁定 export 和产物外部 import，
+Android/iOS Metro 也必须实际 bundle。package 级 Node engine 由本仓库已锁定的 Node 22 构建环境满足，
+不要求手机运行 Node。
 
 `tool-bridge-attention` 是当前唯一自定义原生模块：成熟 Expo haptics API没有暴露双端硬件 probe，
 而 capability 不能只按 OS 名称推断，因此使用最小 Kotlin/Swift 边界。Android 只声明普通
@@ -196,7 +205,8 @@ P0 不引入大型全局状态框架。
 ## 7. 网络与协议
 
 - HTTP：React Native 标准 `fetch`，由 gateway client 包装超时、错误和 redaction；
-- 实时：标准 WebSocket adapter + 上游短期 ticket；
+- 前台实时：`@tool-bridge/sdk/device` + React Native WebSocket header adapter；当前读取既有 SecureStore
+  device credential，短期 ticket 仍是 U-3；
 - 后台：mailbox HTTP pull/claim/result；
 - 上传：网关签发单次预签名 URL，文件直传对象存储；
 - 实时媒体：P2 WebRTC；
@@ -211,7 +221,7 @@ P0 不引入大型全局状态框架。
 | 纯逻辑 | Jest | policy、状态机、schema、redaction |
 | React UI | React Native Testing Library | 权限/确认/错误界面 |
 | 原生模块 | XCTest / Android instrumentation | 平台 adapter |
-| 协议契约 | fake transport + 上游 fixtures | frame、mailbox、版本兼容 |
+| 协议契约 | 官方 SDK + fake WebSocket；后续真实 gateway fixture | 当前 frame/生命周期 consumer wiring；未来 mailbox、版本兼容 |
 | E2E | Maestro | 配对、找手机、相机确认、撤销 |
 | 真机矩阵 | 手工自动化结合 | push、后台、锁屏、DND、弱网 |
 
@@ -225,7 +235,7 @@ E2E 工具只负责驱动 UI；平台是否真正发声、振动、拍照和接�
 - typecheck；
 - lint；
 - unit / component / local runtime contract；
-- 上游正式 fixture 可用后加入 gateway wire contract；
+- SDK device consumer contract；真实 gateway fixture 可用后加入 compatibility matrix；
 - Android debug build；
 - iOS simulator build（macOS runner）；
 - 依赖、许可证与 secret 扫描；

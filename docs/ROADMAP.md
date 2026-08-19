@@ -13,7 +13,7 @@
 - [x] 配置 Android applicationId、iOS bundle id 和三环境；
 - [ ] 建立严格 TypeScript、lint、test、CI；
 - [x] 建立 app/service/storage/native module 目录；
-- [ ] 接入上游公共 `@tool-bridge/device-client`；
+- [x] 接入上游公共 `@tool-bridge/sdk/device@0.11.0`；
 - [ ] pairing UI + SecureStore；
 - [x] SQLite command/audit schema 和 migration；
 - [ ] 前台 WebSocket ticket 连接；
@@ -38,7 +38,11 @@
   终态硬上限；running、当前完成项与活动 timer source 不会被该事务误删；
 - API 36 Android emulator smoke 已覆盖干净安装、最小权限、动态能力页、紧急停用与进程重启持久化；
   这不是 Android/iOS 真机行为证据；
-- 上游 U-1 至 U-6 尚未交付，production transport 明确显示 `unconfigured`。
+- U-1 已由 `@tool-bridge/sdk/device@0.11.0` 交付并接入：官方 supervisor、RN Authorization header、
+  AppState suspend/resume、registry expose 与 SDK call adapter 已有 contract 和双端 Metro 证据；只有
+  `ready` 才显示 online；
+- U-2 至 U-6 仍未交付。当前 fresh install 没有 pairing credential，显示 `credentials_required`；短期
+  ticket、真实 gateway fixture、具体 caller/deadline attribution、mailbox 与 push 均未完成。
 
 ### 出口
 

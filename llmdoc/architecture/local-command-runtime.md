@@ -2,13 +2,16 @@
 
 ## 目的
 
-在尚无 production transport 时，先建立不依赖 wire schema 的设备本地安全执行边界，并确保重复投递、
-用户等待、崩溃和日志处理不会产生隐蔽副作用或泄漏敏感参数。
+本地安全执行边界独立于 transport：最初可由 fake dispatcher 驱动，现在也由
+`@tool-bridge/sdk/device@0.11.0` 前台 call adapter 驱动；重复投递、用户等待、崩溃和日志处理都不能因
+transport 变化产生隐蔽副作用或泄漏敏感参数。
 
 ## 核心组件
 
-- `src/runtime/applicationRuntime.ts` (`ApplicationRuntime`)：组装 registry、SQLite、策略、确认与 UI snapshot；
-  AppState 变化时重新 probe。
+- `src/runtime/applicationRuntime.ts` (`ApplicationRuntime`)：组装 registry、SQLite、策略、确认、SDK
+  transport 与 UI snapshot；AppState 变化时重新 probe 并 suspend/resume realtime。
+- `src/gateway/sdkDeviceTransport.ts`：只用上游公开 `/device` 入口，把 SDK call 归一为本地 command；
+  负责 credential audience、RN header、AppState lifecycle 和 ready-only online。
 - `src/runtime/localCommandExecutor.ts` (`LocalCommandExecutor`)：唯一的本地 command 执行入口和安全顺序。
 - `src/capabilities/registry.ts` (`CapabilityRegistry`)：解析 path/tool、strict arguments、probe 和 handler。
 - `src/policy/policyEngine.ts` (`PolicyEngine`)：根据 control mode、risk、confirmation 与前后台裁决。
@@ -72,9 +75,11 @@ Promise；SQLite 中已为 running 的命令返回 `result_unknown`，不会再�
 - Memory command repository 每次 complete 维持等价的 10,000 终态硬上限并保留 running/当前完成项；
   production SQLite 另通过 timers 子查询保护活动 source。审计元数据写时硬上限仍为 5,000。
 - emergency disable 先关闭本地策略闸门、取消进行中 handler、拒绝 pending confirmation，并停止当前
-  attention/media session 与活动 timer；timer revocation epoch 防止已发起但迟到的原生调度越过停用边界。
+  attention/media session 与活动 timer、suspend SDK realtime；timer revocation epoch 防止已发起但迟到
+  的原生调度越过停用边界。
 - `LocalRevocationCoordinator` 先复用 emergency disable，再以有界超时停止 transports，并在 finally
-  清凭证；真实 realtime/mailbox adapter 尚不存在，不能声称端到端撤销已经完成。
+  清凭证；SDK realtime 已存在但 coordinator/真实 pairing revoke 尚未接入生产入口，mailbox 也不存在，
+  不能声称端到端撤销已经完成。
 
 ## 数据边界
 
@@ -89,4 +94,5 @@ Promise；SQLite 中已为 running 的命令返回 `result_unknown`，不会再�
 - `llmdoc/must/safety-boundaries.md`
 - `llmdoc/reference/command-retention.md`
 - `llmdoc/reference/local-activity-history.md`
+- `llmdoc/reference/sdk-device-transport.md`
 - `llmdoc/reference/upstream-and-platform-blockers.md`

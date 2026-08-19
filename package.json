@@ -32,10 +32,12 @@
     "verify:expo": "expo install --check",
     "verify:licenses": "node scripts/verify-licenses.mjs",
     "verify:native-modules": "node scripts/verify-native-modules.mjs",
+    "verify:sdk-device": "node scripts/verify-sdk-device-entry.mjs",
     "verify:secrets": "node scripts/verify-secrets.mjs",
-    "verify": "pnpm verify:docs && pnpm verify:config && pnpm verify:native-modules && pnpm verify:secrets && pnpm verify:licenses && pnpm verify:dependency-mitigations && pnpm verify:expo && pnpm typecheck && pnpm lint && pnpm test"
+    "verify": "pnpm verify:docs && pnpm verify:config && pnpm verify:native-modules && pnpm verify:sdk-device && pnpm verify:secrets && pnpm verify:licenses && pnpm verify:dependency-mitigations && pnpm verify:expo && pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
+    "@tool-bridge/sdk": "0.11.0",
     "expo": "57.0.14",
     "expo-application": "57.0.2",
     "expo-asset": "57.0.12",
@@ -85,7 +87,7 @@
       "^@/(.*)$": "<rootDir>/src/$1"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(.pnpm|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|expo-router|react-navigation|@react-navigation/.*|react-native-safe-area-context|react-native-screens))"
+      "node_modules/(?!(.pnpm|(jest-)?react-native|@react-native(-community)?|@tool-bridge/sdk|partysocket|event-target-polyfill|expo(nent)?|@expo(nent)?/.*|expo-router|react-navigation|@react-navigation/.*|react-native-safe-area-context|react-native-screens))"
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",

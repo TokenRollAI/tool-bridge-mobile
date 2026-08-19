@@ -1,6 +1,17 @@
 import { z } from 'zod'
 
+import { appUrlArgumentsSchema } from '../apps/schema'
+import { ringArgumentsSchema, stopArgumentsSchema } from '../attention/schema'
+import { openMapArgumentsSchema } from '../location/openMapSchema'
+import { currentLocationArgumentsSchema } from '../location/schema'
+import { mediaPlayArgumentsSchema, mediaSessionArgumentsSchema } from '../media/schema'
+import { localNotificationArgumentsSchema } from '../productivity/notificationSchema'
+import {
+  timerReferenceArgumentsSchema,
+  timerStartArgumentsSchema,
+} from '../productivity/timerSchema'
 import { CapabilityRegistry } from '../registry'
+import { statusArgumentsSchema } from '../status/schema'
 
 import type { CapabilityContext, MobileCapability } from '../types'
 
@@ -64,5 +75,72 @@ describe('CapabilityRegistry', () => {
       inputSchema: z.strictObject({}),
       probe: async () => ({ status: 'available' }),
     })).toThrow('能力 limits 无效')
+  })
+
+  test('把本地 registry 投影为官方 SDK DeviceExpose，不制造额外 wire 字段', () => {
+    const registry = new CapabilityRegistry()
+    registry.register({
+      descriptor: {
+        confirmation: 'always',
+        description: 'fixture write capability',
+        effect: 'write',
+        limits: {
+          maxResultBytes: 1_024,
+          rate: { maxGlobal: 10, maxPerCaller: 5, windowSeconds: 60 },
+        },
+        path: 'phone/fixture',
+        queuePolicy: 'reject_offline',
+        risk: 'medium',
+        tool: 'write',
+      },
+      execute: async () => ({ ok: true }),
+      inputSchema: z.strictObject({ count: z.number().int().min(1).max(3) }),
+      probe: async () => ({ status: 'available' }),
+    })
+
+    expect(registry.deviceExpose()).toEqual({
+      nodes: [{
+        cmds: [{
+          confirm: true,
+          description: 'fixture write capability',
+          effect: 'write',
+          inputSchema: expect.objectContaining({
+            additionalProperties: false,
+            properties: {
+              count: expect.objectContaining({ maximum: 3, minimum: 1, type: 'integer' }),
+            },
+            required: ['count'],
+            type: 'object',
+          }),
+          name: 'write',
+        }],
+        description: 'Tool Bridge Mobile phone/fixture capabilities',
+        kind: 'tool',
+        path: 'phone/fixture',
+      }],
+    })
+  })
+
+  test('所有当前公开 capability input schema 都可投影为 SDK JSON Schema', () => {
+    const schemas = [
+      appUrlArgumentsSchema,
+      currentLocationArgumentsSchema,
+      localNotificationArgumentsSchema,
+      mediaPlayArgumentsSchema,
+      mediaSessionArgumentsSchema,
+      openMapArgumentsSchema,
+      ringArgumentsSchema,
+      statusArgumentsSchema,
+      stopArgumentsSchema,
+      timerReferenceArgumentsSchema,
+      timerStartArgumentsSchema,
+    ]
+
+    for (const schema of schemas) {
+      expect(z.toJSONSchema(schema)).toMatchObject({
+        additionalProperties: false,
+        type: 'object',
+      })
+    }
   })
 })

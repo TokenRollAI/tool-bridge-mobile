@@ -6,7 +6,8 @@
   development build 面向 Android 和 iOS。
 - 产品目标是让 Agent 在用户明确授权、系统权限和平台限制之内调用手机能力；它不是远程桌面、
   监控软件、MDM 或任意 App UI 自动化工具。
-- 当前状态是“P0 本地安全运行时已实现若干纵向切片，尚未达到 MVP”，不能简称为已接通 Tool Bridge。
+- 当前状态是“P0 本地安全运行时与官方 SDK 前台 consumer 已实现若干纵向切片，尚未达到 MVP”；没有
+  pairing credential 和真实 gateway 兼容证据时，不能简称为已接通 Tool Bridge。
 
 ## 仓库所有权
 

@@ -8,6 +8,25 @@ import { colors } from '@/ui/theme'
 
 import type { ApplicationSnapshot } from '@/runtime/applicationRuntime'
 
+function transportDescription(snapshot: ApplicationSnapshot): string {
+  switch (snapshot.transportState) {
+    case 'ready':
+      return 'Tool Bridge SDK 前台连接已就绪；所有调用仍由设备本地策略、权限与确认裁决。'
+    case 'connecting':
+    case 'reconnecting':
+      return 'Tool Bridge SDK 正在建立前台设备连接；尚未收到 ready 前不会声称在线。'
+    case 'credentials_required':
+      return '网关地址已配置，但安全存储中还没有配对签发的设备凭证。'
+    case 'suspended':
+      return 'Tool Bridge SDK 连接已暂停；App 回到前台且本地控制模式允许时才恢复。'
+    case 'closed':
+    case 'error':
+      return 'Tool Bridge SDK 连接当前不可用；本地能力不会因此绕过安全裁决。'
+    case 'unconfigured':
+      return 'Tool Bridge SDK transport 已接入，但尚未配置 production gateway origin。'
+  }
+}
+
 type HomeScreenProps = Readonly<{
   focused?: boolean
   onApproveConfirmation(commandId: string): void
@@ -50,6 +69,10 @@ export function HomeScreen({
     `控制模式已变为 ${snapshot.controlMode}`,
   )
   useDiscreteAccessibilityAnnouncement(
+    `transport:${snapshot.transportState}`,
+    `设备连接状态已变为 ${snapshot.transportState}`,
+  )
+  useDiscreteAccessibilityAnnouncement(
     snapshot.error === null ? null : `error:${snapshot.error}`,
     snapshot.error,
     'assertive',
@@ -74,7 +97,7 @@ export function HomeScreen({
 
   return (
     <Screen
-      description="当前仅启用本地安全运行时；生产网关 transport 尚未配置，不会伪装在线。"
+      description={transportDescription(snapshot)}
       eyebrow="TOOL BRIDGE MOBILE"
       focused={focused}
       title="设备裁决优先"
@@ -84,11 +107,21 @@ export function HomeScreen({
       <StatusCard title="本机状态">
         <StatusRow label="运行时" value={snapshot.phase} />
         <StatusRow label="可达性" value={snapshot.reachability} />
+        <StatusRow label="SDK transport" value={snapshot.transportState} />
         <StatusRow label="控制模式" value={snapshot.controlMode} />
         <StatusRow
           label="installationId"
           value={snapshot.installationId ?? '正在从安全存储加载'}
         />
+        {snapshot.deviceId === null ? null : (
+          <StatusRow label="gateway deviceId" value={snapshot.deviceId} />
+        )}
+        {snapshot.mountPath === null ? null : (
+          <StatusRow label="挂载路径" value={snapshot.mountPath} />
+        )}
+        {snapshot.transportIssue === null ? null : (
+          <StatusRow label="连接问题" value={snapshot.transportIssue} />
+        )}
       </StatusCard>
 
       {snapshot.attentionSession === null ? null : (

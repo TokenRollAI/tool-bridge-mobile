@@ -48,6 +48,26 @@ export function parseLinkHosts(value: string | undefined): readonly string[] {
   return parseHosts(value, 'EXPO_PUBLIC_LINK_HOSTS')
 }
 
+export function parseGatewayOrigin(value: string | undefined): string | null {
+  if (value === undefined || value.trim() === '') return null
+  const normalized = value.trim()
+  let url: URL
+  try {
+    url = new URL(normalized)
+  } catch {
+    throw new Error('EXPO_PUBLIC_GATEWAY_ORIGIN 必须是有效的 HTTPS origin')
+  }
+  if (
+    url.protocol !== 'https:'
+    || url.username !== ''
+    || url.password !== ''
+    || url.origin !== normalized
+  ) {
+    throw new Error('EXPO_PUBLIC_GATEWAY_ORIGIN 必须是无路径、query、fragment 或 userinfo 的 HTTPS origin')
+  }
+  return url.origin
+}
+
 function parseHosts(value: string | undefined, variableName: string): readonly string[] {
   if (value === undefined || value.trim() === '') return []
   const hosts = value.split(',').map(host => host.trim().toLowerCase())
@@ -157,10 +177,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         projectId: EAS_PROJECT_ID,
       },
       appVariant,
-      gatewayOrigin: process.env.EXPO_PUBLIC_GATEWAY_ORIGIN ?? null,
+      gatewayOrigin: parseGatewayOrigin(process.env.EXPO_PUBLIC_GATEWAY_ORIGIN),
       linkHosts: parseLinkHosts(process.env.EXPO_PUBLIC_LINK_HOSTS),
       mediaHosts: parseMediaHosts(process.env.EXPO_PUBLIC_MEDIA_HOSTS),
-      productionTransport: 'unconfigured',
+      productionTransport: '@tool-bridge/sdk/device@0.11.0',
     },
   }
 }

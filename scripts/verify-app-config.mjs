@@ -23,6 +23,7 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
       env: {
         ...process.env,
         APP_VARIANT: variant,
+        EXPO_PUBLIC_GATEWAY_ORIGIN: 'https://gateway.example.com',
         EXPO_PUBLIC_LINK_HOSTS: 'www.example.com,docs.example.com',
         EXPO_PUBLIC_MEDIA_HOSTS: 'media.example.com,cdn.example.com',
       },
@@ -44,6 +45,12 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   }
   if (config.extra?.eas?.projectId !== easProject.id) {
     throw new Error(`${variant}: EAS projectId 不匹配`)
+  }
+  if (config.extra?.gatewayOrigin !== 'https://gateway.example.com') {
+    throw new Error(`${variant}: gateway HTTPS origin 未规范化`)
+  }
+  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.11.0') {
+    throw new Error(`${variant}: production transport 版本标记不匹配`)
   }
   if (!config.android?.permissions?.includes('android.permission.VIBRATE')) {
     throw new Error(`${variant}: 缺少 P1-A haptic 所需的 Android VIBRATE 权限`)
@@ -84,6 +91,7 @@ const { stdout: introspectionOutput } = await execFileAsync(
     env: {
       ...process.env,
       APP_VARIANT: 'development',
+      EXPO_PUBLIC_GATEWAY_ORIGIN: 'https://gateway.example.com',
       EXPO_PUBLIC_LINK_HOSTS: 'www.example.com',
       EXPO_PUBLIC_MEDIA_HOSTS: 'media.example.com',
     },

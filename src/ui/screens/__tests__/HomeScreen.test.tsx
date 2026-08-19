@@ -11,17 +11,21 @@ const readySnapshot: ApplicationSnapshot = {
   auditRecords: [],
   capabilities: [],
   controlMode: 'ask_every_time',
+  deviceId: null,
   error: null,
   installationId: 'installation_00000000-0000-4000-8000-000000000000',
   mediaSession: null,
+  mountPath: null,
   pendingConfirmations: [],
   phase: 'ready',
   reachability: 'unconfigured',
   timers: [],
+  transportIssue: null,
+  transportState: 'unconfigured',
 }
 
 describe('HomeScreen', () => {
-  test('明确展示 transport 未配置，并允许紧急停用', async () => {
+  test('明确展示 SDK transport 配置状态，并允许紧急停用', async () => {
     const onEmergencyDisable = jest.fn()
     const rendered = await render(
       <HomeScreen
@@ -37,9 +41,38 @@ describe('HomeScreen', () => {
       />,
     )
 
-    rendered.getByText('生产网关 transport 尚未配置，不会伪装在线。', { exact: false })
+    rendered.getByText('SDK transport 已接入，但尚未配置 production gateway origin。', {
+      exact: false,
+    })
+    rendered.getByLabelText('SDK transport：unconfigured')
     await fireEvent.press(rendered.getByRole('button', { name: '紧急停用远程能力' }))
     expect(onEmergencyDisable).toHaveBeenCalledTimes(1)
+  })
+
+  test('只在 SDK ready 后展示 online 与网关设备身份', async () => {
+    const rendered = await render(
+      <HomeScreen
+        onApproveConfirmation={jest.fn()}
+        onCancelTimer={jest.fn()}
+        onEmergencyDisable={jest.fn()}
+        onEnable={jest.fn()}
+        onOpenNotificationSettings={jest.fn()}
+        onRejectConfirmation={jest.fn()}
+        onRequestNotificationPermission={jest.fn()}
+        onStopAttention={jest.fn()}
+        snapshot={{
+          ...readySnapshot,
+          deviceId: 'device_01',
+          mountPath: 'device/device_01',
+          reachability: 'online',
+          transportState: 'ready',
+        }}
+      />,
+    )
+
+    rendered.getByLabelText('可达性：online')
+    rendered.getByLabelText('gateway deviceId：device_01')
+    rendered.getByLabelText('挂载路径：device/device_01')
   })
 
   test('Disabled 模式提供显式恢复入口', async () => {

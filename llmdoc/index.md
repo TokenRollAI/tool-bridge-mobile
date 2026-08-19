@@ -44,6 +44,7 @@
 - `reference/accessibility-semantics.md`：共享 UI 语义、48dp、焦点/公告去重、对比度及 Android 200%
   字号 smoke 的证据上限。
 - `reference/eas-project-binding.md`：单一 EAS project 身份、三变体隔离、profile/environment 与验证边界。
+- `reference/sdk-device-transport.md`：官方 RN SDK 子入口、凭证/header、生命周期、call 归一化与证据边界。
 - `reference/upstream-and-platform-blockers.md`：上游、iOS 和真机阻塞项及其事实真源。
 
 ### 过程记忆
@@ -72,6 +73,8 @@
   cap 外容量，并区分 UI 语义自动化与真实辅助技术验收的经验。
 - `memory/reflections/2026-08-19-eas-project-binding.md`：从新版 Dashboard 缺少 UUID 展示到安全关联
   dynamic app config、多变体与证据边界的经验。
+- `memory/reflections/2026-08-19-sdk-device-subpath-integration.md`：从 package 根假设转向 export/产物/Metro
+  验证，并处理缺失 caller/deadline 的 transport 接入经验。
 
 ## 路由规则
 
@@ -96,5 +99,6 @@
 - 声称功能“完成”、勾选 DOD 或写 PR 证据前，读 `must/evidence-language.md` 和
   `guides/verification-and-claims.md`。
 - 涉及 pairing、realtime、mailbox、push、objectRef 或 capability profile 时，先读
-  `reference/upstream-and-platform-blockers.md`，再核实 `docs/UPSTREAM.md` 与上游正式契约。
+  `reference/sdk-device-transport.md` 和 `reference/upstream-and-platform-blockers.md`，再核实
+  `docs/UPSTREAM.md` 与上游正式契约。
 - 重复大范围 DOD/文档同步工作前，读本次 reflection，避免把目标态误写成现状。

@@ -17,3 +17,9 @@ audit:
     - GHSA-5p2g-fcmc-qvqq
 
 strictPeerDependencies: true
+
+# 0.11.0 是本仓库等待的官方 React Native device 入口；已核对 registry tarball、上游源码/测试、
+# 精确 integrity、MIT license、双端 Metro 与本地 consumer contract，因此允许在默认 release-age
+# 等待期内使用这一精确版本。升级版本不会继承此例外。
+minimumReleaseAgeExclude:
+  - '@tool-bridge/sdk@0.11.0'

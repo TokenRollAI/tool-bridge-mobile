@@ -15,8 +15,10 @@
 > 本机活动审计、跨四个本地页面的无障碍语义自动化基线，以及持久化/并发幂等测试。
 > 本地执行还包含确认前 caller/global admission、inline 结果字节上限、claim 后取消/到期复检和
 > emergency disable 的进行中命令取消。
-> production transport、pairing、realtime ticket、mailbox、objectRef 与远程 push 仍等待
-> [上游交付](docs/UPSTREAM.md)，UI 会明确显示 `unconfigured`，不声称已连接网关。
+> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.11.0`：Android/iOS 前台 transport 使用官方
+> hello/ready/call/result、心跳、重连与 cancel，调用继续经过本地安全执行链；只有收到 gateway ready
+> 才显示 online。fresh install 尚无 pairing credential，会显示 `credentials_required`；pairing、短期
+> ticket、mailbox、objectRef 与远程 push 仍等待[上游交付](docs/UPSTREAM.md)。
 
 ## 它解决什么问题
 
@@ -85,8 +87,8 @@ pnpm start
 ```
 
 `pnpm start` 面向 development build，不以 Expo Go 为验收环境。`pnpm verify` 当前覆盖文档链接、
-三环境配置、secret/license/dependency 检查、Expo 依赖一致性、strict typecheck、零 warning lint、
-unit/component 和本地运行时契约测试。
+三环境配置、SDK RN 子入口漂移、secret/license/dependency 检查、Expo 依赖一致性、strict typecheck、
+零 warning lint、unit/component 和本地/SDK transport 契约测试。
 
 原生构建命令：
 

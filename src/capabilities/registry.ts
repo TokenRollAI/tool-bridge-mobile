@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 import type {
   CapabilityAvailability,
   CapabilityContext,
@@ -7,7 +9,7 @@ import type {
   CapabilitySnapshot,
   MobileCapability,
 } from './types'
-import type { z } from 'zod'
+import type { DeviceClientExpose, DeviceNodeCmd } from '@tool-bridge/sdk/device'
 
 
 export type ArgumentParseResult =
@@ -23,6 +25,7 @@ export type RegisteredCapability = Readonly<{
     invocation: CapabilityInvocation,
     signal: AbortSignal,
   ): Promise<unknown>
+  inputSchema: z.ZodType
   parse(argumentsValue: unknown): ArgumentParseResult
   probe(context: CapabilityContext): Promise<CapabilityAvailability>
   preflight(argumentsValue: unknown): Promise<void>
@@ -64,6 +67,7 @@ export class CapabilityRegistry {
         const parsed = capability.inputSchema.parse(argumentsValue)
         return capability.execute(parsed, context, invocation, signal)
       },
+      inputSchema: capability.inputSchema,
       parse: argumentsValue => {
         const parsed = capability.inputSchema.safeParse(argumentsValue)
         if (parsed.success) return { data: parsed.data, success: true }
@@ -85,6 +89,35 @@ export class CapabilityRegistry {
 
   resolve(path: string, tool: string): RegisteredCapability | null {
     return this.#capabilities.get(capabilityKey(path, tool)) ?? null
+  }
+
+  deviceExpose(): DeviceClientExpose {
+    const nodes = new Map<string, DeviceNodeCmd[]>()
+    for (const capability of this.#capabilities.values()) {
+      const { descriptor } = capability
+      const commands = nodes.get(descriptor.path) ?? []
+      commands.push({
+        confirm: descriptor.confirmation === 'always'
+          || descriptor.risk === 'high'
+          || descriptor.effect === 'destructive',
+        description: descriptor.description,
+        effect: descriptor.effect,
+        inputSchema: z.toJSONSchema(capability.inputSchema),
+        name: descriptor.tool,
+      })
+      nodes.set(descriptor.path, commands)
+    }
+
+    return {
+      nodes: [...nodes.entries()]
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([path, commands]) => ({
+          cmds: commands.sort((left, right) => left.name.localeCompare(right.name)),
+          description: `Tool Bridge Mobile ${path} capabilities`,
+          kind: 'tool' as const,
+          path,
+        })),
+    }
   }
 
   async snapshot(context: CapabilityContext): Promise<readonly CapabilitySnapshot[]> {
