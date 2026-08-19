@@ -195,7 +195,7 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     })).rejects.toMatchObject({ code: 'permission_denied', retryable: false })
   })
 
-  test('真实 SDK supervisor 使用 RN header、hello/ready/call/result，并随 AppState suspend', async () => {
+  test('真实 SDK supervisor 使用 RN header、hello/ready/call/result，仅在 Disabled 时 suspend', async () => {
     const harness = createWebSocketHarness()
     const commands: LocalCommand[] = []
     const transport = new SdkDeviceTransport({
@@ -262,11 +262,17 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     expect(transport.getSnapshot().state).toBe('ready')
     expect(transport.getSnapshot().diagnostic).toBeNull()
 
-    // inactive 是短暂过渡态（来电、切换动画、锁屏瞬间），仍 suspend 以避免连接抖动。
+    // inactive 是失焦、台前调度切换、通知中心下拉、来电弹窗等短暂过渡态。此前会 suspend，
+    // 把每次失焦放大成一次断线重连；现在保持连接不再抖动。
     await transport.updateLifecycle('inactive', true)
-    expect(transport.getSnapshot().state).toBe('suspended')
+    expect(transport.getSnapshot().state).toBe('ready')
+    expect(transport.getSnapshot().diagnostic).toBeNull()
 
-    // Disabled/紧急停用仍无条件 suspend。
+    // unknown（启动初值、罕见平台态）同样保持连接。
+    await transport.updateLifecycle('unknown', true)
+    expect(transport.getSnapshot().state).toBe('ready')
+
+    // 只有 Disabled/紧急停用才无条件 suspend。
     await transport.updateLifecycle('background', false)
     expect(transport.getSnapshot().state).toBe('suspended')
     await transport.stopForLocalRevocation()
