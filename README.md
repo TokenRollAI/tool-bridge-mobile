@@ -1,5 +1,8 @@
 # tool-bridge-mobile
 
+[![verify](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/verify.yml)
+[![release-preview](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/release.yml/badge.svg)](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/release.yml)
+
 让 Agent 的能力边界从云端延伸到用户明确授权的手机。
 
 `tool-bridge-mobile` 是 HTBP / Tool Bridge 生态中的移动设备运行时。它把 Android 和 iOS
@@ -17,8 +20,9 @@
 > emergency disable 的进行中命令取消。
 > 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.11.0`：Android/iOS 前台 transport 使用官方
 > hello/ready/call/result、心跳、重连与 cancel，调用继续经过本地安全执行链；只有收到 gateway ready
-> 才显示 online。fresh install 尚无 pairing credential，会显示 `credentials_required`；pairing、短期
-> ticket、mailbox、objectRef 与远程 push 仍等待[上游交付](docs/UPSTREAM.md)。
+> 才显示 online。当前内测入口允许用户在本机填写 Gateway HTTPS URL 与 API key，secret 只进入
+> SecureStore；这不等于 pairing、最小权限设备凭证或短期 ticket，mailbox、objectRef 与远程 push 仍
+> 等待[上游交付](docs/UPSTREAM.md)。
 
 ## 它解决什么问题
 
@@ -90,6 +94,11 @@ pnpm start
 三环境配置、SDK RN 子入口漂移、secret/license/dependency 检查、Expo 依赖一致性、strict typecheck、
 零 warning lint、unit/component 和本地/SDK transport 契约测试。
 
+安装 App 后可在首页“网关连接设置”中填写纯 HTTPS origin 和 Tool Bridge API key。API key 不应写入
+`.env`、`EXPO_PUBLIC_*`、源码或 URL；保存时 App 会先停止旧连接，再把 key 写入系统 SecureStore，
+并用当前安装实例派生的稳定 `mobile_<uuid>` 作为客户端声明的 SDK `deviceId`。该 deviceId 不是网关
+签发身份，手工入口只是 pairing 交付前的内测通道。
+
 原生构建命令：
 
 ```bash
@@ -103,6 +112,18 @@ APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，a
 生成的 debug test key 签名，只用于内部试用；它不是生产签名、商店 release 或 release DOD 证据。
 本地构建与安装证据见 [Android preview APK 验证记录](docs/verification/2026-08-19-android-preview-apk.md)。
 
+## 版本与 GitHub 预发布
+
+当前 App/package 版本为 `0.0.1`。推送匹配 `vX.Y.Z` 的 tag 时，
+[`release-preview`](.github/workflows/release.yml) 会先验证 tag、`package.json`、Expo App 版本和对应
+`docs/releases/<tag>.md` 完全一致，再执行 frozen install、全量 verify、peer/dependency gate、Android
+preview APK clean build 与 iOS simulator build。所有门禁成功后才创建 GitHub Pre-release，并附带
+版本化 APK 与 SHA-256。
+
+版本页面：[GitHub Releases](https://github.com/TokenRollAI/tool-bridge-mobile/releases)。当前自动发布仍是
+内部 Preview：APK 使用 debug test key，且不会自动上传商店、创建 production AAB/IPA 或假装满足
+[Release DOD](docs/DOD.md#8-release-dod)。
+
 仓库同时绑定到 Expo 项目 [`@tokenroll/tool-bridge`](https://expo.dev/accounts/tokenroll/projects/tool-bridge)，
 development / preview / production 共用 EAS Project ID，但继续使用不同的 application id、bundle id、
 scheme 和显示名称。验证绑定或触发 EAS 内部分发 APK：
@@ -113,7 +134,8 @@ mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas build --platform
 ```
 
 EAS `preview` profile 固定 Node 22.23.1、`APP_VARIANT=preview`、preview environment 与 APK 输出。EAS
-环境中的 `EXPO_PUBLIC_*` 都会进入客户端，不能存放凭证、token 或私钥；当前未配置 gateway/media/link
+环境中的 `EXPO_PUBLIC_*` 都会进入客户端，不能存放凭证、token 或私钥；
+`EXPO_PUBLIC_GATEWAY_ORIGIN` 只可作为非秘密 URL 预置，首页本机 URL 配置优先。未配置 media/link
 变量时，相应能力保持 unavailable。
 
 Android development debug APK 构建完成、API 36 emulator 已启动且另一个终端正在运行 `pnpm start`

@@ -79,6 +79,8 @@ Agent 可以发现这台设备当下真实可用的能力，并在权限、确�
 ### 6.1 P0：运行时基础
 
 - 生成并安全保存稳定的本地 `installationId`；配对成功后再接受网关签发的 `deviceId`；
+- 内测阶段允许用户在本机手工填写 Gateway HTTPS origin 与 API key，使用派生的客户端 `deviceId`
+  建立前台连接；该入口不冒充配对、设备凭证签发或最小权限授权；
 - 通过一次性配对流程获得最小权限设备凭证；
 - 前台建立设备 WebSocket，会话断开后指数退避重连；
 - 上报静态与动态能力；
@@ -130,6 +132,11 @@ MVP 明确不做：
 - 用户可在 App 内查看配对网关、重新命名设备并立即撤销；
 - 网关撤销后，设备下一次请求必须失败并清除本地会话；
 - 日志与界面不得展示完整凭证。
+
+现状：正式 pairing/rotation/revoke 仍未实现。为便于内测，首页提供独立的手工 URL + API key 入口；
+URL 必须是纯 HTTPS origin，API key 只进入 SecureStore，保存后表单立即清空。App 从随机本地
+`installationId` 派生 `mobile_<uuid>` 作为客户端声明的协议 deviceId。此 fallback 不能用于验收上述
+pairing、设备专用最小权限凭证或撤销条目，产品发布前仍需回到正式流程。
 
 ### FR-2：设备状态
 
@@ -233,6 +240,8 @@ queued -> delivered -> awaiting_user -> running -> succeeded
 ### FR-10：本地控制台与审计
 
 - 首页展示当前模式、网关、设备名、连接状态和总开关；
+- 首页允许本机保存或清除 Gateway HTTPS origin + API key；清除前二次确认并先停止当前连接，API key
+  不回显，也不进入普通审计、SQLite 或可公开构建变量；
 - 能力页逐项展示权限、确认策略和平台限制；
 - 活动页展示最近调用的时间、来源、工具、effect/risk、决策和结果；
 - 活动页只投影最近 100 条，本机审计持续硬限制为 5,000 条；

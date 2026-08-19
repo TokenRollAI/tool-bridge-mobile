@@ -8,9 +8,11 @@ export default function HomeRoute() {
   const {
     approveConfirmation,
     cancelTimer,
+    clearGatewayConfiguration,
     openNotificationSettings,
     rejectConfirmation,
     requestNotificationPermission,
+    saveGatewayConfiguration,
     setControlMode,
     snapshot,
     stopAttentionSession,
@@ -18,13 +20,15 @@ export default function HomeRoute() {
   return (
     <HomeScreen
       focused={focused}
-      onEmergencyDisable={() => { void setControlMode('disabled') }}
       onCancelTimer={timerId => { void cancelTimer(timerId) }}
+      onClearGatewayConfiguration={clearGatewayConfiguration}
+      onEmergencyDisable={() => { void setControlMode('disabled') }}
       onEnable={() => { void setControlMode('ask_every_time') }}
       onOpenNotificationSettings={() => { void openNotificationSettings() }}
       onApproveConfirmation={approveConfirmation}
       onRejectConfirmation={rejectConfirmation}
       onRequestNotificationPermission={() => { void requestNotificationPermission() }}
+      onSaveGatewayConfiguration={saveGatewayConfiguration}
       onStopAttention={() => { void stopAttentionSession() }}
       snapshot={snapshot}
     />

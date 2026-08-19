@@ -18,8 +18,9 @@ U-1 已解阻：`@tool-bridge/sdk/device@0.11.0` 是正式 React Native / Hermes
 - 真实 gateway compatibility matrix、CLI/管理入口与端到端 revoke。
 
 因此可以声称“官方 SDK 前台 consumer wiring 已集成”，不能声称“已配对”“真实 gateway 已兼容”或
-“后台可达”。fresh install 无 gateway origin 为 `unconfigured`；有 origin 无 credential 为
-`credentials_required`；只有收到 ready 才是 online。
+“后台可达”。用户现在可以在首页手工保存 HTTPS origin + API key 作为内测 fallback；它不提供设备
+credential 的签发、最小 scope、rotation、revoke 或短期 ticket。没有 origin 为 `unconfigured`；有
+origin 无 credential 为 `credentials_required`；只有收到真实 SDK ready 才是 online。
 
 详细 U-1 至 U-7、验收条件与责任以 `docs/UPSTREAM.md` 为事实真源。
 
@@ -37,8 +38,9 @@ U-1 已解阻：`@tool-bridge/sdk/device@0.11.0` 是正式 React Native / Hermes
 
 ## 解阻后的验证顺序
 
-1. U-2 pairing 产生真实、最小 scope credential，并验证 audience/rotation/revoke；
-2. 以真实 gateway fixture 验证 hello/expose/call/cancel/result、重复 id、拒绝和弱网重连；
+1. 先以用户提供的真实 gateway HTTPS origin/API key 验证当前 fallback 的
+   hello/expose/call/cancel/result、重复 id、拒绝和弱网重连；
+2. U-2 pairing 产生真实、最小 scope credential，并验证 audience/rotation/revoke，替换手工长期 key；
 3. 正式化 caller/deadline，证明 Activity attribution、per-caller limits 和 expiry 不是本地替代值；
 4. 完成 Android/iOS clean build与双端真机前台连接；
 5. 再接 U-5/U-6 mailbox/push 并验收后台、锁屏、未送达和撤销。

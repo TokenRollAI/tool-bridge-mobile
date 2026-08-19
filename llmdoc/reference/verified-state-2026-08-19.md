@@ -32,6 +32,10 @@
   `SdkDeviceTransport` 使用 SecureStore credential + audience check、RN Authorization header、官方
   hello/ready/call/result/heartbeat/cancel/reconnect 与 AppState suspend/resume，并把 call 交给已有本地
   executor。只有 ready 为 online；缺 origin/credential 和错误均 fail closed。
+- 首页已提供 pairing 前的手工 HTTPS origin + API key 内测入口。URL 只接受 canonical HTTPS origin，
+  API key 只进入 SecureStore；保存和清除都先停止旧 transport，存储失败时保持关闭。手工 credential
+  优先于非秘密 build origin，客户端从 installation UUID 派生 SDK deviceId 和 gateway principal，不冒充
+  网关签发 identity 或具体 Agent caller。
 - SDK call 缺具体 caller/deadline；当前明确以 credential keyId 作为 gateway principal，并从本地接收时间
   生成 30 秒 deadline，不冒充 Agent attribution。U-2 至 U-7 与真实 gateway matrix 仍未完成。
 
@@ -58,7 +62,8 @@
   API 36 语义树/200% 系统字号 smoke；该 smoke 没有开启 TalkBack。
 - 使用锁定的 Node 22.23.1 与 pnpm 11.21.0 对当前工作树执行最终 `pnpm verify`：docs/config/native
   module/SDK entry/secret/license/dependency mitigation/Expo 版本、strict typecheck、零 warning lint全部
-  通过，Jest 为 49 suites / 200 tests；Android/iOS production Metro 分别 bundle 1,527 / 1,396 modules。
+  通过，Jest 为 52 suites / 221 tests；Android/iOS production Metro 的 1,527 / 1,396 modules 是上一轮
+  SDK consumer 基线，本次纯 TypeScript/UI 配置切换未重跑 Metro。
 - 随后已重新完成 Android clean build 与 emulator smoke；debug APK 不内嵌 Metro JS，clean build 证明
   当前原生依赖/配置可编译，smoke 证明最新开发 bundle 能启动，但不构成实际地图或媒体 handoff 证据。
 
@@ -92,8 +97,9 @@
   production signer 或 Play release。
 - API 36 emulator 上显式冷启动 preview MainActivity 成功，内嵌 bundle 进入本地运行时首页并显示
   transport `unconfigured` 与四个 tab；启动窗口没有 preview `FATAL EXCEPTION`。
-- workflow 已声明在 verify 后构建同一 preview APK、生成 SHA-256 并上传 14 天 artifact；远端 Actions
-  尚未产生本提交的成功 run，因此 CI artifact 仍待远端证据。
+- commit `a4edb73` 的 Actions run 32239849273 已从 clean checkout 完成 frozen install、全量 verify、
+  Android Preview APK 与 iOS simulator build。artifact `9360956142` 的 workflow head SHA 为 `a4edb73`，
+  APK SHA-256 为 `802a3e8cbd9de1378f0295c22c26bfcef7effe2002f203302f195e372d009165`。
 - 完整命令和限制以 `docs/verification/2026-08-19-android-preview-apk.md` 为事实真源。
 
 ## Android emulator smoke
@@ -120,6 +126,8 @@
 
 - APK 未安装到真机；emulator smoke 不构成物理 haptic、媒体、系统权限对话框、位置精度、后台/锁屏
   或中断行为证据。
+- 手工 Gateway 配置的 unit/component/fake WebSocket 证据不证明输入的 API key 被真实 Gateway 接受、
+  服务端权限足够小、派生 deviceId 可注册、真机 header 可见或弱网重连正确；这些需要真实环境联合验收。
 - bounded HTTPS source 的本地实现不证明真机音频解码、锁屏控制、后台播放、音频中断或远端服务器兼容。
 - `open_map` 的 unit/contract、manifest query 和能力页 smoke 不证明 Android/iOS 真机实际 handoff、
   provider 选择、地图显示或导航成功。
@@ -134,7 +142,9 @@
 - command sqlite3 fixture 不证明 Expo SQLite 在 Android/iOS 真机上的锁争用、I/O 或 10,000 条性能；
   本地有界 tombstone 也不是 gateway 级永久 dedupe。
 - `objectRef` 及其 MIME/大小/TTL 下载授权仍等待上游契约；HTTPS resolver 不能替代该对象模型。
-- 本机没有完整 Xcode，因此未执行 iOS simulator build；iOS 只完成代码/配置与 autolink 静态检查。
-- 未执行 release build、签名、安装 smoke、性能、24 小时稳定性、CI clean-checkout 或 artifact-to-commit
-  追溯验证。
-- 当前产物来自基线 commit 加未提交实现，不能满足 release DOD 的可追溯要求。
+- 本机没有完整 Xcode；iOS simulator 由上述 macOS CI 成功记录覆盖，但 iOS 真机、签名 archive/IPA 和
+  商店行为仍未验证。
+- 已有 clean-checkout CI 与 artifact-to-commit 追溯，但未执行 production signer/AAB/IPA、Release 安装
+  smoke、性能、24 小时稳定性或 rollout/rollback。
+- `v0.0.1` GitHub Preview 流水线正在本工作树准备；在 tag workflow 和 Release 资产实际成功前，不能把
+  设计写成已发布证据。

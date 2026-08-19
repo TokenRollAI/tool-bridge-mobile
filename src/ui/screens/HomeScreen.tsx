@@ -2,10 +2,12 @@ import { StyleSheet, Text, View } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
+import { GatewayConfigurationCard } from '@/ui/components/GatewayConfigurationCard'
 import { Screen } from '@/ui/components/Screen'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
 import { colors } from '@/ui/theme'
 
+import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
 import type { ApplicationSnapshot } from '@/runtime/applicationRuntime'
 
 function transportDescription(snapshot: ApplicationSnapshot): string {
@@ -16,14 +18,14 @@ function transportDescription(snapshot: ApplicationSnapshot): string {
     case 'reconnecting':
       return 'Tool Bridge SDK 正在建立前台设备连接；尚未收到 ready 前不会声称在线。'
     case 'credentials_required':
-      return '网关地址已配置，但安全存储中还没有配对签发的设备凭证。'
+      return '网关地址已配置，但系统安全存储中没有可用的 API key。'
     case 'suspended':
       return 'Tool Bridge SDK 连接已暂停；App 回到前台且本地控制模式允许时才恢复。'
     case 'closed':
     case 'error':
       return 'Tool Bridge SDK 连接当前不可用；本地能力不会因此绕过安全裁决。'
     case 'unconfigured':
-      return 'Tool Bridge SDK transport 已接入，但尚未配置 production gateway origin。'
+      return 'Tool Bridge SDK transport 已接入；请在本机填写 Gateway HTTPS URL 与 API key。'
   }
 }
 
@@ -31,11 +33,13 @@ type HomeScreenProps = Readonly<{
   focused?: boolean
   onApproveConfirmation(commandId: string): void
   onCancelTimer(timerId: string): void
+  onClearGatewayConfiguration(): Promise<void>
   onEnable(): void
   onEmergencyDisable(): void
   onOpenNotificationSettings(): void
   onRejectConfirmation(commandId: string): void
   onRequestNotificationPermission(): void
+  onSaveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void>
   onStopAttention(): void
   snapshot: ApplicationSnapshot
 }>
@@ -44,11 +48,13 @@ export function HomeScreen({
   focused = true,
   onApproveConfirmation,
   onCancelTimer,
+  onClearGatewayConfiguration,
   onEnable,
   onEmergencyDisable,
   onOpenNotificationSettings,
   onRejectConfirmation,
   onRequestNotificationPermission,
+  onSaveGatewayConfiguration,
   onStopAttention,
   snapshot,
 }: HomeScreenProps) {
@@ -114,7 +120,7 @@ export function HomeScreen({
           value={snapshot.installationId ?? '正在从安全存储加载'}
         />
         {snapshot.deviceId === null ? null : (
-          <StatusRow label="gateway deviceId" value={snapshot.deviceId} />
+          <StatusRow label="SDK deviceId" value={snapshot.deviceId} />
         )}
         {snapshot.mountPath === null ? null : (
           <StatusRow label="挂载路径" value={snapshot.mountPath} />
@@ -123,6 +129,12 @@ export function HomeScreen({
           <StatusRow label="连接问题" value={snapshot.transportIssue} />
         )}
       </StatusCard>
+
+      <GatewayConfigurationCard
+        currentOrigin={snapshot.gatewayOrigin}
+        onClear={onClearGatewayConfiguration}
+        onSave={onSaveGatewayConfiguration}
+      />
 
       {snapshot.attentionSession === null ? null : (
         <StatusCard title="正在提示设备">

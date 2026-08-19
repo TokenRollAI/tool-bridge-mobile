@@ -226,6 +226,7 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     socket.receive({ type: 'ready', mountPath: 'device/device_01' })
     await eventually(() => expect(transport.getSnapshot()).toMatchObject({
       deviceId: 'device_01',
+      gatewayOrigin: 'https://gateway.example.com',
       mountPath: 'device/device_01',
       state: 'ready',
     }))
@@ -248,6 +249,44 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
 
     await transport.updateLifecycle('background', true)
     expect(transport.getSnapshot().state).toBe('suspended')
+    await transport.stopForLocalRevocation()
+  })
+
+  test('本机更新 URL 与 API key 时先关闭旧连接，再只连接新 audience', async () => {
+    const harness = createWebSocketHarness()
+    const credentialStore = new MemoryCredentialStore(credential)
+    const transport = new SdkDeviceTransport({
+      baseUrl: 'https://gateway.example.com',
+      credentialStore,
+      executeCommand: async () => ({ ok: true, value: null }),
+      registry: createRegistry(),
+      webSocketFactory: harness.factory,
+    })
+
+    await transport.updateLifecycle('active', true)
+    await eventually(() => expect(harness.sockets).toHaveLength(1))
+    const oldSocket = harness.sockets[0]
+    if (oldSocket === undefined) throw new Error('missing old SDK fixture WebSocket')
+
+    await transport.updateConfiguration(null)
+    expect(oldSocket.readyState).toBe(FakeRawWebSocket.CLOSED)
+    expect(transport.getSnapshot()).toMatchObject({
+      gatewayOrigin: null,
+      state: 'unconfigured',
+    })
+
+    credentialStore.value = {
+      ...credential,
+      audienceOrigin: 'https://new-gateway.example.com',
+      material: 'new-secret',
+    }
+    await transport.updateConfiguration('https://new-gateway.example.com')
+    await eventually(() => expect(harness.sockets).toHaveLength(2))
+    expect(harness.inputs[1]).toEqual({
+      headers: { authorization: 'Bearer new-secret' },
+      url: 'wss://new-gateway.example.com/system/device/ws?deviceId=device_01',
+    })
+    expect(harness.inputs[1]?.url).not.toContain('new-secret')
     await transport.stopForLocalRevocation()
   })
 

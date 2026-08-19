@@ -1,9 +1,24 @@
 import { fireEvent, render } from '@testing-library/react-native'
 
-import { HomeScreen } from '../HomeScreen'
+import { HomeScreen as ProductionHomeScreen } from '../HomeScreen'
 
 import type { ApplicationSnapshot } from '@/runtime/applicationRuntime'
+import type { ComponentProps } from 'react'
 
+type TestHomeScreenProps = Omit<
+  ComponentProps<typeof ProductionHomeScreen>,
+  'onClearGatewayConfiguration' | 'onSaveGatewayConfiguration'
+>
+
+function HomeScreen(props: TestHomeScreenProps) {
+  return (
+    <ProductionHomeScreen
+      onClearGatewayConfiguration={jest.fn(async () => undefined)}
+      onSaveGatewayConfiguration={jest.fn(async () => undefined)}
+      {...props}
+    />
+  )
+}
 
 const readySnapshot: ApplicationSnapshot = {
   appState: 'active',
@@ -13,6 +28,7 @@ const readySnapshot: ApplicationSnapshot = {
   controlMode: 'ask_every_time',
   deviceId: null,
   error: null,
+  gatewayOrigin: null,
   installationId: 'installation_00000000-0000-4000-8000-000000000000',
   mediaSession: null,
   mountPath: null,
@@ -41,7 +57,7 @@ describe('HomeScreen', () => {
       />,
     )
 
-    rendered.getByText('SDK transport 已接入，但尚未配置 production gateway origin。', {
+    rendered.getByText('SDK transport 已接入；请在本机填写 Gateway HTTPS URL 与 API key。', {
       exact: false,
     })
     rendered.getByLabelText('SDK transport：unconfigured')
@@ -71,7 +87,7 @@ describe('HomeScreen', () => {
     )
 
     rendered.getByLabelText('可达性：online')
-    rendered.getByLabelText('gateway deviceId：device_01')
+    rendered.getByLabelText('SDK deviceId：device_01')
     rendered.getByLabelText('挂载路径：device/device_01')
   })
 

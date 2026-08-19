@@ -1,7 +1,7 @@
 {
   "name": "tool-bridge-mobile",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "main": "expo-router/entry",
   "packageManager": "pnpm@11.21.0",
@@ -32,9 +32,10 @@
     "verify:expo": "expo install --check",
     "verify:licenses": "node scripts/verify-licenses.mjs",
     "verify:native-modules": "node scripts/verify-native-modules.mjs",
+    "verify:release-tag": "node scripts/verify-release-tag.mjs",
     "verify:sdk-device": "node scripts/verify-sdk-device-entry.mjs",
     "verify:secrets": "node scripts/verify-secrets.mjs",
-    "verify": "pnpm verify:docs && pnpm verify:config && pnpm verify:native-modules && pnpm verify:sdk-device && pnpm verify:secrets && pnpm verify:licenses && pnpm verify:dependency-mitigations && pnpm verify:expo && pnpm typecheck && pnpm lint && pnpm test"
+    "verify": "pnpm verify:docs && pnpm verify:release-tag && pnpm verify:config && pnpm verify:native-modules && pnpm verify:sdk-device && pnpm verify:secrets && pnpm verify:licenses && pnpm verify:dependency-mitigations && pnpm verify:expo && pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
     "@tool-bridge/sdk": "0.11.0",

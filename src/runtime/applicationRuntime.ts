@@ -49,6 +49,7 @@ import { CapabilityRegistry } from '@/capabilities/registry'
 import { currentRuntimeAppState, ExpoStatusProbe } from '@/capabilities/status/probe'
 import { createStatusCapability } from '@/capabilities/status/statusCapability'
 import { LOCAL_COMMAND_RETENTION_LIMIT } from '@/commands/repository'
+import { ManualGatewayConfigurationController } from '@/gateway/manualGatewayConfigurationController'
 import { SdkDeviceTransport } from '@/gateway/sdkDeviceTransport'
 import { SecureDeviceCredentialStore } from '@/identity/deviceCredentialStore'
 import { SecureInstallationIdentityStore } from '@/identity/installationIdentityStore'
@@ -76,6 +77,7 @@ import type {
   DeviceTransportIssue,
   DeviceTransportState,
 } from '@/gateway/sdkDeviceTransport'
+import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
 import type { PendingConfirmationSnapshot } from '@/policy/localConfirmationCoordinator'
 
 export type RuntimePhase = 'loading' | 'ready' | 'error'
@@ -93,6 +95,7 @@ export type ApplicationSnapshot = Readonly<{
   controlMode: ControlMode
   deviceId: string | null
   error: string | null
+  gatewayOrigin: string | null
   installationId: string | null
   mediaSession: MediaSessionSnapshot | null
   mountPath: string | null
@@ -112,6 +115,7 @@ const INITIAL_SNAPSHOT: ApplicationSnapshot = {
   controlMode: 'ask_every_time',
   deviceId: null,
   error: null,
+  gatewayOrigin: null,
   installationId: null,
   mediaSession: null,
   mountPath: null,
@@ -131,7 +135,9 @@ export class ApplicationRuntime {
   #commandRepository: SqliteCommandRepository | null = null
   #confirmationCoordinator: LocalConfirmationCoordinator | null = null
   #controlModeRepository: SqliteControlModeRepository | null = null
+  #deviceCredentialStore: SecureDeviceCredentialStore | null = null
   #deviceTransport: SdkDeviceTransport | null = null
+  #gatewayConfigurationController: ManualGatewayConfigurationController | null = null
   #initialization: Promise<void> | null = null
   #installationId: string | null = null
   #localCommandExecutor: LocalCommandExecutor | null = null
@@ -240,6 +246,32 @@ export class ApplicationRuntime {
     return deleted
   }
 
+  async saveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void> {
+    if (
+      this.#gatewayConfigurationController === null
+      || this.#deviceTransport === null
+      || this.#controlModeRepository === null
+    ) throw new Error('运行时尚未初始化')
+
+    await this.#gatewayConfigurationController.save(input)
+    const disabled = (await this.#controlModeRepository.get()) === 'disabled'
+    await this.#deviceTransport.updateLifecycle(currentRuntimeAppState(), !disabled)
+    await this.refresh()
+  }
+
+  async clearGatewayConfiguration(): Promise<void> {
+    if (
+      this.#gatewayConfigurationController === null
+      || this.#deviceTransport === null
+      || this.#controlModeRepository === null
+    ) throw new Error('运行时尚未初始化')
+
+    await this.#gatewayConfigurationController.clear()
+    const disabled = (await this.#controlModeRepository.get()) === 'disabled'
+    await this.#deviceTransport.updateLifecycle(currentRuntimeAppState(), !disabled)
+    await this.refresh()
+  }
+
   handleAppStateChange(appState: string): Promise<void> {
     this.#timerReconciliation = this.#timerReconciliation.then(async () => {
       await this.initialize()
@@ -300,6 +332,7 @@ export class ApplicationRuntime {
     const context = this.#context(controlMode)
     const transport = this.#deviceTransport?.getSnapshot() ?? {
       deviceId: null,
+      gatewayOrigin: null,
       issue: null,
       mountPath: null,
       state: 'unconfigured' as const,
@@ -321,6 +354,7 @@ export class ApplicationRuntime {
       controlMode,
       deviceId: transport.deviceId,
       error: null,
+      gatewayOrigin: transport.gatewayOrigin,
       installationId: this.#installationId,
       mediaSession: this.#mediaController?.getSession() ?? null,
       mountPath: transport.mountPath,
@@ -404,15 +438,23 @@ export class ApplicationRuntime {
         policyEngine: new PolicyEngine(),
         registry: this.#registry,
       })
+      this.#deviceCredentialStore = new SecureDeviceCredentialStore()
+      const storedCredential = await this.#deviceCredentialStore.get()
       this.#deviceTransport = new SdkDeviceTransport({
-        baseUrl: ExpoConfigHosts.gatewayOrigin(),
-        credentialStore: new SecureDeviceCredentialStore(),
+        baseUrl: storedCredential?.audienceOrigin ?? ExpoConfigHosts.gatewayOrigin(),
+        credentialStore: this.#deviceCredentialStore,
         executeCommand: (command, signal) => this.executeLocalCommand(command, signal),
         onSnapshotChange: () => {
           this.#transportRevision += 1
           void this.refresh()
         },
         registry: this.#registry,
+      })
+      this.#gatewayConfigurationController = new ManualGatewayConfigurationController({
+        buildGatewayOrigin: ExpoConfigHosts.gatewayOrigin(),
+        credentialStore: this.#deviceCredentialStore,
+        installationId: this.#installationId,
+        transport: this.#deviceTransport,
       })
       await this.#deviceTransport.updateLifecycle(
         currentRuntimeAppState(),

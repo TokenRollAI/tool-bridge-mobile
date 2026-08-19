@@ -15,13 +15,13 @@
 
 ## 当前可用措辞
 
-- 可写：`@tool-bridge/sdk/device@0.11.0 consumer wiring 已集成`、`fresh install 为
-  credentials_required`、`本地 executor 已实现持久化去重`、`Android clean debug build 已成功`。
+- 可写：`@tool-bridge/sdk/device@0.11.0 consumer wiring 已集成`、`本机 URL/API key fallback 已实现`、
+  `本地 executor 已实现持久化去重`、`Android clean debug build 已成功`。
 - 需限定：`SDK ready 时前台 online`，后接“尚无真实 gateway/真机兼容证据”；没有 origin 时可写
   `transport 为 unconfigured`。
 - 需限定：`Android/iOS 已配置某权限或 background mode`，后接“尚无双端真机行为证据”。
-- 不可写：`已配对`、`已接通 production gateway`、`支持后台 push/mailbox`、`iOS 已构建`、`已通过真机验收`、
-  `支持 objectRef`。
+- 不可写：`手工 API key 等于已配对`、`已接通 production gateway`、`支持后台 push/mailbox`、
+  `iOS 已构建`、`已通过真机验收`、`支持 objectRef`。
 
 ## DOD 勾选规则
 

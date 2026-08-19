@@ -137,9 +137,21 @@ Device credential ---- Mobile Runtime
 - UI 最多显示 keyId 和尾部指纹。
 
 当前 `@tool-bridge/sdk/device@0.11.0` 原生 RN 路径每次连接从 SecureStore 重新读取 envelope，要求
-`audienceOrigin` 与构建配置的 HTTPS gateway origin 完全一致，再把 material 仅放入 WebSocket upgrade
+`audienceOrigin` 与当前选中的 HTTPS gateway origin 完全一致，再把 material 仅放入 WebSocket upgrade
 Authorization header；secret 不进入 URL。deviceId/keyId 拒绝控制与双向覆盖字符，header material
 拒绝 CR/LF。网关拒绝连接后客户端 fail closed 并清除本地 envelope。
+
+pairing 交付前的内测 fallback 允许用户在本机手工输入 URL + API key：
+
+- URL 只接受无 path/query/fragment/userinfo 的 HTTPS origin，可选构建预置也只能包含该非秘密值；
+- API key 只接受无空白的可打印 ASCII token，输入框遮蔽，保存后立即清空，不进入 `.env`、
+  `EXPO_PUBLIC_*`、SQLite、普通审计、日志或 crash report；
+- 保存先关闭旧 transport，再写 SecureStore，最后连接新 audience；写入失败时保持关闭；
+- 清除先关闭 transport，再删除 SecureStore key；删除结果未知时不得重新使用旧 key；
+- `mobile_<uuid>` deviceId 和 `manual_api_key_<uuid>` principal 从随机 installation identity 派生，只是
+  客户端路由/本地归因，不是网关签发身份或具体 Agent caller；
+- 手工长期 API key 可能拥有比设备专用凭证更大权限，不能作为正式 pairing、最小 scope、rotation、
+  revoke 或 U-3 短期 ticket 的发布替代品。
 
 0.11.0 call 尚未把 Agent caller identity 传到设备；当前本地审计只能把 credential `keyId` 记作 gateway
 principal。它不能证明具体 Agent，相关 UI/审计不得作更强归因。

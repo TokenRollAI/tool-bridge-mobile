@@ -32,16 +32,20 @@ export type DeviceTransportIssue =
 
 export type DeviceTransportSnapshot = Readonly<{
   deviceId: string | null
+  gatewayOrigin: string | null
   issue: DeviceTransportIssue | null
   mountPath: string | null
   state: DeviceTransportState
 }>
 
-const INITIAL_SNAPSHOT: DeviceTransportSnapshot = {
-  deviceId: null,
-  issue: null,
-  mountPath: null,
-  state: 'unconfigured',
+function disconnectedSnapshot(baseUrl: string | null): DeviceTransportSnapshot {
+  return {
+    deviceId: null,
+    gatewayOrigin: baseUrl,
+    issue: null,
+    mountPath: null,
+    state: baseUrl === null ? 'unconfigured' : 'credentials_required',
+  }
 }
 
 type ExecuteCommand = (command: LocalCommand, signal: AbortSignal) => Promise<CommandOutcome>
@@ -142,15 +146,18 @@ export class SdkDeviceTransport {
   readonly #connect: DeviceConnect
   readonly #webSocketFactory: DeviceWebSocketFactory
   #appState = 'unknown'
+  #baseUrl: string | null
   #connection: DeviceConnection | null = null
   #enabled = true
   #lifecycleRevision = 0
-  #snapshot = INITIAL_SNAPSHOT
+  #snapshot: DeviceTransportSnapshot
   #transition: Promise<void> = Promise.resolve()
 
   constructor(private readonly dependencies: SdkDeviceTransportDependencies) {
+    this.#baseUrl = dependencies.baseUrl
     this.#clock = dependencies.clock ?? (() => new Date())
     this.#connect = dependencies.connect ?? connectDevice
+    this.#snapshot = disconnectedSnapshot(this.#baseUrl)
     this.#webSocketFactory = dependencies.webSocketFactory
       ?? createReactNativeWebSocketFactory(globalThis.WebSocket)
   }
@@ -171,6 +178,27 @@ export class SdkDeviceTransport {
     return this.#transition
   }
 
+  updateConfiguration(baseUrl: string | null): Promise<void> {
+    this.#baseUrl = baseUrl
+    const revision = ++this.#lifecycleRevision
+    this.#transition = this.#transition
+      .then(async () => {
+        const connection = this.#connection
+        this.#connection = null
+        connection?.close()
+        await this.#applyLifecycle(revision)
+      })
+      .catch(() => {
+        this.#publish({
+          ...this.#snapshot,
+          gatewayOrigin: this.#baseUrl,
+          issue: 'transport_error',
+          state: 'error',
+        })
+      })
+    return this.#transition
+  }
+
   async stopForLocalRevocation(): Promise<void> {
     this.#enabled = false
     this.#lifecycleRevision += 1
@@ -181,17 +209,18 @@ export class SdkDeviceTransport {
     if (connection !== null) await connection.closed
     this.#publish({
       deviceId: null,
+      gatewayOrigin: this.#baseUrl,
       issue: null,
       mountPath: null,
-      state: 'credentials_required',
+      state: this.#baseUrl === null ? 'unconfigured' : 'credentials_required',
     })
   }
 
   async #applyLifecycle(revision: number): Promise<void> {
-    const { baseUrl } = this.dependencies
+    const baseUrl = this.#baseUrl
     if (baseUrl === null) {
       this.#connection?.suspend()
-      this.#publish(INITIAL_SNAPSHOT)
+      this.#publish(disconnectedSnapshot(null))
       return
     }
 
@@ -219,6 +248,7 @@ export class SdkDeviceTransport {
     } catch {
       this.#publish({
         deviceId: null,
+        gatewayOrigin: baseUrl,
         issue: 'credential_invalid',
         mountPath: null,
         state: 'error',
@@ -229,6 +259,7 @@ export class SdkDeviceTransport {
     if (initialCredential === null) {
       this.#publish({
         deviceId: null,
+        gatewayOrigin: baseUrl,
         issue: null,
         mountPath: null,
         state: 'credentials_required',
@@ -249,6 +280,7 @@ export class SdkDeviceTransport {
 
     this.#publish({
       deviceId: initialCredential.deviceId,
+      gatewayOrigin: baseUrl,
       issue: null,
       mountPath: null,
       state: 'connecting',
@@ -305,9 +337,10 @@ export class SdkDeviceTransport {
       if (this.#connection === connection) this.#connection = null
       this.#publish({
         deviceId: null,
+        gatewayOrigin: this.#baseUrl,
         issue: null,
         mountPath: null,
-        state: 'credentials_required',
+        state: this.#baseUrl === null ? 'unconfigured' : 'credentials_required',
       })
     } catch {
       this.#publish({ ...this.#snapshot, issue: 'credential_invalid', state: 'error' })
@@ -317,6 +350,7 @@ export class SdkDeviceTransport {
   #publish(snapshot: DeviceTransportSnapshot): void {
     if (
       snapshot.deviceId === this.#snapshot.deviceId
+      && snapshot.gatewayOrigin === this.#snapshot.gatewayOrigin
       && snapshot.issue === this.#snapshot.issue
       && snapshot.mountPath === this.#snapshot.mountPath
       && snapshot.state === this.#snapshot.state

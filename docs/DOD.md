@@ -29,17 +29,22 @@
 - [x] lint 无 warning/error；
 - [ ] unit / component / protocol contract 全绿；
 - [x] Android debug build 成功；
-- [ ] iOS simulator build 成功；
+- [x] iOS simulator build 成功；
 - [x] 没有依赖 Expo Go 才能工作的关键路径；
-- [ ] CI 从全新 checkout 可复现。
+- [x] CI 从全新 checkout 可复现。
 
-当前测试事实：unit、component、本地运行时与 SDK device consumer contract 共 200 项全绿；真实
+当前测试事实：unit、component、本地运行时与 SDK device consumer contract 共 221 项全绿；真实
 gateway wire fixture 尚未
 交付，所以组合项中的 protocol contract 不提前勾选。Android 已用仓库正式 clean build 入口在本地
-构建成功，证据见 [2026-08-19 Android debug 验证记录](verification/2026-08-19-android-debug.md)；iOS
-与 clean-checkout CI 在成功记录产生前继续保持未完成。另有内嵌 JS、debug test key 签名且可安装的
+构建成功，证据见 [2026-08-19 Android debug 验证记录](verification/2026-08-19-android-debug.md)。
+commit `a4edb73` 的
+[GitHub Actions run 32239849273](https://github.com/TokenRollAI/tool-bridge-mobile/actions/runs/32239849273)
+已从 clean checkout 完成 frozen install、全量 verify、Android preview APK 与 iOS simulator build；这只
+关闭工程可复现与 simulator build 条目，不是双端真机、正式签名或商店证据。另有内嵌 JS、debug test
+key 签名且可安装的
 [Android preview APK 本地验证](verification/2026-08-19-android-preview-apk.md)，但它不替代 CI artifact、
-生产签名、真机或 release DOD。
+生产签名、真机或 release DOD。tag 发布门禁与证据边界见
+[GitHub Preview 发布流水线](verification/2026-08-19-github-preview-release.md)。
 
 ### 配置
 
@@ -57,6 +62,8 @@ dependency audit 仍保持未完成。
 ### 运行时
 
 - [x] 设备 identity 稳定且不使用硬件序列号；
+- [x] 手工 Gateway URL + API key 内测入口只接受 HTTPS origin，secret 只进 SecureStore，保存/清除前
+  停止旧 transport，失败时不自动重连；
 - [ ] pairing ticket 单次、短期且域名可见；
 - [x] 凭证只进安全存储；
 - [x] 前台 realtime 使用上游正式 React Native device client；
@@ -68,12 +75,16 @@ dependency audit 仍保持未完成。
 - [ ] 撤销配对后 realtime/mailbox 都失效；
 - [x] 重启/crash 后 command 状态可恢复。
 
-这里的 identity 是 SecureStore 中的本地 `installationId`，不是网关 `deviceId`。credential 勾选项
-代表 opaque credential facade 只使用 SecureStore，fresh install 尚无 pairing 签发凭证。前台 realtime
+这里的 identity 是 SecureStore 中的本地 `installationId`；手工内测模式派生的 `mobile_<uuid>` 只是
+客户端声明的 SDK deviceId，不是网关签发身份。credential 勾选项代表 opaque credential facade 与手工
+API key 只使用 SecureStore，当前仍无 pairing 签发凭证。前台 realtime
 勾选项证明 `@tool-bridge/sdk/device@0.11.0` 的 RN header、hello/ready/call/result、cancel 与 AppState
 suspend/resume 已接到本地 executor，并通过 fake WebSocket contract 和双端 Metro；它不证明真实 gateway、
 短期 ticket、pairing、后台 mailbox 或撤销端到端。U-1 已解阻，U-2 至 U-6 仍未完成。证据见
 [SDK device integration 验证](verification/2026-08-19-sdk-device-integration.md)。
+手工 Gateway 配置的输入、SecureStore 与 transport 切换证据见
+[2026-08-19 手工 Gateway 配置验证](verification/2026-08-19-manual-gateway-configuration.md)；它不替代
+pairing、短期 ticket 或真实网关联合验收。
 
 ## 3. 单项能力 DOD
 
@@ -359,6 +370,10 @@ command 有界清理不再只依赖启动：每次终态 UPDATE 与 prune 在同
 - [ ] release note 标出用户可感知变化。
 
 ## 8. Release DOD
+
+`v0.0.1` 可以作为 GitHub 内测 Pre-release：tag workflow 必须先验证版本/发布说明一致，重跑 frozen
+install、全量验证、Android Preview APK 与 iOS simulator，再附上 APK/SHA-256。该过程仍使用 Preview
+application id 与 debug test key，以下 production/store Release 条目不会因此提前勾选。
 
 ### 构建与供应链
 

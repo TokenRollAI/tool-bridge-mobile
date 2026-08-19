@@ -11,23 +11,24 @@
 - [x] 建立独立仓库、产品与架构文档；
 - [x] 初始化 Expo TypeScript development-build 工程；
 - [x] 配置 Android applicationId、iOS bundle id 和三环境；
-- [ ] 建立严格 TypeScript、lint、test、CI；
+- [x] 建立严格 TypeScript、lint、test、CI；
 - [x] 建立 app/service/storage/native module 目录；
 - [x] 接入上游公共 `@tool-bridge/sdk/device@0.11.0`；
+- [x] 本机 Gateway HTTPS URL + API key 内测入口（非 pairing）；
 - [ ] pairing UI + SecureStore；
 - [x] SQLite command/audit schema 和 migration；
 - [ ] 前台 WebSocket ticket 连接；
 - [x] capability registry 与 policy engine；
 - [x] 权限/能力页、活动页、紧急停用；
 - [ ] fake gateway 和协议 fixture；
-- [ ] 双端 debug build。
+- [x] Android debug / preview 与 iOS simulator clean build；
 
 ### 当前证据与未实现边界
 
 - `pnpm verify` 已覆盖 strict TypeScript、零 warning lint、unit/component/local contract、配置与
-  供应链检查；当前 workflow 已声明 clean checkout 与双端 build，但在本分支 CI 留下成功记录前，
-  CI checkbox 保持未完成；Android clean debug build 已有本地证据，iOS 尚无成功记录，因此“双端”
-  checkbox 也不提前勾选；
+  供应链检查；commit `a4edb73` 的 Actions run 32239849273 已从 clean checkout 完成 frozen install、
+  全量 verify、Android preview APK 与 iOS simulator build。Android 另有本地 clean debug 证据；这些
+  关闭工程 CI/build 项，但不替代双端真机、正式签名或商店 release；
 - 本地 slice 已有 `phone/status.get`、SecureStore `installationId`、SQLite 持久化、能力/活动页与
   emergency disable，并新增 SecureStore credential facade、fail-closed 本地撤销和有界清理；组合
   工作项仍含权限页、pairing 或网关协议时不因部分实现提前勾选；
@@ -41,8 +42,10 @@
 - U-1 已由 `@tool-bridge/sdk/device@0.11.0` 交付并接入：官方 supervisor、RN Authorization header、
   AppState suspend/resume、registry expose 与 SDK call adapter 已有 contract 和双端 Metro 证据；只有
   `ready` 才显示 online；
-- U-2 至 U-6 仍未交付。当前 fresh install 没有 pairing credential，显示 `credentials_required`；短期
-  ticket、真实 gateway fixture、具体 caller/deadline attribution、mailbox 与 push 均未完成。
+- 首页已提供手工 URL + API key fallback，secret 只进入 SecureStore，保存/清除前先停止旧 transport；
+  它使用客户端派生 deviceId，不满足 pairing、最小权限 credential、rotation/revoke 或短期 ticket；
+- U-2 至 U-6 仍未交付。短期 ticket、真实 gateway fixture、具体 caller/deadline attribution、mailbox 与
+  push 均未完成。
 
 ### 出口
 

@@ -1,6 +1,7 @@
 # SDK 使用与集成边界
 
-状态：`@tool-bridge/sdk/device@0.11.0` 已接入移动端；pairing、短期 ticket、mailbox 与动态 profile 仍未实现。
+状态：`@tool-bridge/sdk/device@0.11.0` 已接入移动端；首页 URL + API key 内测入口已实现，pairing、短期
+ticket、mailbox 与动态 profile 仍未实现。
 
 ## 1. 当前结论
 
@@ -20,6 +21,7 @@ import {
 - App 前台恢复连接，后台、inactive 与本地 Disabled 模式暂停连接；
 - call 继续经过 SQLite command 去重、动态 probe、policy、本地确认、结果上限与脱敏审计；
 - 网关拒绝凭证后清除 SecureStore envelope，凭证缺失或 audience 不匹配时 fail closed；
+- 首页允许用户手工保存/清除 Gateway HTTPS origin 与 API key，保存或清除前先停止旧 transport；
 - 首页只在 SDK 收到 `ready` 后显示 `online`。
 
 `@tool-bridge/sdk` 包级 `engines.node` 仍是 `>=22`，包根入口也仍面向 Node。这里的 Node 版本约束作用于
@@ -52,16 +54,24 @@ const connection = connectDevice({
 })
 ```
 
-配置和凭证来自不同信任域：
+当前可从首页手工配置连接：
 
-- `EXPO_PUBLIC_GATEWAY_ORIGIN` 只是非秘密 HTTPS origin，可进入客户端 bundle；
-- `deviceId`、`keyId` 与 secret material 来自 SecureStore `DeviceCredentialEnvelope`；
-- credential 的 `audienceOrigin` 必须与构建配置的 gateway origin 完全一致；
-- 当前没有 pairing UI，所以 fresh install 不会凭空生成 device credential；有 origin 但无凭证时显示
-  `credentials_required`，未配置 origin 时显示 `unconfigured`。
+- 用户只输入 Gateway URL 与 API key；URL 会规范化并限制为无 path/query/fragment/userinfo 的 HTTPS
+  origin，API key 只接受不含空白的可打印 ASCII token；
+- App 从 SecureStore 中随机 `installationId` 派生稳定的 `mobile_<uuid>` SDK deviceId，以及仅供本地归因
+  的 `manual_api_key_<uuid>` keyId；它们不是网关签发身份或具体 Agent caller；
+- `audienceOrigin`、派生标识和 API key material 一起保存为 SecureStore `DeviceCredentialEnvelope`；API key
+  保存后从表单清空，界面不回显；
+- 保存顺序为“停止旧 transport -> 写 SecureStore -> 连接新 audience”，写入失败时保持关闭；清除顺序为
+  “停止 transport -> 删除 SecureStore key -> 恢复可选构建 URL”，删除失败时不重用未知状态的 key；
+- `EXPO_PUBLIC_GATEWAY_ORIGIN` 仍可作为非秘密构建预置，但手工 SecureStore 配置优先；任何 API key、SK、
+  token 或私钥都不能进入 `EXPO_PUBLIC_*`；
+- 没有 URL 时显示 `unconfigured`；有构建 URL 但无 API key 时显示 `credentials_required`。
 
-现有 SecureStore envelope 是移动仓库的存储结构，不是新的 wire schema。后续 U-2 pairing 必须使用上游
-正式响应填充它，不能通过 `EXPO_PUBLIC_*`、源码常量、AsyncStorage 或 URL query 注入 secret。
+现有 SecureStore envelope 是移动仓库的存储结构，不是新的 wire schema。手工 API key 是 pairing
+交付前的内测 fallback，不满足设备专用最小权限 credential、签发、rotation、revoke 或短期 ticket。
+后续 U-2 pairing 必须使用上游正式响应替代该来源，不能通过 `EXPO_PUBLIC_*`、源码常量、AsyncStorage
+或 URL query 注入 secret。
 
 ## 3. 能力注册
 
@@ -124,7 +134,7 @@ call contract；在此之前不能把 `keyId` 描述为 Agent 身份。
 | `ready` | `online` | 已收到 gateway ready，可接受低延迟 call |
 | `connecting/reconnecting` | `offline` | 尚未 ready，不声称在线 |
 | `suspended/closed/error` | `offline` | 生命周期、Disabled 或错误使连接不可达 |
-| `credentials_required` | `unconfigured` | gateway 已知，但没有可用配对凭证 |
+| `credentials_required` | `unconfigured` | gateway 已知，但没有可用 API key/credential |
 | `unconfigured` | `unconfigured` | 没有 gateway origin |
 | 任意 state + Disabled | `disabled` | 本地策略优先，拒绝新命令 |
 
@@ -139,7 +149,7 @@ U-6 push registration/dispatch，也不会把 local notification/timer 当成后
 当前 header 方案解除了“原生 RN 无法接入现有 device WS”的 U-1 阻塞，但没有完成 U-2 pairing 或 U-3
 短期 ticket：
 
-- secret 仍是配对后持久化的 device credential material；
+- 当前内测 secret 是用户手工保存的长期 API key，未来应替换为 pairing 签发的 device credential；
 - 重连会重新读取 SecureStore，支持后续 credential rotation；
 - secret 不进入 URL、日志、SQLite、审计或 `EXPO_PUBLIC_*`；
 - 若未来 gateway 提供短期 ticket，`DeviceCredentialProvider.prepare()` 可以返回专用 header、protocol 或
@@ -173,6 +183,8 @@ SDK 的进程内 cache 不能替代 SQLite tombstone；WebSocket 重连也不能
 
 - 官方 SDK supervisor 的 fake WebSocket contract：Authorization header、hello/ready/call/result 与
   AppState suspend；
+- 手工 URL/API key 的 strict 输入、派生标识、SecureStore 保存/清除顺序、失败保持关闭与 UI secret
+  不回显 component test；
 - caller/deadline 适配、标准错误映射、缺凭证和 audience mismatch fail-closed 测试；
 - registry → DeviceExpose JSON Schema 投影测试；
 - `scripts/verify-sdk-device-entry.mjs`：精确版本、package exports 与无 Node `ws/process.env` 泄漏；
@@ -181,7 +193,7 @@ SDK 的进程内 cache 不能替代 SQLite tombstone；WebSocket 重连也不能
 尚未证明：
 
 - 对真实 gateway 的兼容矩阵、弱网/重连和服务器拒绝；
-- pairing、credential issuance/rotation/revoke 端到端；
+- 手工 API key 对真实 gateway 的认证兼容，以及 pairing、credential issuance/rotation/revoke 端到端；
 - gateway caller/deadline attribution；
 - iOS/Android 真机前后台连接和长期稳定性；
 - mailbox、push 与后台可达。
@@ -190,4 +202,6 @@ SDK 的进程内 cache 不能替代 SQLite tombstone；WebSocket 重连也不能
 真实 gateway fixture 和按风险选择的双端原生/真机验证。
 
 本次 consumer 验证命令、结果与未覆盖项见
-[2026-08-19 SDK device integration 验证](verification/2026-08-19-sdk-device-integration.md)。
+[2026-08-19 SDK device integration 验证](verification/2026-08-19-sdk-device-integration.md)；手工 URL/API key
+配置的专项证据见
+[2026-08-19 手工 Gateway 配置验证](verification/2026-08-19-manual-gateway-configuration.md)。

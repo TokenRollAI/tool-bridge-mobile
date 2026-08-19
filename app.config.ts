@@ -12,6 +12,9 @@ type VariantConfig = Readonly<{
 export const EXPO_OWNER = 'tokenroll'
 export const EAS_PROJECT_ID = '378c7a3e-437a-49a6-ae20-fef5af6f6188'
 export const EXPO_PROJECT_SLUG = 'tool-bridge'
+export const APP_VERSION = '0.0.1'
+export const ANDROID_VERSION_CODE = 1
+export const IOS_BUILD_NUMBER = '1'
 
 export const APP_VARIANTS: Readonly<Record<AppVariant, VariantConfig>> = {
   development: {
@@ -88,7 +91,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name: variant.name,
     owner: EXPO_OWNER,
     slug: EXPO_PROJECT_SLUG,
-    version: '0.1.0',
+    version: APP_VERSION,
     orientation: 'portrait',
     scheme: variant.scheme,
     userInterfaceStyle: 'automatic',
@@ -137,7 +140,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     ios: {
       bundleIdentifier: variant.iosBundleIdentifier,
-      buildNumber: '1',
+      buildNumber: IOS_BUILD_NUMBER,
       deploymentTarget: '16.4',
       supportsTablet: false,
     },
@@ -169,7 +172,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'me.everything.badger.permission.BADGE_COUNT_WRITE',
       ],
       package: variant.androidPackage,
-      versionCode: 1,
+      versionCode: ANDROID_VERSION_CODE,
       permissions: ['android.permission.POST_NOTIFICATIONS', 'android.permission.VIBRATE'],
     },
     extra: {
