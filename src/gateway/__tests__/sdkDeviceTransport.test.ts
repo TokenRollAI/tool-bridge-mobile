@@ -257,9 +257,18 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     })
     expect(commands).toHaveLength(1)
 
+    // 后台不再断线：App 退到 background 时连接保持，命令仍可到达。
     await transport.updateLifecycle('background', true)
-    expect(transport.getSnapshot().state).toBe('suspended')
+    expect(transport.getSnapshot().state).toBe('ready')
     expect(transport.getSnapshot().diagnostic).toBeNull()
+
+    // inactive 是短暂过渡态（来电、切换动画、锁屏瞬间），仍 suspend 以避免连接抖动。
+    await transport.updateLifecycle('inactive', true)
+    expect(transport.getSnapshot().state).toBe('suspended')
+
+    // Disabled/紧急停用仍无条件 suspend。
+    await transport.updateLifecycle('background', false)
+    expect(transport.getSnapshot().state).toBe('suspended')
     await transport.stopForLocalRevocation()
   })
 

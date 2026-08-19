@@ -1,47 +1,39 @@
-import { StyleSheet, Text } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
-import { GatewayConfigurationCard } from '@/ui/components/GatewayConfigurationCard'
+import { Pill, type PillTone } from '@/ui/components/Pill'
 import { Screen } from '@/ui/components/Screen'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
 import { colors } from '@/ui/theme'
 
-import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
+import type { ControlMode } from '@/commands/types'
 import type { ApplicationSnapshot } from '@/runtime/applicationRuntime'
 
-function transportDescription(snapshot: ApplicationSnapshot): string {
-  switch (snapshot.transportState) {
-    case 'ready':
-      return 'Tool Bridge SDK 前台连接已就绪；所有调用仍由设备本地策略、权限与确认裁决。'
-    case 'connecting':
-    case 'reconnecting':
-      return 'Tool Bridge SDK 正在建立前台设备连接；尚未收到 ready 前不会声称在线。'
-    case 'credentials_required':
-      return '网关地址已配置，但系统安全存储中没有可用的 API key。'
-    case 'suspended':
-      return 'Tool Bridge SDK 连接已暂停；App 回到前台且本地控制模式允许时才恢复。'
-    case 'closed':
-    case 'error':
-      return 'Tool Bridge SDK 连接当前不可用；本地能力不会因此绕过安全裁决。'
-    case 'unconfigured':
-      return 'Tool Bridge SDK transport 已接入；请在本机填写 Gateway HTTPS URL 与 API key。'
-  }
+const CONTROL_MODE_LABEL: Readonly<Record<ControlMode, string>> = {
+  ask_every_time: '每次确认',
+  direct_call: '直接调用',
+  disabled: '已停用',
+  trusted_session: '信任会话',
+}
+
+function transportTone(state: ApplicationSnapshot['transportState']): PillTone {
+  if (state === 'ready') return 'positive'
+  if (state === 'error' || state === 'closed') return 'danger'
+  if (state === 'unconfigured' || state === 'credentials_required') return 'caution'
+  return 'neutral'
+}
+
+function controlModeTone(mode: ControlMode): PillTone {
+  if (mode === 'disabled') return 'danger'
+  if (mode === 'direct_call') return 'caution'
+  return 'positive'
 }
 
 type HomeScreenProps = Readonly<{
   focused?: boolean
-  /** @deprecated 确认操作已提升到根布局的全局 Modal。 */
-  onApproveConfirmation?(commandId: string): void
   onCancelTimer(timerId: string): void
-  onClearGatewayConfiguration(): Promise<void>
-  onEnable(): void
-  onEmergencyDisable(): void
-  onOpenNotificationSettings(): void
-  /** @deprecated 确认操作已提升到根布局的全局 Modal。 */
-  onRejectConfirmation?(commandId: string): void
-  onRequestNotificationPermission(): void
-  onSaveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void>
+  onOpenSettings(): void
   onStopAttention(): void
   snapshot: ApplicationSnapshot
 }>
@@ -49,27 +41,10 @@ type HomeScreenProps = Readonly<{
 export function HomeScreen({
   focused = true,
   onCancelTimer,
-  onClearGatewayConfiguration,
-  onEnable,
-  onEmergencyDisable,
-  onOpenNotificationSettings,
-  onRequestNotificationPermission,
-  onSaveGatewayConfiguration,
+  onOpenSettings,
   onStopAttention,
   snapshot,
 }: HomeScreenProps) {
-  const isDisabled = snapshot.controlMode === 'disabled'
-  const notificationAvailability = snapshot.capabilities.find(({ descriptor }) => (
-    descriptor.path === 'phone/productivity' && descriptor.tool === 'notify'
-  ))?.availability
-  const notificationSettingsRequired = notificationAvailability?.status === 'unavailable'
-    && (
-      notificationAvailability.reason === 'notification_permission_denied'
-      || notificationAvailability.reason === 'notification_channel_disabled'
-    )
-  const notificationPermissionRequestable = notificationAvailability?.status === 'unavailable'
-    && notificationAvailability.reason === 'notification_permission_requestable'
-
   useDiscreteAccessibilityAnnouncement(
     `control-mode:${snapshot.controlMode}`,
     `控制模式已变为 ${snapshot.controlMode}`,
@@ -83,61 +58,60 @@ export function HomeScreen({
     snapshot.error,
     'assertive',
   )
+  useDiscreteAccessibilityAnnouncement(
+    `attention:${snapshot.attentionSession?.sessionId ?? 'none'}`,
+    snapshot.attentionSession === null ? '设备提示已停止' : '设备提示已开始',
+  )
   const timerStateKey = snapshot.timers
     .map(timer => `${timer.timerId}:${timer.state}`).sort().join(',')
   useDiscreteAccessibilityAnnouncement(
     `timers:${timerStateKey}`,
     '计时器状态已更新',
   )
-  useDiscreteAccessibilityAnnouncement(
-    `attention:${snapshot.attentionSession?.sessionId ?? 'none'}`,
-    snapshot.attentionSession === null ? '设备提示已停止' : '设备提示已开始',
-  )
 
   return (
     <Screen
-      description={transportDescription(snapshot)}
+      description="设备本地裁决优先于任何远程命令。配置项在“设置”标签页。"
       eyebrow="TOOL BRIDGE MOBILE"
       focused={focused}
       title="设备裁决优先"
     >
       {snapshot.error === null ? null : <Text style={styles.error}>{snapshot.error}</Text>}
 
-      <StatusCard title="本机状态">
-        <StatusRow label="运行时" value={snapshot.phase} />
-        <StatusRow label="可达性" value={snapshot.reachability} />
-        <StatusRow label="SDK transport" value={snapshot.transportState} />
-        <StatusRow label="控制模式" value={snapshot.controlMode} />
-        <StatusRow
-          label="installationId"
-          value={snapshot.installationId ?? '正在从安全存储加载'}
-        />
-        {snapshot.deviceId === null ? null : (
-          <StatusRow label="SDK deviceId" value={snapshot.deviceId} />
-        )}
-        {snapshot.mountPath === null ? null : (
-          <StatusRow label="挂载路径" value={snapshot.mountPath} />
-        )}
-        {snapshot.transportIssue === null ? null : (
-          <StatusRow label="连接问题" value={snapshot.transportIssue} />
-        )}
-        {snapshot.transportDiagnostic === null ? null : (
-          <>
-            <StatusRow label="失败类型" value={snapshot.transportDiagnostic.kind} />
-            <StatusRow label="失败阶段" value={snapshot.transportDiagnostic.stage} />
-            <StatusRow
-              label="WS 关闭码"
-              value={snapshot.transportDiagnostic.closeCode?.toString() ?? 'unavailable'}
-            />
-          </>
-        )}
+      <StatusCard title="总览">
+        <View style={styles.pills}>
+          <Pill
+            label="控制模式"
+            tone={controlModeTone(snapshot.controlMode)}
+            value={CONTROL_MODE_LABEL[snapshot.controlMode]}
+          />
+          <Pill
+            label="连接"
+            tone={transportTone(snapshot.transportState)}
+            value={snapshot.reachability}
+          />
+          <Pill
+            label="后台运行"
+            tone={snapshot.backgroundRuntimeEnabled ? 'positive' : 'neutral'}
+            value={snapshot.backgroundRuntimeEnabled ? '已开启' : '已关闭'}
+          />
+          <Pill label="前后台" tone="neutral" value={snapshot.appState} />
+        </View>
       </StatusCard>
 
-      <GatewayConfigurationCard
-        currentOrigin={snapshot.gatewayOrigin}
-        onClear={onClearGatewayConfiguration}
-        onSave={onSaveGatewayConfiguration}
-      />
+      {snapshot.deviceId === null && snapshot.mountPath === null ? null : (
+        <StatusCard title="连接详情">
+          {snapshot.deviceId === null ? null : (
+            <StatusRow label="SDK deviceId" value={snapshot.deviceId} />
+          )}
+          {snapshot.mountPath === null ? null : (
+            <StatusRow label="挂载路径" value={snapshot.mountPath} />
+          )}
+          {snapshot.transportIssue === null ? null : (
+            <StatusRow label="连接问题" value={snapshot.transportIssue} />
+          )}
+        </StatusCard>
+      )}
 
       {snapshot.attentionSession === null ? null : (
         <StatusCard title="正在提示设备">
@@ -154,35 +128,6 @@ export function HomeScreen({
           />
         </StatusCard>
       )}
-
-      {notificationPermissionRequestable ? (
-        <StatusCard title="本地通知未启用">
-          <Text style={styles.body}>
-            Tool Bridge 只在你主动允许后创建可见的即时通知；远程命令不会弹出系统权限框。
-          </Text>
-          <Text style={styles.footnote}>系统仍允许你从此处主动请求通知权限。</Text>
-          <AccessibleAction
-            accessibilityHint="打开系统通知权限请求；远程命令不能代替你执行此操作"
-            label="启用本地通知"
-            onPress={onRequestNotificationPermission}
-            style={[styles.action, styles.enableAction]}
-          />
-        </StatusCard>
-      ) : null}
-
-      {notificationSettingsRequired ? (
-        <StatusCard title="本地通知已关闭">
-          <Text style={styles.body}>
-            系统通知权限或 Tool Bridge 本地通知 channel 已关闭；远程命令无权改变该设置。
-          </Text>
-          <AccessibleAction
-            accessibilityHint="前往系统设置调整 Tool Bridge 的通知权限或 channel"
-            label="打开系统设置"
-            onPress={onOpenNotificationSettings}
-            style={[styles.action, styles.enableAction]}
-          />
-        </StatusCard>
-      ) : null}
 
       {snapshot.timers.map(timer => (
         <StatusCard key={timer.timerId} title="App 内计时器">
@@ -203,16 +148,12 @@ export function HomeScreen({
       ))}
 
       <AccessibleAction
-        accessibilityHint={isDisabled
-          ? '恢复为每条有副作用命令都在设备上确认'
-          : '立即拒绝新命令并停止仍可撤销的本地副作用'}
-        label={isDisabled ? '恢复为每次确认' : '紧急停用远程能力'}
-        onPress={isDisabled ? onEnable : onEmergencyDisable}
-        style={[styles.action, isDisabled ? styles.enableAction : styles.disableAction]}
+        accessibilityHint="打开设置页调整控制模式、后台运行、网关连接与通知"
+        label="打开设置"
+        onPress={onOpenSettings}
+        style={[styles.action, styles.settingsAction]}
+        textStyle={styles.settingsActionText}
       />
-      <Text style={styles.footnote}>
-        紧急停用会在本地策略层拒绝所有新命令；系统权限与用户拒绝始终优先。
-      </Text>
     </Screen>
   )
 }
@@ -221,17 +162,6 @@ const styles = StyleSheet.create({
   action: {
     borderRadius: 14,
   },
-  body: {
-    color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  disableAction: {
-    backgroundColor: colors.danger,
-  },
-  enableAction: {
-    backgroundColor: colors.primary,
-  },
   error: {
     color: colors.danger,
   },
@@ -239,6 +169,18 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     lineHeight: 19,
+  },
+  pills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  settingsAction: {
+    borderColor: colors.outline,
+    borderWidth: 1,
+  },
+  settingsActionText: {
+    color: colors.text,
   },
   stopAction: {
     backgroundColor: colors.primary,

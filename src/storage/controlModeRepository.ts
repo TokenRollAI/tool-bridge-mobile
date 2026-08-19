@@ -6,7 +6,10 @@ const CONTROL_MODE_KEY = 'control_mode'
 const DEFAULT_CONTROL_MODE: ControlMode = 'ask_every_time'
 
 function isControlMode(value: string): value is ControlMode {
-  return value === 'disabled' || value === 'ask_every_time' || value === 'trusted_session'
+  return value === 'disabled'
+    || value === 'ask_every_time'
+    || value === 'trusted_session'
+    || value === 'direct_call'
 }
 
 export interface ControlModeRepository {

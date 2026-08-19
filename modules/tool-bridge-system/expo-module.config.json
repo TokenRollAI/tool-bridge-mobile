@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "apple": {
+    "modules": ["ToolBridgeSystemModule"]
+  },
+  "android": {
+    "modules": ["ai.tokenroll.toolbridge.system.ToolBridgeSystemModule"]
+  }
+}

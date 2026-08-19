@@ -38,6 +38,7 @@ export function useRuntime(): Readonly<{
   pauseMediaSession(sessionId: string): Promise<void>
   rejectConfirmation(commandId: string): boolean
   requestNotificationPermission(): Promise<void>
+  setBackgroundRuntimeEnabled(enabled: boolean): Promise<void>
   resumeMediaSession(sessionId: string): Promise<void>
   saveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void>
   setControlMode(mode: ControlMode): Promise<void>
@@ -61,6 +62,7 @@ export function useRuntime(): Readonly<{
     pauseMediaSession: sessionId => runtime.pauseMediaSession(sessionId),
     rejectConfirmation: commandId => runtime.rejectConfirmation(commandId),
     requestNotificationPermission: () => runtime.requestNotificationPermission(),
+    setBackgroundRuntimeEnabled: enabled => runtime.setBackgroundRuntimeEnabled(enabled),
     resumeMediaSession: sessionId => runtime.resumeMediaSession(sessionId),
     saveGatewayConfiguration: input => runtime.saveGatewayConfiguration(input),
     setControlMode: mode => runtime.setControlMode(mode),

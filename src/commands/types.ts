@@ -5,7 +5,7 @@ export type Risk = 'low' | 'medium' | 'high'
 export type Confirmation = 'never' | 'when_locked' | 'always'
 export type QueuePolicy = 'reject_offline' | 'enqueue'
 
-export type ControlMode = 'disabled' | 'ask_every_time' | 'trusted_session'
+export type ControlMode = 'disabled' | 'ask_every_time' | 'trusted_session' | 'direct_call'
 
 const unsafeUiControl = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/
 const boundedIdentifier = z.string().min(1).max(256).refine(value => !unsafeUiControl.test(value), {

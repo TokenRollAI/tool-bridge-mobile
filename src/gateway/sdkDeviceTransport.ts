@@ -240,7 +240,12 @@ export class SdkDeviceTransport {
       return
     }
 
-    if (!this.#enabled || this.#appState !== 'active') {
+    // 允许在 active 与 background 两种状态下保持连接，使 App 退到后台时命令仍能到达。
+    // inactive/unknown 是短暂过渡态（如来电、切换动画、锁屏瞬间），仍 suspend 以避免抖动。
+    // enabled=false（Disabled/紧急停用）始终 suspend。真正的后台进程存活需要平台前台服务，
+    // 这里只放开逻辑门禁；系统仍可能在后台回收进程并中断连接。
+    const connectable = this.#appState === 'active' || this.#appState === 'background'
+    if (!this.#enabled || !connectable) {
       this.#suppressActiveSocketDiagnostic?.()
       this.#connection?.suspend()
       if (this.#connection === null) {

@@ -54,7 +54,9 @@
 
 ### 过程记忆
 
-- `memory/decisions/README.md`：llmdoc 决策记录的入口；正式 ADR 仍在 `docs/adr/`。
+- `memory/decisions/README.md`：llmdoc 决策记录入口；正式 ADR 仍在 `docs/adr/`。
+- `memory/decisions/2026-08-20-trusted-grant-gateway-credential.md`：已决定但未实现的本地 trusted grant
+  主体、credential binding 与失效边界；具体 Agent identity 仅作可选审计元数据。
 - `memory/doc-gaps.md`：已知知识缺口，不代表交付计划或承诺。
 
 ### 反思（与稳定文档分列）
@@ -88,6 +90,8 @@
   自动内部发布与 production 资格分层的经验。
 - `memory/reflections/2026-08-20-sdk-capability-completion.md`：从 RN Web API 差异、双向 expose schema、
   全局确认 modal、principal-scoped runtime control 与本地 attention sound 得出的能力交付经验。
+- `memory/reflections/2026-08-20-android-control-expansion.md`：盘点 Android 控制能力时区分 policy、probe、
+  reachability 与 platform privilege，并追踪 caller/deadline、后台投递和受保护对象的上游缺口。
 
 ## 路由规则
 
@@ -118,4 +122,6 @@
 - 涉及 pairing、realtime、mailbox、push、objectRef 或 capability profile 时，先读
   `reference/sdk-device-transport.md` 和 `reference/upstream-and-platform-blockers.md`，再核实
   `docs/UPSTREAM.md` 与上游正式契约。
+- 修改 trusted grant、control mode 或 credential clear/replace/rotate/revoke 生命周期时，先读
+  `memory/decisions/2026-08-20-trusted-grant-gateway-credential.md`。
 - 重复大范围 DOD/文档同步工作前，读本次 reflection，避免把目标态误写成现状。

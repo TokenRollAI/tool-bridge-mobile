@@ -55,6 +55,14 @@ import {
 } from '@/capabilities/runtime/runtimeCapabilities'
 import { currentRuntimeAppState, ExpoStatusProbe } from '@/capabilities/status/probe'
 import { createStatusCapability } from '@/capabilities/status/statusCapability'
+import { NativeSystemAdapter, type SystemAdapter } from '@/capabilities/system/systemAdapter'
+import {
+  createAccessibilityStatusCapability,
+  createClipboardGetCapability,
+  createClipboardSetCapability,
+  createExecShellCapability,
+  createOpenIntentCapability,
+} from '@/capabilities/system/systemCapabilities'
 import { LOCAL_COMMAND_RETENTION_LIMIT } from '@/commands/repository'
 import { ManualGatewayConfigurationController } from '@/gateway/manualGatewayConfigurationController'
 import { SdkDeviceTransport } from '@/gateway/sdkDeviceTransport'
@@ -63,6 +71,7 @@ import { SecureInstallationIdentityStore } from '@/identity/installationIdentity
 import { LocalConfirmationCoordinator } from '@/policy/localConfirmationCoordinator'
 import { PolicyEngine } from '@/policy/policyEngine'
 import { SqliteAuditRepository } from '@/storage/auditRepository'
+import { SqliteBackgroundRuntimeRepository } from '@/storage/backgroundRuntimeRepository'
 import { SqliteCommandRepository } from '@/storage/commandRepository'
 import { SqliteControlModeRepository } from '@/storage/controlModeRepository'
 import { MobileDatabase } from '@/storage/database'
@@ -101,6 +110,7 @@ export type ApplicationSnapshot = Readonly<{
   appState: RuntimeAppState
   attentionSession: AttentionSessionSnapshot | null
   auditRecords: readonly AuditRecord[]
+  backgroundRuntimeEnabled: boolean
   capabilities: readonly CapabilitySnapshot[]
   controlMode: ControlMode
   deviceId: string | null
@@ -122,6 +132,7 @@ const INITIAL_SNAPSHOT: ApplicationSnapshot = {
   appState: 'unknown',
   attentionSession: null,
   auditRecords: [],
+  backgroundRuntimeEnabled: false,
   capabilities: [],
   controlMode: 'ask_every_time',
   deviceId: null,
@@ -144,6 +155,8 @@ export class ApplicationRuntime {
   #attentionController: AttentionSessionController | null = null
   #auditRevision = 0
   #auditRepository: SqliteAuditRepository | null = null
+  #backgroundRuntimeRepository: SqliteBackgroundRuntimeRepository | null = null
+  #systemAdapter: SystemAdapter | null = null
   #commandRepository: SqliteCommandRepository | null = null
   #confirmationRevision = 0
   #confirmationCoordinator: LocalConfirmationCoordinator | null = null
@@ -309,6 +322,26 @@ export class ApplicationRuntime {
     await this.refresh()
   }
 
+  async setBackgroundRuntimeEnabled(enabled: boolean): Promise<void> {
+    if (this.#backgroundRuntimeRepository === null) throw new Error('运行时尚未初始化')
+    await this.#backgroundRuntimeRepository.set(enabled, new Date().toISOString())
+    await this.#applyBackgroundRuntime(enabled)
+    await this.refresh()
+  }
+
+  async #applyBackgroundRuntime(enabled: boolean): Promise<void> {
+    if (this.#systemAdapter === null) return
+    try {
+      if (enabled) await this.#systemAdapter.startBackgroundRuntime()
+      else await this.#systemAdapter.stopBackgroundRuntime()
+    } catch {
+      this.#publish({
+        ...this.#snapshot,
+        error: '无法切换后台运行服务；系统可能限制了前台服务。',
+      })
+    }
+  }
+
   async emergencyDisable(): Promise<EmergencyDisableResult> {
     if (this.#controlModeRepository === null) throw new Error('运行时尚未初始化')
     await this.#controlModeRepository.set('disabled', new Date().toISOString())
@@ -319,6 +352,7 @@ export class ApplicationRuntime {
       this.#mediaController?.stop(),
       this.#timerController?.stopAll(),
       this.#deviceTransport?.updateLifecycle(currentRuntimeAppState(), false),
+      this.#systemAdapter?.stopBackgroundRuntime(),
     ])
     await this.refresh()
     const timerStopFailures = stops[2]?.status === 'fulfilled'
@@ -352,10 +386,11 @@ export class ApplicationRuntime {
       mountPath: null,
       state: 'unconfigured' as const,
     }
-    const [capabilities, auditRecords, timers] = await Promise.all([
+    const [capabilities, auditRecords, timers, backgroundRuntimeEnabled] = await Promise.all([
       this.#registry.snapshot(context),
       this.#auditRepository.listRecent(ACTIVITY_HISTORY_DISPLAY_LIMIT),
       this.#timerController?.getVisibleTimers() ?? Promise.resolve([]),
+      this.#backgroundRuntimeRepository?.get() ?? Promise.resolve(false),
     ])
     if (
       auditRevision !== this.#auditRevision
@@ -366,6 +401,7 @@ export class ApplicationRuntime {
       appState: context.appState,
       attentionSession: this.#attentionController?.getActiveSession() ?? null,
       auditRecords,
+      backgroundRuntimeEnabled,
       capabilities,
       controlMode,
       deviceId: transport.deviceId,
@@ -445,6 +481,14 @@ export class ApplicationRuntime {
       this.#registry.register(createMediaStopCapability(this.#mediaController))
       this.#registry.register(createMediaStatusCapability(this.#mediaController))
       this.#registry.register(createStatusCapability(new ExpoStatusProbe()))
+      const systemAdapter = new NativeSystemAdapter()
+      this.#systemAdapter = systemAdapter
+      this.#backgroundRuntimeRepository = new SqliteBackgroundRuntimeRepository(database)
+      this.#registry.register(createExecShellCapability(systemAdapter))
+      this.#registry.register(createClipboardGetCapability(systemAdapter))
+      this.#registry.register(createClipboardSetCapability(systemAdapter))
+      this.#registry.register(createOpenIntentCapability(systemAdapter))
+      this.#registry.register(createAccessibilityStatusCapability(systemAdapter))
       this.#confirmationCoordinator = new LocalConfirmationCoordinator()
       this.#confirmationCoordinator.subscribe(() => {
         this.#confirmationRevision += 1
@@ -492,6 +536,9 @@ export class ApplicationRuntime {
         currentRuntimeAppState(),
         initialControlMode !== 'disabled',
       )
+      if (initialControlMode !== 'disabled' && await this.#backgroundRuntimeRepository.get()) {
+        await this.#applyBackgroundRuntime(true)
+      }
       await this.refresh()
     } catch {
       this.#publish({
