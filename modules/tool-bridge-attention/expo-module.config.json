@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "apple": {
+    "modules": ["ToolBridgeAttentionModule"]
+  },
+  "android": {
+    "modules": ["ai.tokenroll.toolbridge.attention.ToolBridgeAttentionModule"]
+  }
+}

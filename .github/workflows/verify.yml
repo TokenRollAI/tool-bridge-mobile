@@ -1,6 +1,7 @@
 name: verify
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -12,6 +13,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: pnpm/action-setup@v6.0.10
@@ -19,7 +21,62 @@ jobs:
           version: 11.21.0
       - uses: actions/setup-node@v7.0.0
         with:
-          node-version: 22
+          node-version: 22.23.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
+      - run: pnpm peers check
+      - run: pnpm audit:dependencies
+
+  android-preview-apk:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.0.10
+        with:
+          version: 11.21.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: pnpm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify:doctor
+      - run: pnpm build:android:preview
+      - name: Prepare preview artifact
+        run: |
+          mkdir -p artifacts
+          cp android/app/build/outputs/apk/release/app-release.apk artifacts/tool-bridge-mobile-preview.apk
+          sha256sum artifacts/tool-bridge-mobile-preview.apk > artifacts/tool-bridge-mobile-preview.apk.sha256
+      - name: Upload preview APK
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: tool-bridge-mobile-preview-apk-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  ios-simulator:
+    needs: verify
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.0.10
+        with:
+          version: 11.21.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: pnpm
+      - run: sudo xcode-select -s /Applications/Xcode_26.4.1.app/Contents/Developer
+      - run: xcodebuild -version
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify:doctor
+      - run: pnpm build:ios:sim

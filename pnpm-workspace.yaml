@@ -1,1 +1,19 @@
 packages: []
+
+# eslint-import-resolver-typescript 的 MIT 原生 resolver 已通过平台可选包提供；
+# 禁止其 postinstall 在 clean install 时执行额外修复/下载逻辑。
+allowBuilds:
+  unrs-resolver: false
+
+patchedDependencies:
+  image-size@1.2.1: patches/image-size@1.2.1.patch
+
+# GHSA 对应的修复版本 2.0.3 尚未发布，且 Metro 仍要求 image-size 1.x。
+# 下列豁免仅在 patches/image-size@1.2.1.patch 与恶意样本验证同时存在时成立。
+audit:
+  level: high
+  ignore:
+    - GHSA-w3rx-r6r6-pgpr
+    - GHSA-5p2g-fcmc-qvqq
+
+strictPeerDependencies: true

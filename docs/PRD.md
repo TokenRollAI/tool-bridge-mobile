@@ -1,6 +1,6 @@
 # PRD：Tool Bridge Mobile
 
-状态：已决定的产品基线，功能尚未实现
+状态：已决定的产品基线；P0 本地安全运行时部分实现，网关闭环未实现
 
 目标版本：MVP / P1
 
@@ -78,7 +78,7 @@ Agent 可以发现这台设备当下真实可用的能力，并在权限、确�
 
 ### 6.1 P0：运行时基础
 
-- 生成并安全保存稳定 `deviceId`；
+- 生成并安全保存稳定的本地 `installationId`；配对成功后再接受网关签发的 `deviceId`；
 - 通过一次性配对流程获得最小权限设备凭证；
 - 前台建立设备 WebSocket，会话断开后指数退避重连；
 - 上报静态与动态能力；
@@ -95,7 +95,8 @@ Agent 可以发现这台设备当下真实可用的能力，并在权限、确�
 | 设备状态 | `phone/status.get` | 电量、网络、权限摘要、可达性 |
 | 播放媒体 | `phone/media.play`、`pause`、`status` | 本 App 播放状态 |
 | 打开内容 | `phone/apps.open_url`、`phone/location.open_map` | 已打开/等待用户/拒绝 |
-| 本地通知 | `phone/productivity.notify` | 通知标识和投递状态 |
+| 本地通知 | `phone/productivity.notify` | 通知标识和系统调度状态（不等于展示或点击） |
+| App 内计时器 | `phone/productivity.timer_start/timer_cancel/timer_status` | SQLite 状态和系统 pending 观察（不等于准时展示） |
 | 相机协作 | `phone/camera.capture_photo` | 经本地确认后的短期对象引用 |
 | 单次位置 | `phone/location.current` | 经授权的坐标、精度和时间 |
 
@@ -175,6 +176,9 @@ queued -> delivered -> awaiting_user -> running -> succeeded
 
 - MVP 只保证控制本 App 管理的播放会话；
 - `play` 接受受信 URL 或网关对象引用，不接受任意本地文件路径；
+- 受信 URL 必须在创建 player 前重验 redirect/最终来源、音频 MIME 与实际大小，并下载到 App 私有
+  临时文件；直播、无效时长和超过 2 小时的媒体必须在播放前拒绝；网关对象引用等待上游受保护的
+  正式契约；
 - 返回当前媒体、播放状态、位置和可用控制；
 - 打开第三方音乐 App 走受控深链并返回“已交接”，不声称能持续控制；
 - 后台播放必须使用平台正规媒体会话和可见控制。
@@ -191,24 +195,58 @@ queued -> delivered -> awaiting_user -> running -> succeeded
 ### FR-8：位置
 
 - MVP 仅提供一次性当前位置和打开地图；
+- 打开地图只接受结构化地址/坐标，由 App 本地构造平台目标并逐次确认；结果只表示系统接受 handoff，
+  不回显目标或声称地图内任务完成；
 - 返回坐标必须包含采集时间、精度和来源；
 - 位置权限按使用时申请；
 - 持续/后台定位不进入 MVP，后续必须单独评审用户价值、耗电与商店政策。
 
 ### FR-9：本地通知与深链
 
-- 通知文案、深链 scheme/host 和执行频率均受 allowlist/策略约束；
+- 本地通知的正式路径为 `phone/productivity.notify`，当前只接受 `purpose` 与 `message`；调用方不能
+  指定标题、URL、data、action、声音、badge 或未来调度时间；
+- OS 通知标题固定为 `Tool Bridge`，正文带固定 `Agent 通知：` 前缀；caller 与 purpose 只在 App 的
+  本地确认界面展示，不能借通知正文伪装系统或其他调用方；
+- 通知系统权限只由用户在 App 内的说明页面主动触发；远程命令不会弹系统授权框；
+- 本地即时通知只在 App 前台、系统授权和 Android channel 可用时声明 available；当前结果只报告
+  原生调度请求已返回 `scheduled` 与 `presentation: system_determined`，不把它写成已展示或已点击；
+- 通知频率受 caller/global admission 约束；同一 `commandId` 只调度一次，消息正文不进入普通审计
+  或持久化 command outcome；
+- 深链 scheme/host 和执行频率受 allowlist/策略约束；
 - 高风险 scheme、设置页和可能发起支付/通信的深链默认拒绝；
 - 通知交付与用户点击是不同状态；
-- Agent 不能通过通知文案伪装系统安全提示。
+- 当前本地通知不注册 push token、不接 mailbox，也不代表 U-6 远程 push 已实现。
+- App 内计时器只接受规范 UTC `firesAt` 与用于本地确认的 `purpose`；创建时目标必须在 10 秒至 24
+  小时内，不接受 caller 提供的 label/message/title、repeat、URL、data、action、sound、badge 或 channel；
+- 计时器以 SQLite v2 状态为真源，系统绝对 DATE trigger 只是 best-effort 可见提示。固定 payload 为
+  `Tool Bridge / Agent 计时器已到期`，purpose 不进入 SQLite、原生 payload、command outcome 或普通审计；
+- `timerId` 与 native identifier 都由 source `commandId` 的 SHA-256 确定性派生；活动容量由 SQLite
+  事务限制为每 caller 8、全设备 32，进程重启不能重置该容量；
+- `timer_status` 和 `timer_cancel` 只允许同一 caller 访问，不存在与异主统一返回 `not_found`；本地 UI
+  始终可以取消，Disabled 会清理所有活动 timer；
+- start 只报告系统接受 schedule；status 只区分 pending observed、missing、deadline elapsed、cancelled
+  或 unknown；cancel 也保留 `presentation: unknown`。任何结果都不声称 fired、delivered、presented、
+  clicked、on-time 或从未展示；
+- 当前构建继续禁止 boot receiver 与 exact alarm。Android 设备 reboot 后系统 pending 不恢复；App 下次
+  主动进入前台时只对成功、未到期且仍获授权的 timer 用同一标识对账，crash orphan 一律清理而不重放。
 
 ### FR-10：本地控制台与审计
 
 - 首页展示当前模式、网关、设备名、连接状态和总开关；
 - 能力页逐项展示权限、确认策略和平台限制；
-- 活动页展示最近调用的时间、来源、工具、决策和结果；
-- 用户可停止进行中动作、撤销网关和清除本地记录；
+- 活动页展示最近调用的时间、来源、工具、effect/risk、决策和结果；
+- 活动页只投影最近 100 条，本机审计持续硬限制为 5,000 条；
+- 用户可在不可恢复的范围确认后只清除本机活动审计；该操作不取消命令，也不删除 command 防重放
+  记录、计时器、设置、installation identity 或凭证，清除后发生的调用继续记录；
+- 控制台不只用颜色表达状态，支持系统字号换行；页面/卡片标题、状态 label/value 与操作均提供明确
+  语义，重复操作使用不泄漏 message/purpose 等正文的唯一上下文名称；
+- 离散、可操作状态变化可被读屏器公告；倒计时、播放进度和敏感确认详情不得形成高频或自动公告；
+- 用户可停止进行中动作；撤销网关和完整本地数据删除仍按独立流程验收；
 - 审计默认不包含媒体内容、精确位置、凭证或完整消息正文。
+
+当前本地活动页和仅审计清除已实现；它不是服务端安全审计、网关撤销或账户级数据删除。清除失败时
+页面保留现有投影并报告失败，不把未知删除结果显示成成功。无障碍语义当前有 common RN 自动化与
+Android emulator 200% 字号 smoke；TalkBack/VoiceOver/Switch Access 和 iOS Dynamic Type 仍需平台验收。
 
 ## 9. 控制模式
 

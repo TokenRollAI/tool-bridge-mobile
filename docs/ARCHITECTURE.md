@@ -1,6 +1,95 @@
 # 系统架构
 
-状态：目标架构。标注“当前”的部分来自现有 Tool Bridge device 契约；标注“新增”的部分需要上游实现。
+状态：目标架构 + P0 本地实现事实。标注“上游当前”的部分来自现有 Tool Bridge device 契约；
+标注“新增”的部分需要上游实现。
+
+## 0. 当前实现边界
+
+本仓库当前已有、不依赖网关的本地纵向切片：
+
+```text
+Expo Router UI
+  -> SecureStore installationId / SQLite controlMode
+  -> probe-driven phone/status registry
+  -> schema -> expiry/cancel -> admission -> probe -> policy -> persistent claim
+  -> claim 后复检 -> handler -> bounded outcome -> redacted audit metadata
+```
+
+具体事实：
+
+- `installationId` 由 SecureStore 保存，只是本地安装标识，不冒充网关 `deviceId`；
+- SQLite schema version 2 保存 control mode、command intent/终态、审计元数据与非敏感 timer 状态；
+- opaque device credential envelope 只由 SecureStore facade 保存，不进入 SQLite；本地撤销协调器先
+  复用 runtime emergency disable，再以有界超时停止 realtime/mailbox adapter，最终清除凭证；
+- `phone/status.get` 从 Expo Battery/Network 与 AppState probe 读取；不可读取字段返回结构化
+  `unavailable`，不会填造数据；
+- registry 隔离单项 native probe 异常并降级为 `unavailable: probe_failed`，不会让一个原生模块故障
+  拖垮整个 capability snapshot 或绕过执行器的稳定结果边界；
+- `LocalCommandExecutor` 对同一 `commandId` 持久化去重，在 handler 前执行 schema、过期、取消、
+  caller/global admission、probe 与 policy；SQLite claim 返回后再次检查取消/到期，再把含 command
+  deadline 的只读 invocation context 交给 handler；crash 后运行中命令变为 `result_unknown`，不会
+  自动重放副作用；
+- 每个本地 descriptor 声明 rate 和 inline result bytes；admission 在 confirmation 前运行，JSON 结果
+  超限返回 `result_too_large` 且大值不进入 SQLite。它是本地边界，不冒充上游 profile/quota；
+- command envelope 和持久化 outcome 都做 runtime schema 校验；每次 command 终态写入都在同一 SQLite
+  transaction 内把终态总数裁剪至 10,000 条，同时保留 running、当前刚完成的 command 和活动 timer
+  source；每次审计 insert 也在同一事务内把元数据裁剪至 5,000 条，两项硬上限都不依赖下一次 App
+  启动；
+- 首页、能力页和活动页读取同一本地运行时；活动页投影最近 100 条 caller/path/tool/effect/risk/decision/
+  outcome 元数据，并提供只删除 `audit_records` 的本地二次确认入口。刷新 revision 防止清除后的旧异步
+  snapshot 回写；command 去重、timer、设置、identity 和 credential 不在清除范围；
+- 共用 `Screen`/`StatusCard`/`StatusRow`/`AccessibleAction` 统一页面与卡片 header、label/value 关联、
+  48dp 操作区和 disabled/busy 语义；tab focus 与 destructive confirmation 通过受控 helper 移动，离散
+  状态公告按 semantic key 去重，倒计时、媒体进度和敏感确认正文不进入自动公告；
+- emergency disable 会取消进行中 handler、拒绝 pending confirmation、停止 attention/media/timer，
+  并使后续命令在 handler 前拒绝；
+- production transport 明确为 `unconfigured`。当前没有 pairing、realtime、mailbox、push，也没有
+  私自定义 `hello/call/result` 或 mailbox wire schema。
+
+本地 contract test 使用注入的 fake dispatcher/probe 验证安全顺序，不等同于 gateway wire contract
+或端到端设备证据。
+
+无障碍 helper 只使用 React Native core API，不新增原生权限或依赖。component test 与 Android
+UIAutomator 语义树可以验证名称、state、最小操作尺寸和 200% 字号下仍可滚动/点击，但不能验证
+TalkBack/VoiceOver 实际朗读、手势顺序、Switch Access 或 iOS Dynamic Type；这些继续由平台矩阵验收。
+
+当前本地能力还包括 `phone/media`：受控 resolver 在创建 player 前逐跳校验 HTTPS hostname 与最终
+URL，以 MIME header + 文件签名、声明/实际 25 MiB 上限约束内容，再把 App 私有 `file://` cache URI
+交给 `expo-audio`；原生 port 在 `play()` 前以 10 秒 metadata timeout 拒绝直播、无效时长和超过 2
+小时的媒体。单 player controller 投影 loading/playing/paused/interrupted/stopped/failed；会话
+只保留 hostname/MIME/大小等元数据，普通审计不保存完整 URL/query 或私有路径。Android/iOS 已生成
+系统可见媒体控制配置，但真机锁屏、后台和音频中断行为仍属于未完成证据。
+
+`phone/location.current` 使用 `expo-location` foreground API：实际服务/权限 probe 决定
+available、permission_required 或 unavailable；high-risk 本地确认完成前不请求权限。adapter 只建立
+一次性可取消订阅，首个 fix 后立即移除，并把采集时间、水平精度与 precise/approximate 状态返回给
+调用方。实际等待取入参 timeout 与 command deadline 剩余时间的较小值。Android/iOS 原生配置显式
+禁止后台位置；普通审计不保存坐标。
+
+`phone/location.open_map` 是独立 handoff，不读取当前位置：strict 结构化目标先进入本地 platform builder，
+只生成 Android `geo:` 或 Apple Maps HTTPS link，再经实际 handler probe、逐次确认、claim 后复检与
+5 秒 Linking 上限进入系统提交点。结果/审计只含 `handed_off` 与 provider，不保留目标内容。
+
+`phone/productivity.notify` 是 local-only 即时通知：用户先在首页看到用途说明并主动请求系统权限，
+远程命令只接受 strict purpose/message，经前台 permission/channel probe、admission、确认与持久化 claim
+后，使用固定 channel、固定 `Tool Bridge` 标题和确定性 commandId 摘要调度一次原生通知。持久化结果
+只报告 `scheduled/system_determined` 且不保存正文；这条链路不获取 push token、不接 mailbox，也不
+把 schedule promise、notification received callback 或模拟器 UI 当作已展示/已点击证据。
+
+`phone/productivity.timer_start/timer_cancel/timer_status` 复用同一个 local-only notification adapter，但
+timer 的事实真源是 SQLite `timers` 表：executor claim 后先在事务中 reserve `preparing`，再以
+`commandId` SHA-256 派生的确定性 ID 提交绝对 DATE trigger，成功后 CAS 为 `scheduled`。purpose 不
+进入 SQLite 或原生 payload。启动/回到前台时先对照 recovered source command 与系统 pending list：
+crash orphan 只取消，成功且未来但 pending missing 的 timer 才可用同一 ID re-arm，过期只标记
+`deadline_elapsed`，不推断展示。cancel 经过 `cancelling`，只有 cancel+dismiss 都有界返回后才写
+`cancelled`；超时保留 `status_unknown`。emergency disable 的 epoch fence 和迟到 promise cleanup 防止
+旧 schedule 越过撤销边界。没有 JS timer 被当作运行事实，也没有新增 boot/exact/push 权限。
+
+Ask every time / high-risk 的本地确认由内存 coordinator 承担。它只向 UI 投影 caller、能力、风险、
+effect 和过期时间，不持久化完整 arguments；用户批准后 executor 会重新检查 expiry、AbortSignal、
+probe 和 policy，之后才原子 claim command。拒绝、过期、取消、Disabled 或队列上限都会返回稳定
+失败且不进入 handler；claim 等待期间状态变化还会在 claim 返回后再复检。该 coordinator 还不是
+上游 mailbox 的 `awaiting_user` wire 状态机。
 
 ## 1. 组件
 
@@ -283,7 +372,7 @@ WebSocket JSON 帧或网关普通 request body 转发。
 | 设备凭证/私钥 | SecureStore / Keychain / Keystore | 禁止降级到 AsyncStorage |
 | 用户偏好与控制模式 | SQLite | 非敏感但需事务 |
 | command inbox 与终态 | SQLite | 支持 crash recovery 和幂等 |
-| 本地审计摘要 | SQLite | 有界保留，可由用户清除 |
+| 本地审计摘要 | SQLite | 写时硬限制 5,000 条；页面显示最近 100 条，可单独清除且不删除 command 去重记录 |
 | 待上传媒体 | App 私有文件目录 | 加密/保护级别按平台配置，有限 TTL |
 | capability cache | 内存 + SQLite 摘要 | 事件触发重算 |
 

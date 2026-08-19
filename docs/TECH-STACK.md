@@ -1,6 +1,7 @@
 # 技术选型
 
-状态：P0 实现基线。精确版本在开始代码脚手架时锁定，不在规划文档中写浮动的“最新版”。
+状态：P0 实现基线。精确版本与最低平台已由
+[ADR-0002](adr/0002-app-scaffold-baseline.md) 锁定。
 
 ## 1. 结论
 
@@ -19,6 +20,10 @@
 - GitHub Actions 做静态与协议验证，原生签名构建可接 EAS 或自托管 runner。
 
 交付策略：**Android 首个端到端切片，iOS 从第一天保持可构建和协议对等。**
+
+当前精确基线：Node `22.23.1`、pnpm `11.21.0`、Expo `57.0.14`、React Native `0.86.2`、
+React `19.2.3`、TypeScript `6.0.3`。Android min/compile/target 为 `24/36/36`，iOS deployment
+target 为 `16.4`。`package.json`、`.node-version`、`pnpm-lock.yaml` 和 App config 是版本事实真源。
 
 ## 2. 为什么选 React Native + Expo
 
@@ -97,28 +102,68 @@ e2e/
 
 ## 5. 核心依赖
 
-以下是“能力到依赖”的初始映射，安装时用 `npx expo install` 选择与锁定 Expo SDK 兼容的版本。
+以下是“能力到依赖”的初始映射，安装时用 `pnpm exec expo install` 选择与锁定 Expo SDK 兼容的
+版本，再把精确版本与 lockfile 一并评审。
 
 | 需求 | 选择 | 说明 |
 | --- | --- | --- |
 | 路由/深链 | `expo-router`、`expo-linking` | 配对、通知 action、确认页 |
-| push / 本地通知 | `expo-notifications` | 获取原生 APNs/FCM token、通知交互 |
+| 本地通知与 timer 提示 | `expo-notifications` `57.0.12` | 当前：双端权限/channel probe、固定内容、即时/绝对 DATE local schedule |
+| push | `expo-notifications` + gateway APNs/FCM | 目标：token、mailbox 提示与点击观察；U-5/U-6 未实现 |
 | 凭证 | `expo-secure-store` | SK/refresh material；必要时下沉更强 key API |
 | command / audit | `expo-sqlite` | 事务、幂等、crash recovery |
 | 相机 | `expo-camera` | 可见预览和用户确认拍摄 |
-| 音频 | `expo-audio` | App 自有媒体播放 |
-| 位置 | `expo-location` | P1 一次性位置；P2 单独评审后台能力 |
-| 本地文件 | `expo-file-system` | 待上传媒体和清理 |
+| 音频 | `expo-audio` `57.0.3` | App 自有媒体播放、原生状态与系统媒体控制；显式关闭录音权限 |
+| 媒体资源 | `expo-asset` `57.0.12` | `expo-audio` 要求的直接 peer；提供 player 原生资源解析 |
+| 位置 | `expo-location` `57.0.11` | P1 一次性 foreground 位置；P2 单独评审后台能力 |
+| 本地文件 | `expo-file-system` `57.0.4` | 受控媒体流式写入、实际字节上限和 App 私有 cache 清理 |
 | 加密摘要 | `expo-crypto` | sha256、随机数据辅助 |
 | 设备状态 | `expo-device`、`expo-battery`、`expo-network` | capability/status 的最小状态 |
 | 后台回调 | `expo-task-manager` | push/background callback 编排 |
 | schema | `zod` | 与 Tool Bridge 现有技术栈一致 |
+| attention haptic | 本地 Expo Module `tool-bridge-attention` | Expo/RN 公共 API 无硬件 probe；仅封装 hasVibrator/CoreHaptics 与单次 pulse |
+
+`tool-bridge-attention` 是当前唯一自定义原生模块：成熟 Expo haptics API没有暴露双端硬件 probe，
+而 capability 不能只按 OS 名称推断，因此使用最小 Kotlin/Swift 边界。Android 只声明普通
+`VIBRATE` 权限；iOS haptic 不需要 usage description。声音、闪光与后台执行未进入该模块。
+
+`expo-audio` 由 Expo 维护并与 SDK 57 同步发布，覆盖 Android/iOS；现有依赖没有音频 player、状态
+事件或系统媒体控制。配置显式关闭 Android/iOS 录音，只启用可见后台播放。它本身不验证远端 MIME
+或体积，因此 App 在创建 player 前用 `expo/fetch` 手动处理 redirect，并以 MIME header + 文件签名、
+声明/实际 25 MiB 上限约束内容；player 在 `play()` 前另以 10 秒 metadata timeout 拒绝直播、无效时长
+和超过 2 小时的媒体。不使用 URL 后缀猜测类型。对象 TTL 仍等待上游 `objectRef` 契约。
+`expo-asset` 是 `expo-audio` 声明的 native peer，必须由 App 直接安装，不能依赖 pnpm 的传递安装；
+版本按 Expo SDK 57 的 `bundledNativeModules.json` 精确锁定。
+
+`expo-file-system` 同样由 Expo 维护并与 SDK 57 同步发布，覆盖 Android/iOS App 私有目录和流式文件
+handle。媒体 resolver 的生产代码直接 import 它，因此即使它曾由其他 Expo 包传递安装，也必须作为
+精确版本直接依赖；现有依赖没有可用于原生 player 的流式私有文件与确定性清理接口。
+
+`expo-location` 同样由 Expo 维护并与 SDK 57 同步发布，覆盖双端 foreground 权限、权限精度和
+可取消位置订阅；已有依赖无法提供这些原生 API。当前配置显式关闭 Android/iOS 后台位置、Android
+location foreground service 与 motion activity，只生成 Android coarse/fine 和 iOS When In Use 权限。
+
+`open_map` 复用已锁定的 `expo-linking 57.0.6`，不新增地图 SDK 或系统权限：业务层只接受结构化目标，
+平台 builder 生成固定 map target，Linking 仅负责实际 probe/handoff。Android 11+ 的 package visibility
+由本地 config plugin 只加入 `geo` + `ACTION_VIEW` query；不查询具体地图 package。现有 linking 已满足
+这一系统交接需求，引入完整地图 SDK 会增加原生体积、位置数据面和维护成本。
+
+`expo-notifications 57.0.12` 是 Expo 官方维护、与本仓库 SDK 57 本地
+`bundledNativeModules.json` 一致的 Android/iOS 模块；已有依赖不提供通知授权、Android channel 或
+双端 local schedule API。当前仅使用即时通知与 24 小时内单次 timer 的绝对 DATE trigger：Android 显式
+声明 `POST_NOTIFICATIONS` 并阻止
+`RECEIVE_BOOT_COMPLETED` / `SCHEDULE_EXACT_ALARM`，iOS 通过仓库 final config plugin 移除模块静态
+plugin 默认加入的 APNs entitlement，且不启用 `remote-notification` background mode。业务代码不调用
+push token API；即时 notify 不接受 schedule，timer 也只接受 canonical UTC firesAt 与确认 purpose，二者
+都不接受调用方 title/data/action/sound/badge/channel，也不把安装模块等同于接通 push。
+该 final plugin 还从 Android merged manifest 移除模块传递的 FCM/C2DM、Firebase 初始化/transport 和
+厂商 badge 入口，只保留不可导出的 local notification event receiver 与点击转发 Activity。
 
 官方模块索引：[Expo SDK reference](https://docs.expo.dev/versions/latest/)。
 
-### Push 的选择
+### Push 的目标选择（未实现）
 
-`expo-notifications` 同时能获取 Expo token 和原生 device token。这里选择：
+`expo-notifications` 同时能获取 Expo token 和原生 device token。U-5/U-6 交付后的目标选择是：
 
 - App 获取原生 APNs / FCM token；
 - token 注册到 Tool Bridge gateway；
@@ -132,8 +177,9 @@ e2e/
 - 避免核心设备可达性依赖额外转发层；
 - 仍可在原型期用 Expo Push Service，但不得让协议绑定它。
 
-Expo 官方说明 `expo-notifications` 可获取原生 token：
-[Notifications API](https://docs.expo.dev/versions/latest/sdk/notifications/)。
+当前已安装模块和 `phone/productivity.notify/timer_*` 不满足上述任何 gateway push 交付项。Expo SDK 57 的权限、
+channel、handler、schedule 与 token API 见
+[Notifications API](https://docs.expo.dev/versions/v57.0.0/sdk/notifications/)。
 
 ## 6. 状态管理
 
@@ -178,10 +224,11 @@ E2E 工具只负责驱动 UI；平台是否真正发声、振动、拍照和接�
 - clean install；
 - typecheck；
 - lint；
-- unit / component / protocol contract；
+- unit / component / local runtime contract；
+- 上游正式 fixture 可用后加入 gateway wire contract；
 - Android debug build；
 - iOS simulator build（macOS runner）；
-- 依赖/secret 扫描；
+- 依赖、许可证与 secret 扫描；
 - 文档链接检查。
 
 ### 合并 main
@@ -202,6 +249,11 @@ E2E 工具只负责驱动 UI；平台是否真正发声、振动、拍照和接�
 
 EAS Build 是可选的构建执行器，不是架构依赖；若成本、密钥治理或自托管要求不合适，可以切换
 GitHub-hosted/self-hosted native runner。
+
+当前 Android clean debug build 的工具链、命令和产物摘要记录在
+[2026-08-19 Android debug 验证记录](verification/2026-08-19-android-debug.md)；安装和 UI smoke 记录在
+[2026-08-19 Android emulator smoke](verification/2026-08-19-android-emulator.md)。iOS simulator build
+仍需完整 Xcode 环境或 macOS CI 的成功记录，不能由 Android 结果代替；emulator 也不能替代双端真机。
 
 ## 10. 未选择的方案
 
