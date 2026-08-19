@@ -15,6 +15,8 @@ async function resolveModules(platform) {
 const [android, ios] = await Promise.all([resolveModules('android'), resolveModules('ios')])
 const androidAttention = android.modules.find(module => module.packageName === 'tool-bridge-attention')
 const iosAttention = ios.modules.find(module => module.packageName === 'tool-bridge-attention')
+const androidSystem = android.modules.find(module => module.packageName === 'tool-bridge-system')
+const iosSystem = ios.modules.find(module => module.packageName === 'tool-bridge-system')
 const androidNotifications = android.modules.find(module => module.packageName === 'expo-notifications')
 const iosNotifications = ios.modules.find(module => module.packageName === 'expo-notifications')
 
@@ -26,6 +28,16 @@ if (!androidAttention?.projects?.some(project => project.modules?.some(
 
 if (!iosAttention?.modules?.some(module => module.class === 'ToolBridgeAttentionModule')) {
   throw new Error('iOS ToolBridgeAttentionModule 未被 Expo autolinking 发现')
+}
+
+if (!androidSystem?.projects?.some(project => project.modules?.some(
+  module => module.classifier === 'ai.tokenroll.toolbridge.system.ToolBridgeSystemModule',
+))) {
+  throw new Error('Android ToolBridgeSystemModule 未被 Expo autolinking 发现')
+}
+
+if (!iosSystem?.modules?.some(module => module.class === 'ToolBridgeSystemModule')) {
+  throw new Error('iOS ToolBridgeSystemModule 未被 Expo autolinking 发现')
 }
 
 if (
@@ -50,4 +62,4 @@ if (
   || !iosNotifications.modules?.some(module => module.class === 'SchedulerModule')
 ) throw new Error('iOS ExpoNotifications 57.0.12 权限/scheduler 模块未被正确发现')
 
-console.log('原生模块验证通过：ToolBridgeAttention 与 expo-notifications 57.0.12 已被 Android/iOS autolinking 发现。')
+console.log('原生模块验证通过：ToolBridgeAttention、ToolBridgeSystem 与 expo-notifications 57.0.12 已被 Android/iOS autolinking 发现。')

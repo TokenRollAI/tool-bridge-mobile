@@ -7,6 +7,15 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 持有 gateway credential。依赖静态 allowlist 且配置为空的能力不公开 command，但仍发送对应空 node 来
 覆盖旧注册；真实网关是否正确移除旧命令需单独验证。
 
+## Android 原生控制面现状
+
+- 仓库自有 Android Expo native module 当前只有 `modules/tool-bridge-attention` 的 haptic probe/执行；
+  其余已实现能力通过受限 Expo API、App 内状态机或系统 handoff 提供。
+- 当前没有 AccessibilityService、MediaProjection、notification-listener 或 DevicePolicyManager/device-owner
+  控制实现，也没有对应 service/config；因此不能跨 App 操作任意 UI、捕获屏幕或管理专用设备。
+- 当前原生权限面仍按已实现切片最小化：未声明相机、麦克风或后台位置权限。Android 更高权限控制路线尚未
+  决定，也未实现，不能从现有 capability 或构建配置推断其可用。
+
 ## 当前实现
 
 ### `phone/status.get`

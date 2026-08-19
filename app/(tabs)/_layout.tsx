@@ -20,6 +20,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="capabilities" options={TAB_OPTIONS.capabilities} />
       <Tabs.Screen name="media" options={TAB_OPTIONS.media} />
       <Tabs.Screen name="activity" options={TAB_OPTIONS.activity} />
+      <Tabs.Screen name="settings" options={TAB_OPTIONS.settings} />
     </Tabs>
   )
 }

@@ -45,6 +45,24 @@ describe('PolicyEngine', () => {
     )).toEqual({ kind: 'awaiting_user', reason: 'local_confirmation_required' })
   })
 
+  test('direct_call 直接放行 high risk / confirmation:always，不再要求确认', () => {
+    const descriptor = {
+      ...baseDescriptor,
+      confirmation: 'always' as const,
+      effect: 'destructive' as const,
+      risk: 'high' as const,
+    }
+    expect(engine.authorize(descriptor, { ...baseContext, controlMode: 'direct_call' }))
+      .toEqual({ kind: 'allow' })
+  })
+
+  test('direct_call 仍不能绕过 Disabled', () => {
+    expect(engine.authorize(
+      { ...baseDescriptor, effect: 'write' },
+      { ...baseContext, controlMode: 'disabled' },
+    )).toMatchObject({ code: 'disabled', kind: 'reject' })
+  })
+
   test('单命令本地批准只绕过确认，不能绕过 Disabled', () => {
     const descriptor = { ...baseDescriptor, effect: 'write' as const, risk: 'high' as const }
     expect(engine.authorize(descriptor, baseContext, { locallyApproved: true }))

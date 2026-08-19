@@ -16,9 +16,9 @@ const easProject = {
 }
 
 const releaseMetadata = {
-  androidVersionCode: 2,
-  iosBuildNumber: '2',
-  version: '0.0.2',
+  androidVersionCode: 3,
+  iosBuildNumber: '3',
+  version: '0.0.3',
 }
 
 for (const [variant, expectedIdentifier] of Object.entries(variants)) {
@@ -122,6 +122,7 @@ for (const permission of [
   'android.permission.ACCESS_COARSE_LOCATION',
   'android.permission.ACCESS_FINE_LOCATION',
   'android.permission.FOREGROUND_SERVICE',
+  'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
   'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
   'android.permission.POST_NOTIFICATIONS',
   'android.permission.VIBRATE',
@@ -173,6 +174,13 @@ if (!androidServices.some(service => (
   && service.$?.['android:foregroundServiceType'] === 'mediaPlayback'
 ))) {
   throw new Error('Android 后台媒体 service 缺失或配置不安全')
+}
+if (!androidServices.some(service => (
+  service.$?.['android:name'] === 'ai.tokenroll.toolbridge.system.ToolBridgeForegroundService'
+  && service.$?.['android:exported'] === 'false'
+  && service.$?.['android:foregroundServiceType'] === 'dataSync'
+))) {
+  throw new Error('Android 后台运行 service 缺失或配置不安全（必须 non-exported dataSync）')
 }
 for (const name of [
   'expo.modules.notifications.service.ExpoFirebaseMessagingService',

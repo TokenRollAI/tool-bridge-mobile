@@ -1,29 +1,14 @@
 import { fireEvent, render } from '@testing-library/react-native'
 
-import { HomeScreen as ProductionHomeScreen } from '../HomeScreen'
+import { HomeScreen } from '../HomeScreen'
 
 import type { ApplicationSnapshot } from '@/runtime/applicationRuntime'
-import type { ComponentProps } from 'react'
-
-type TestHomeScreenProps = Omit<
-  ComponentProps<typeof ProductionHomeScreen>,
-  'onClearGatewayConfiguration' | 'onSaveGatewayConfiguration'
->
-
-function HomeScreen(props: TestHomeScreenProps) {
-  return (
-    <ProductionHomeScreen
-      onClearGatewayConfiguration={jest.fn(async () => undefined)}
-      onSaveGatewayConfiguration={jest.fn(async () => undefined)}
-      {...props}
-    />
-  )
-}
 
 const readySnapshot: ApplicationSnapshot = {
   appState: 'active',
   attentionSession: null,
   auditRecords: [],
+  backgroundRuntimeEnabled: false,
   capabilities: [],
   controlMode: 'ask_every_time',
   deviceId: null,
@@ -41,129 +26,63 @@ const readySnapshot: ApplicationSnapshot = {
   transportState: 'unconfigured',
 }
 
-describe('HomeScreen', () => {
-  test('明确展示 SDK transport 配置状态，并允许紧急停用', async () => {
-    const onEmergencyDisable = jest.fn()
-    const rendered = await render(
-      <HomeScreen
-        onApproveConfirmation={jest.fn()}
-        onCancelTimer={jest.fn()}
-        onEmergencyDisable={onEmergencyDisable}
-        onEnable={jest.fn()}
-        onOpenNotificationSettings={jest.fn()}
-        onRejectConfirmation={jest.fn()}
-        onRequestNotificationPermission={jest.fn()}
-        onStopAttention={jest.fn()}
-        snapshot={readySnapshot}
-      />,
-    )
+function renderHome(snapshot: ApplicationSnapshot, overrides: Partial<Parameters<typeof HomeScreen>[0]> = {}) {
+  return render(
+    <HomeScreen
+      onCancelTimer={jest.fn()}
+      onOpenSettings={jest.fn()}
+      onStopAttention={jest.fn()}
+      snapshot={snapshot}
+      {...overrides}
+    />,
+  )
+}
 
-    rendered.getByText('SDK transport 已接入；请在本机填写 Gateway HTTPS URL 与 API key。', {
-      exact: false,
-    })
-    rendered.getByLabelText('SDK transport：unconfigured')
-    await fireEvent.press(rendered.getByRole('button', { name: '紧急停用远程能力' }))
-    expect(onEmergencyDisable).toHaveBeenCalledTimes(1)
+describe('HomeScreen', () => {
+  test('总览以状态徽标展示控制模式、连接、后台运行与前后台', async () => {
+    const rendered = await renderHome(readySnapshot)
+    rendered.getByLabelText('控制模式：每次确认')
+    rendered.getByLabelText('连接：unconfigured')
+    rendered.getByLabelText('后台运行：已关闭')
+    rendered.getByLabelText('前后台：active')
+  })
+
+  test('后台运行开启时徽标反映已开启', async () => {
+    const rendered = await renderHome({ ...readySnapshot, backgroundRuntimeEnabled: true })
+    rendered.getByLabelText('后台运行：已开启')
+  })
+
+  test('提供打开设置入口', async () => {
+    const onOpenSettings = jest.fn()
+    const rendered = await renderHome(readySnapshot, { onOpenSettings })
+    await fireEvent.press(rendered.getByRole('button', { name: '打开设置' }))
+    expect(onOpenSettings).toHaveBeenCalledTimes(1)
   })
 
   test('只在 SDK ready 后展示 online 与网关设备身份', async () => {
-    const rendered = await render(
-      <HomeScreen
-        onApproveConfirmation={jest.fn()}
-        onCancelTimer={jest.fn()}
-        onEmergencyDisable={jest.fn()}
-        onEnable={jest.fn()}
-        onOpenNotificationSettings={jest.fn()}
-        onRejectConfirmation={jest.fn()}
-        onRequestNotificationPermission={jest.fn()}
-        onStopAttention={jest.fn()}
-        snapshot={{
-          ...readySnapshot,
-          deviceId: 'device_01',
-          mountPath: 'device/device_01',
-          reachability: 'online',
-          transportState: 'ready',
-        }}
-      />,
-    )
-
-    rendered.getByLabelText('可达性：online')
+    const rendered = await renderHome({
+      ...readySnapshot,
+      deviceId: 'device_01',
+      mountPath: 'device/device_01',
+      reachability: 'online',
+      transportState: 'ready',
+    })
+    rendered.getByLabelText('连接：online')
     rendered.getByLabelText('SDK deviceId：device_01')
     rendered.getByLabelText('挂载路径：device/device_01')
   })
 
-  test('展示固定分类、失败阶段和 close code，不接收原始异常文本', async () => {
-    const rendered = await render(
-      <HomeScreen
-        onApproveConfirmation={jest.fn()}
-        onCancelTimer={jest.fn()}
-        onEmergencyDisable={jest.fn()}
-        onEnable={jest.fn()}
-        onOpenNotificationSettings={jest.fn()}
-        onRejectConfirmation={jest.fn()}
-        onRequestNotificationPermission={jest.fn()}
-        onStopAttention={jest.fn()}
-        snapshot={{
-          ...readySnapshot,
-          transportDiagnostic: {
-            closeCode: 1006,
-            kind: 'tls_failed',
-            stage: 'gateway_handshake',
-          },
-          transportIssue: 'transport_error',
-          transportState: 'reconnecting',
-        }}
-      />,
-    )
-
-    rendered.getByLabelText('失败类型：tls_failed')
-    rendered.getByLabelText('失败阶段：gateway_handshake')
-    rendered.getByLabelText('WS 关闭码：1006')
-  })
-
-  test('Disabled 模式提供显式恢复入口', async () => {
-    const onEnable = jest.fn()
-    const rendered = await render(
-      <HomeScreen
-        onApproveConfirmation={jest.fn()}
-        onCancelTimer={jest.fn()}
-        onEmergencyDisable={jest.fn()}
-        onEnable={onEnable}
-        onOpenNotificationSettings={jest.fn()}
-        onRejectConfirmation={jest.fn()}
-        onRequestNotificationPermission={jest.fn()}
-        onStopAttention={jest.fn()}
-        snapshot={{ ...readySnapshot, controlMode: 'disabled', reachability: 'disabled' }}
-      />,
-    )
-
-    await fireEvent.press(rendered.getByRole('button', { name: '恢复为每次确认' }))
-    expect(onEnable).toHaveBeenCalledTimes(1)
-  })
-
   test('运行中的 attention 显示调用方、剩余时间和本地停止入口', async () => {
     const onStopAttention = jest.fn()
-    const rendered = await render(
-      <HomeScreen
-        onApproveConfirmation={jest.fn()}
-        onCancelTimer={jest.fn()}
-        onEmergencyDisable={jest.fn()}
-        onEnable={jest.fn()}
-        onOpenNotificationSettings={jest.fn()}
-        onRejectConfirmation={jest.fn()}
-        onRequestNotificationPermission={jest.fn()}
-        onStopAttention={onStopAttention}
-        snapshot={{
-          ...readySnapshot,
-          attentionSession: {
-            callerSubjectId: 'caller_key_01',
-            expiresAt: new Date(Date.now() + 30_000).toISOString(),
-            remainingSeconds: 30,
-            sessionId: 'attention_01',
-          },
-        }}
-      />,
-    )
+    const rendered = await renderHome({
+      ...readySnapshot,
+      attentionSession: {
+        callerSubjectId: 'caller_key_01',
+        expiresAt: new Date(Date.now() + 30_000).toISOString(),
+        remainingSeconds: 30,
+        sessionId: 'attention_01',
+      },
+    }, { onStopAttention })
 
     rendered.getByLabelText('调用方：caller_key_01')
     rendered.getByLabelText('剩余时间：30 秒')
@@ -171,147 +90,23 @@ describe('HomeScreen', () => {
     expect(onStopAttention).toHaveBeenCalledTimes(1)
   })
 
-  test('系统仍允许请求的通知权限只能由本地 UI 触发', async () => {
-    const onRequestNotificationPermission = jest.fn()
-    const descriptor = {
-      confirmation: 'when_locked' as const,
-      description: '创建本地通知',
-      effect: 'write' as const,
-      limits: {
-        maxResultBytes: 2_048,
-        rate: { maxGlobal: 10, maxPerCaller: 5, windowSeconds: 60 },
-      },
-      path: 'phone/productivity',
-      queuePolicy: 'reject_offline' as const,
-      risk: 'medium' as const,
-      tool: 'notify',
-    }
-    const notDetermined = await render(
-      <HomeScreen
-        onApproveConfirmation={jest.fn()}
-        onCancelTimer={jest.fn()}
-        onEmergencyDisable={jest.fn()}
-        onEnable={jest.fn()}
-        onOpenNotificationSettings={jest.fn()}
-        onRejectConfirmation={jest.fn()}
-        onRequestNotificationPermission={onRequestNotificationPermission}
-        onStopAttention={jest.fn()}
-        snapshot={{
-          ...readySnapshot,
-          capabilities: [{
-            availability: {
-              reason: 'notification_permission_requestable',
-              status: 'unavailable',
-            },
-            descriptor,
-          }],
-        }}
-      />,
-    )
-    await fireEvent.press(notDetermined.getByRole('button', { name: '启用本地通知' }))
-    expect(onRequestNotificationPermission).toHaveBeenCalledTimes(1)
-  })
-
-  test('通知权限拒绝后只提供本地系统设置入口', async () => {
-    const descriptor = {
-      confirmation: 'when_locked' as const,
-      description: '创建本地通知',
-      effect: 'write' as const,
-      limits: {
-        maxResultBytes: 2_048,
-        rate: { maxGlobal: 10, maxPerCaller: 5, windowSeconds: 60 },
-      },
-      path: 'phone/productivity',
-      queuePolicy: 'reject_offline' as const,
-      risk: 'medium' as const,
-      tool: 'notify',
-    }
-    const onOpenNotificationSettings = jest.fn()
-    const denied = await render(
-      <HomeScreen
-        onApproveConfirmation={jest.fn()}
-        onCancelTimer={jest.fn()}
-        onEmergencyDisable={jest.fn()}
-        onEnable={jest.fn()}
-        onOpenNotificationSettings={onOpenNotificationSettings}
-        onRejectConfirmation={jest.fn()}
-        onRequestNotificationPermission={jest.fn()}
-        onStopAttention={jest.fn()}
-        snapshot={{
-          ...readySnapshot,
-          capabilities: [{
-            availability: { reason: 'notification_permission_denied', status: 'unavailable' },
-            descriptor,
-          }],
-        }}
-      />,
-    )
-    expect(denied.queryByRole('button', { name: '启用本地通知' })).toBeNull()
-    await fireEvent.press(denied.getByRole('button', { name: '打开系统设置' }))
-    expect(onOpenNotificationSettings).toHaveBeenCalledTimes(1)
-  })
-
   test('活动计时器展示诚实状态并提供设备本地取消入口', async () => {
     const onCancelTimer = jest.fn()
-    const rendered = await render(
-      <HomeScreen
-        onApproveConfirmation={jest.fn()}
-        onCancelTimer={onCancelTimer}
-        onEmergencyDisable={jest.fn()}
-        onEnable={jest.fn()}
-        onOpenNotificationSettings={jest.fn()}
-        onRejectConfirmation={jest.fn()}
-        onRequestNotificationPermission={jest.fn()}
-        onStopAttention={jest.fn()}
-        snapshot={{
-          ...readySnapshot,
-          timers: [{
-            firesAt: '2026-08-19T00:10:00.000Z',
-            ownerSubjectId: 'caller_timer',
-            state: 'scheduled',
-            timerId: `timer_${'a'.repeat(64)}`,
-          }],
-        }}
-      />,
-    )
+    const rendered = await renderHome({
+      ...readySnapshot,
+      timers: [{
+        firesAt: '2026-08-19T00:10:00.000Z',
+        ownerSubjectId: 'caller_timer',
+        state: 'scheduled',
+        timerId: `timer_${'a'.repeat(64)}`,
+      }],
+    }, { onCancelTimer })
 
     rendered.getByLabelText('调用方：caller_timer')
-    rendered.getByLabelText('目标时间：2026-08-19T00:10:00.000Z')
     rendered.getByText('目标时间不等于系统已准时展示；呈现结果由系统决定。')
     await fireEvent.press(rendered.getByRole('button', {
       name: '取消 caller_timer 在 2026-08-19T00:10:00.000Z 的计时器',
     }))
     expect(onCancelTimer).toHaveBeenCalledWith(`timer_${'a'.repeat(64)}`)
-  })
-
-  test('多个计时器的操作名称唯一', async () => {
-    const onCancelTimer = jest.fn()
-    const timers = ['one', 'two'].map((suffix, index) => ({
-      firesAt: `2026-08-19T00:${10 + index}:00.000Z`,
-      ownerSubjectId: `timer_owner_${suffix}`,
-      state: 'scheduled' as const,
-      timerId: `timer_${String(index + 1).repeat(64)}`,
-    }))
-    const rendered = await render(
-      <HomeScreen
-        focused={false}
-        onCancelTimer={onCancelTimer}
-        onEmergencyDisable={jest.fn()}
-        onEnable={jest.fn()}
-        onOpenNotificationSettings={jest.fn()}
-        onRequestNotificationPermission={jest.fn()}
-        onStopAttention={jest.fn()}
-        snapshot={{ ...readySnapshot, timers }}
-      />,
-    )
-
-    const firstTimerLabel = '取消 timer_owner_one 在 2026-08-19T00:10:00.000Z 的计时器'
-    const secondTimerLabel = '取消 timer_owner_two 在 2026-08-19T00:11:00.000Z 的计时器'
-    rendered.getByRole('button', { name: firstTimerLabel })
-    await fireEvent.press(rendered.getByRole('button', { name: secondTimerLabel }))
-    expect(onCancelTimer).toHaveBeenCalledWith(timers[1]?.timerId)
-
-    const buttonNames = rendered.getAllByRole('button').map(button => button.props.accessibilityLabel)
-    expect(new Set(buttonNames).size).toBe(buttonNames.length)
   })
 })

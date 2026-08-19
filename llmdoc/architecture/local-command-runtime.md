@@ -59,6 +59,29 @@ executor 只保留活动命令的安全元数据，不保留 arguments。`runtim
 并把正在等待 modal 的同 principal 命令标记为 `awaiting_user`；`runtime.cancel` 只能中止同一 principal 的
 当前活动命令。这里的 principal 是 gateway credential keyId，不是具体 Agent，也不是跨进程 mailbox。
 
+## 控制模式与 `when_locked` 的当前边界
+
+- `trusted_session` 已存在于 `ControlMode` 类型、SQLite `settings` 存储和 `PolicyEngine` 裁决中，但生产首页
+  只提供紧急停用与恢复为 `ask_every_time`，没有启用 `trusted_session` 的用户入口。
+- 当前存储只是一个持久化的全局 control mode 字符串；没有 TTL、capability scope 或已认证 Gateway
+  Credential 实例绑定。因此底层 `trusted_session` 不能随 credential 生命周期安全失效，也不能直接作为
+  生产授权产品。
+- descriptor 名称 `when_locked` 当前只用 React Native `AppState` 近似：`appState !== active` 时要求确认；
+  运行时没有读取 Android Keyguard 或其他真实锁屏状态，不能把该判断描述为真实锁屏检测。
+
+已决定但尚未实现的 trusted grant 以当前已认证 Gateway Credential 实例为授权主体，而不是具体 Agent：
+
+- grant 至少绑定 `audienceOrigin`、gateway-issued credential identity 与 credential/key generation；持久化
+  binding 只保存非秘密标识，credential material 仍只进入系统安全存储。
+- credential clear、replace、rotate、revoke 或 audience 变化时，旧 grant 必须在继续接收/执行命令前失效；
+  不能仅凭客户端派生的 `manual_api_key_<uuid>` 把旧授权继承到新的 credential 实例。
+- 具体 Agent identity 只可作为可选审计、诊断和展示元数据，不参与 trusted grant 的签发、匹配或放行；
+  上游未提供 Agent provenance 不阻塞 credential-bound grant。
+- capability scope、TTL 和用户入口仍需独立设计；它们不能放宽系统权限、live probe、锁屏/前后台条件、
+  high-risk 逐次确认或 emergency disable。
+
+完整决策见 `llmdoc/memory/decisions/2026-08-20-trusted-grant-gateway-credential.md`。
+
 ## Activity 投影与仅审计清除
 
 - Activity 从 repository 按 occurredAt 倒序投影最近 100 条，只展示 caller subject id、occurredAt、
