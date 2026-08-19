@@ -81,8 +81,9 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 当前本地实现使用 strict 空对象 schema `{}`，从 Battery、Network 和 AppState probe 返回状态。
 `battery` / `network` 各自使用 `{ availability: 'available', value }` 或
 `{ availability: 'unavailable', reason }`；同时返回本地 `installationId` 和
-`reachability: 'disabled' | 'unconfigured'`。它尚未接入 gateway，不能把 `installationId` 当成
-下例中的 production `deviceId`，也不能声称 `unconfigured` 是 online。
+`reachability: 'disabled' | 'unconfigured' | 'offline' | 'online'`。前台 SDK transport 只有收到 gateway
+`ready` 才返回 online；没有 origin/credential、连接中/暂停或 Disabled 都不会伪装在线。`installationId`
+仍不是下例中的 gateway `deviceId`。
 
 | 平台 | 当前本地支持 |
 | --- | --- |
@@ -142,8 +143,8 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
   `Vibrator.hasVibrator()`，iOS 使用 `CHHapticEngine.capabilitiesForHardware()`；
 - 当前只重复请求 haptic，结果使用 `vibration: requested`，不把 native API 接受请求等同于用户
   一定感知；`sound` 与 `flash` 明确为 `unavailable/not_implemented`；
-- 尚无 production transport、后台 mailbox/push、声音、闪光或真机物理效果证据，
-  因此不构成完整“找手机”能力。
+- 前台 SDK transport 已接入，但尚无 pairing、真实 gateway compatibility、后台 mailbox/push、声音、
+  闪光或真机物理效果证据，因此不构成完整“找手机”能力。
 
 | 平台 | 当前本地支持 |
 | --- | --- |

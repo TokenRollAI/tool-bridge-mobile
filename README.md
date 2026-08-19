@@ -15,8 +15,10 @@
 > 本机活动审计、跨四个本地页面的无障碍语义自动化基线，以及持久化/并发幂等测试。
 > 本地执行还包含确认前 caller/global admission、inline 结果字节上限、claim 后取消/到期复检和
 > emergency disable 的进行中命令取消。
-> production transport、pairing、realtime ticket、mailbox、objectRef 与远程 push 仍等待
-> [上游交付](docs/UPSTREAM.md)，UI 会明确显示 `unconfigured`，不声称已连接网关。
+> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.11.0`：Android/iOS 前台 transport 使用官方
+> hello/ready/call/result、心跳、重连与 cancel，调用继续经过本地安全执行链；只有收到 gateway ready
+> 才显示 online。fresh install 尚无 pairing credential，会显示 `credentials_required`；pairing、短期
+> ticket、mailbox、objectRef 与远程 push 仍等待[上游交付](docs/UPSTREAM.md)。
 
 ## 它解决什么问题
 
@@ -85,8 +87,8 @@ pnpm start
 ```
 
 `pnpm start` 面向 development build，不以 Expo Go 为验收环境。`pnpm verify` 当前覆盖文档链接、
-三环境配置、secret/license/dependency 检查、Expo 依赖一致性、strict typecheck、零 warning lint、
-unit/component 和本地运行时契约测试。
+三环境配置、SDK RN 子入口漂移、secret/license/dependency 检查、Expo 依赖一致性、strict typecheck、
+零 warning lint、unit/component 和本地/SDK transport 契约测试。
 
 原生构建命令：
 
@@ -100,6 +102,19 @@ pnpm build:ios:sim
 APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，artifact 保留 14 天。该包使用
 生成的 debug test key 签名，只用于内部试用；它不是生产签名、商店 release 或 release DOD 证据。
 本地构建与安装证据见 [Android preview APK 验证记录](docs/verification/2026-08-19-android-preview-apk.md)。
+
+仓库同时绑定到 Expo 项目 [`@tokenroll/tool-bridge`](https://expo.dev/accounts/tokenroll/projects/tool-bridge)，
+development / preview / production 共用 EAS Project ID，但继续使用不同的 application id、bundle id、
+scheme 和显示名称。验证绑定或触发 EAS 内部分发 APK：
+
+```bash
+mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas project:info
+mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas build --platform android --profile preview
+```
+
+EAS `preview` profile 固定 Node 22.23.1、`APP_VARIANT=preview`、preview environment 与 APK 输出。EAS
+环境中的 `EXPO_PUBLIC_*` 都会进入客户端，不能存放凭证、token 或私钥；当前未配置 gateway/media/link
+变量时，相应能力保持 unavailable。
 
 Android development debug APK 构建完成、API 36 emulator 已启动且另一个终端正在运行 `pnpm start`
 时，可以执行可重复 UI smoke：

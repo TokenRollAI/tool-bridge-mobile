@@ -5,13 +5,16 @@ Tool Bridge Mobile 的产品闭环需要 HTBP 和 `TokenRollAI/tool-bridge` 同�
 
 ## 0. 2026-08-19 复核结果
 
-- npm 尚未发布 `@tool-bridge/device-client`；
-- 当前 `@tool-bridge/sdk` 为 `0.10.1`，仍声明 Node `>=22`，不能作为 React Native production
-  runtime；
-- `TokenRollAI/tool-bridge` 当前 main 仍只有内部 device session/frames 资产，未交付 U-2 至 U-7
-  所需的正式 pairing、ticket、dynamic profile、mailbox、push 与 object upload 公共契约；
-- 因此本仓库 production transport 保持 `unconfigured`，本地 contract 不冒充 gateway wire
-  contract。
+- npm 已发布 `@tool-bridge/sdk@0.11.0`，其独立 `/device` export 提供
+  `connectDevice` 与 `createReactNativeWebSocketFactory`；本仓库已精确锁定并接入；
+- U-1 以 `@tool-bridge/sdk/device` 而不是单独的 `@tool-bridge/device-client` 包名交付；Android/iOS
+  Metro export 与移动 adapter contract 已通过；
+- 原生 React Native 可以通过 WebSocket 第三个参数把既有 device SK 放在 Authorization header，
+  因此“已有凭证 + 前台”的实时 transport 已不再受 Node runtime 阻塞；
+- U-2 至 U-7 所需 pairing、短期 ticket、dynamic profile、mailbox、push 与 object upload 仍未交付；
+  0.11.0 call 也没有具体 caller identity 或 gateway deadline；
+- fresh install 仍会因没有 pairing credential 显示 `credentials_required`，没有 gateway origin 时显示
+  `unconfigured`。移动 contract 不冒充真实 gateway、pairing、撤销或后台 wire contract。
 
 ## 1. 当前可复用
 
@@ -33,19 +36,21 @@ Tool Bridge Mobile 的产品闭环需要 HTBP 和 `TokenRollAI/tool-bridge` 同�
 
 以下依赖未完成前，移动仓库不能把相应能力标为 production ready。
 
-### U-1：公共跨运行时 device client
+### U-1：公共跨运行时 device client（已交付并消费）
 
 所属：`TokenRollAI/tool-bridge`
 
-交付：
+交付事实：
 
-- 发布 `@tool-bridge/device-client`（名称可在上游 RFC 调整）；
-- frames/schema/types/纯状态机；
-- 注入 WebSocket/HTTP/clock/store；
-- React Native、browser、Node 入口无 Node 泄漏；
-- 与 gateway 的契约测试。
+- 包名/入口定为 `@tool-bridge/sdk/device@0.11.0`；
+- 导出 frames/schema/types、`connectDevice`、credential provider、可注入 WebSocket factory 与连接
+  lifecycle；
+- React Native 子入口不导入 Node `ws` 或 `process.env`，包根仍是 Node 入口；
+- 上游已有 fake transport 的 hello/ready/call/result、restart、suspend/resume、认证拒绝和 RN header
+  测试；移动仓库已有 consumer contract 与双端 Metro 证据。
 
-验收：见 [SDK](SDK.md)。
+当前缺口不再记入 U-1：mailbox 属于 U-5；具体 caller/deadline 字段需单独扩展 device call contract；
+真实 gateway compatibility matrix 仍是联合验收项。详细边界见 [SDK](SDK.md)。
 
 ### U-2：设备配对
 
@@ -198,8 +203,8 @@ P2 实时媒体需要会话信令、短期凭证、TURN 配置和显式终止；
 
 ## 6. 推荐交付顺序
 
-1. U-1 公共 device client + 现有实时协议适配；
-2. U-2 pairing + U-3 WebSocket ticket；
+1. ~~U-1 公共 device client + 现有实时协议适配~~（0.11.0 已交付并由移动端消费）；
+2. U-2 pairing + credential issuance/rotation/revoke，再完成 U-3 短期 WebSocket ticket；
 3. Android 前台 `status` + `attention.ring` golden slice；
 4. U-5 mailbox + U-6 push；
 5. iOS 同场景与平台降级；

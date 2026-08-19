@@ -19,6 +19,10 @@
 ## 凭证与敏感数据
 
 - 设备凭证、私钥和 push token 只进入系统安全存储，不进入 SQLite、普通日志、崩溃报告或仓库。
+- SDK device credential 的 `audienceOrigin` 必须与构建配置的 HTTPS gateway origin 完全一致；secret 只进
+  RN WebSocket Authorization header，不进 URL/`EXPO_PUBLIC_*`。缺失、损坏或 gateway 拒绝都 fail closed。
+- SDK call 未携带具体 caller/deadline 时，只能归因为 gateway credential principal，并生成更短本地
+  commit deadline；不得把 credential keyId 冒充 Agent 身份或把本地时间冒充 gateway deadline。
 - `installationId` 只是 SecureStore 中的本地安装标识，不是网关签发的 `deviceId`。
 - 普通审计只记调用方、能力、决策、结果等元数据；位置坐标、照片、消息正文、完整媒体/跳转 URL
   与 query 不得进入普通审计。
@@ -62,3 +66,4 @@
 - 安全要求与平台依据：`docs/SECURITY.md`
 - 能力契约和支持矩阵：`docs/CAPABILITIES.md`
 - 执行不变量：`src/runtime/localCommandExecutor.ts`、`src/policy/policyEngine.ts`
+- SDK transport 边界：`llmdoc/reference/sdk-device-transport.md`、`docs/SDK.md`

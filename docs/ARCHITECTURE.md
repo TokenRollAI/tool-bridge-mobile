@@ -11,6 +11,7 @@
 Expo Router UI
   -> SecureStore installationId / SQLite controlMode
   -> probe-driven phone/status registry
+  -> @tool-bridge/sdk/device foreground transport
   -> schema -> expiry/cancel -> admission -> probe -> policy -> persistent claim
   -> claim 后复检 -> handler -> bounded outcome -> redacted audit metadata
 ```
@@ -41,12 +42,16 @@ Expo Router UI
 - 共用 `Screen`/`StatusCard`/`StatusRow`/`AccessibleAction` 统一页面与卡片 header、label/value 关联、
   48dp 操作区和 disabled/busy 语义；tab focus 与 destructive confirmation 通过受控 helper 移动，离散
   状态公告按 semantic key 去重，倒计时、媒体进度和敏感确认正文不进入自动公告；
-- emergency disable 会取消进行中 handler、拒绝 pending confirmation、停止 attention/media/timer，
-  并使后续命令在 handler 前拒绝；
-- production transport 明确为 `unconfigured`。当前没有 pairing、realtime、mailbox、push，也没有
-  私自定义 `hello/call/result` 或 mailbox wire schema。
+- emergency disable 会取消进行中 handler、拒绝 pending confirmation、停止 attention/media/timer、
+  suspend SDK realtime，并使后续命令在 handler 前拒绝；
+- `@tool-bridge/sdk/device@0.11.0` 已接入前台 realtime：SecureStore 动态取 credential、RN WebSocket
+  header、官方 hello/ready/call/result、心跳、cancel 与 AppState suspend/resume 均进入生产 wiring；
+  registry 只投影 SDK 正式字段，没有私自定义 frame；
+- 当前没有 pairing UI、短期 ticket、mailbox 或 push。无 gateway origin 时 transport 为 `unconfigured`，
+  有 origin 但无签发 credential 时为 `credentials_required`，只有 ready 为 `online`。
 
-本地 contract test 使用注入的 fake dispatcher/probe 验证安全顺序，不等同于 gateway wire contract
+本地 contract test 使用注入的 fake dispatcher/probe 验证安全顺序；SDK transport contract 另以官方
+encode/decode 和 fake WebSocket 验证 consumer wiring。两者都不等同于真实 gateway compatibility matrix
 或端到端设备证据。
 
 无障碍 helper 只使用 React Native core API，不新增原生权限或依赖。component test 与 Android
@@ -196,12 +201,13 @@ wss://<gateway>/system/device/ws?deviceId=<deviceId>
 5. 设备以同一 id 返回 `result`；
 6. 双方使用精确 JSON `{"type":"ping"}` / `{"type":"pong"}` 心跳。
 
-当前协议适合前台实时调用，但还有两个移动端问题：
+当前移动实现通过 `@tool-bridge/sdk/device@0.11.0` 注入 React Native 原生 WebSocket factory，使用其
+非 WHATWG 第三个参数把 Authorization 放在 upgrade header；长期 SK 不进入 URL。App 只在前台
+resume，后台/inactive 与 Disabled 时 suspend，因为操作系统可能暂停或终止连接。
 
-- React Native WebSocket 不能像 Node `ws` 一样在握手时自由注入 Authorization header；
-- App 进入后台后，操作系统可能暂停或终止连接。
-
-因此上游应提供短期 WebSocket ticket 或正式支持的子协议认证，避免把长期 SK 放进 URL。
+0.11.0 call 只含 id/path/tool/arguments/signal，没有具体 caller identity 或 gateway deadline。移动适配
+暂以 device credential `keyId` 作为 gateway principal，并从本地接收时间生成 30 秒 commit deadline；
+这不是 Agent attribution。U-3 仍应提供短期 ticket，caller/deadline 也需通过正式上游契约补齐。
 
 ### 4.2 后台可达（新增）
 

@@ -28,6 +28,13 @@
 
 ## 本轮实现与全量基线
 
+- `@tool-bridge/sdk@0.11.0` 已精确锁定并只通过 `/device` 子入口进入移动生产代码；
+  `SdkDeviceTransport` 使用 SecureStore credential + audience check、RN Authorization header、官方
+  hello/ready/call/result/heartbeat/cancel/reconnect 与 AppState suspend/resume，并把 call 交给已有本地
+  executor。只有 ready 为 online；缺 origin/credential 和错误均 fail closed。
+- SDK call 缺具体 caller/deadline；当前明确以 credential keyId 作为 gateway principal，并从本地接收时间
+  生成 30 秒 deadline，不冒充 Agent attribution。U-2 至 U-7 与真实 gateway matrix 仍未完成。
+
 - 媒体 source resolver 已实现 omit credentials、逐跳/最终 URL allowlist、MIME + magic signature、
   25 MiB 声明/实际字节上限、30 秒 timeout/取消、App 私有 cache 与 `file://` player 隔离；原生 port
   另在 `play()` 前执行 10 秒 metadata timeout 与 2 小时时长上限。
@@ -50,8 +57,8 @@
 - accessibility baseline 已用 shared component、navigation、announcement 与 contrast tests 覆盖，并通过
   API 36 语义树/200% 系统字号 smoke；该 smoke 没有开启 TalkBack。
 - 使用锁定的 Node 22.23.1 与 pnpm 11.21.0 对当前工作树执行最终 `pnpm verify`：docs/config/native
-  module/secret/license/dependency mitigation/Expo 版本、strict typecheck、零 warning lint 全部通过，
-  Jest 为 48 suites / 193 tests。
+  module/SDK entry/secret/license/dependency mitigation/Expo 版本、strict typecheck、零 warning lint全部
+  通过，Jest 为 49 suites / 200 tests；Android/iOS production Metro 分别 bundle 1,527 / 1,396 modules。
 - 随后已重新完成 Android clean build 与 emulator smoke；debug APK 不内嵌 Metro JS，clean build 证明
   当前原生依赖/配置可编译，smoke 证明最新开发 bundle 能启动，但不构成实际地图或媒体 handoff 证据。
 

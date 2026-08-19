@@ -10,7 +10,7 @@ import type { z } from 'zod'
 
 
 export type RuntimeAppState = 'active' | 'background' | 'inactive' | 'unknown'
-export type Reachability = 'disabled' | 'unconfigured'
+export type Reachability = 'disabled' | 'offline' | 'online' | 'unconfigured'
 
 export type CapabilityAvailability =
   | Readonly<{ status: 'available' }>

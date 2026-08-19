@@ -8,7 +8,7 @@
 - [x] PRD 定义目标、非目标、MVP 和风险；
 - [x] 能力目录区分 P0/P1/P2；
 - [x] 架构区分当前协议与待新增能力；
-- [x] SDK 文档明确当前 Node SDK 不可直接用于 React Native；
+- [x] SDK 文档明确根入口与 React Native `/device` 子入口边界；
 - [x] 技术选型与 ADR；
 - [x] 安全、隐私与平台约束；
 - [x] 上游依赖和推荐顺序；
@@ -33,7 +33,8 @@
 - [x] 没有依赖 Expo Go 才能工作的关键路径；
 - [ ] CI 从全新 checkout 可复现。
 
-当前测试事实：unit、component 与本地运行时 contract 共 193 项全绿；上游 gateway wire fixture 尚未
+当前测试事实：unit、component、本地运行时与 SDK device consumer contract 共 200 项全绿；真实
+gateway wire fixture 尚未
 交付，所以组合项中的 protocol contract 不提前勾选。Android 已用仓库正式 clean build 入口在本地
 构建成功，证据见 [2026-08-19 Android debug 验证记录](verification/2026-08-19-android-debug.md)；iOS
 与 clean-checkout CI 在成功记录产生前继续保持未完成。另有内嵌 JS、debug test key 签名且可安装的
@@ -58,6 +59,7 @@ dependency audit 仍保持未完成。
 - [x] 设备 identity 稳定且不使用硬件序列号；
 - [ ] pairing ticket 单次、短期且域名可见；
 - [x] 凭证只进安全存储；
+- [x] 前台 realtime 使用上游正式 React Native device client；
 - [ ] realtime 使用短期 WebSocket ticket；
 - [ ] mailbox 状态持久化；
 - [x] capability registry 来源于实际 probe；
@@ -67,8 +69,11 @@ dependency audit 仍保持未完成。
 - [x] 重启/crash 后 command 状态可恢复。
 
 这里的 identity 是 SecureStore 中的本地 `installationId`，不是网关 `deviceId`。credential 勾选项
-代表 opaque credential facade 只使用 SecureStore，尚无上游签发凭证。其余运行时勾选项只代表本地
-执行边界已有实现和自动化证据；pairing、realtime、mailbox、撤销端到端语义仍受 U-1 至 U-6 阻塞。
+代表 opaque credential facade 只使用 SecureStore，fresh install 尚无 pairing 签发凭证。前台 realtime
+勾选项证明 `@tool-bridge/sdk/device@0.11.0` 的 RN header、hello/ready/call/result、cancel 与 AppState
+suspend/resume 已接到本地 executor，并通过 fake WebSocket contract 和双端 Metro；它不证明真实 gateway、
+短期 ticket、pairing、后台 mailbox 或撤销端到端。U-1 已解阻，U-2 至 U-6 仍未完成。证据见
+[SDK device integration 验证](verification/2026-08-19-sdk-device-integration.md)。
 
 ## 3. 单项能力 DOD
 

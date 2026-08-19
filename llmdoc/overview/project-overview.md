@@ -17,6 +17,8 @@ Tool Bridge 节点提供给 Agent，同时保留设备本地的最终裁决权�
 - `app/`、`src/ui/`：Expo Router 页面、状态/确认/媒体控制，以及最近本地调用的 Activity 投影与
   仅审计历史清除入口；共享组件提供页面/卡片/状态行/操作的 accessibility semantics 基线。
 - `src/runtime/`：App 生命周期、执行器和本地撤销协调。
+- `src/gateway/`：`@tool-bridge/sdk/device@0.11.0` 前台 transport、SecureStore credential provider、
+  AppState lifecycle 与 SDK call → 本地 command adapter。
 - `src/policy/`：逐命令 policy 与内存确认队列。
 - `src/storage/`、`src/identity/`：SQLite command/audit/control mode 与 SecureStore identity/credential；
   command 每次完成时在同一 transaction 内维持 10,000 条终态总 cap。
@@ -27,10 +29,11 @@ Tool Bridge 节点提供给 Agent，同时保留设备本地的最终裁决权�
 
 ## 当前阶段
 
-本地 runtime 可以显示 `disabled | unconfigured` reachability、动态 probe 能力、处理本地 command、
+本地 runtime 可以显示 `disabled | unconfigured | offline | online` reachability、动态 probe 能力、处理本地 command、
 进行必要确认并记录脱敏审计。Activity 可解释最近 100 条本地调用，并在设备本地确认后只清除
-`audit_records`；这不是完整数据删除或网关撤销。production transport、真实配对、在线/后台命令通道和
-对象引用尚不存在，因此 UI 与文档必须继续明确显示 `unconfigured`。
+`audit_records`；这不是完整数据删除或网关撤销。官方 SDK 前台 transport 已接入，但 fresh install
+没有 pairing credential；只有真实 SDK ready 才显示 online。真实配对、gateway compatibility、caller/
+deadline、后台 mailbox/push 和对象引用仍不存在。
 
 ## 文档关系
 

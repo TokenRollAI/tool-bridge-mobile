@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store'
 import { z } from 'zod'
 
 const DEVICE_CREDENTIAL_KEY = 'tool-bridge-mobile.device-credential.v1'
+const unsafeIdentifierCharacter = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/
 
 function isHttpsOrigin(value: string): boolean {
   try {
@@ -14,9 +15,18 @@ function isHttpsOrigin(value: string): boolean {
 
 export const deviceCredentialEnvelopeSchema = z.strictObject({
   audienceOrigin: z.string().max(2048).refine(isHttpsOrigin, 'audienceOrigin 必须是 HTTPS origin'),
-  deviceId: z.string().min(1).max(256),
-  keyId: z.string().min(1).max(256),
-  material: z.string().min(1).max(16_384),
+  deviceId: z.string().min(1).max(256).refine(
+    value => !unsafeIdentifierCharacter.test(value),
+    'deviceId 不能包含控制或双向覆盖字符',
+  ),
+  keyId: z.string().min(1).max(256).refine(
+    value => !unsafeIdentifierCharacter.test(value),
+    'keyId 不能包含控制或双向覆盖字符',
+  ),
+  material: z.string().min(1).max(16_384).refine(
+    value => !/[\r\n]/.test(value),
+    'credential material 不能包含换行',
+  ),
   version: z.literal(1),
 })
 

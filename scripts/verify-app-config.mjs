@@ -9,6 +9,12 @@ const variants = {
   production: 'ai.tokenroll.toolbridgemobile',
 }
 
+const easProject = {
+  id: '378c7a3e-437a-49a6-ae20-fef5af6f6188',
+  owner: 'tokenroll',
+  slug: 'tool-bridge',
+}
+
 for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   const { stdout } = await execFileAsync(
     'pnpm',
@@ -17,6 +23,7 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
       env: {
         ...process.env,
         APP_VARIANT: variant,
+        EXPO_PUBLIC_GATEWAY_ORIGIN: 'https://gateway.example.com',
         EXPO_PUBLIC_LINK_HOSTS: 'www.example.com,docs.example.com',
         EXPO_PUBLIC_MEDIA_HOSTS: 'media.example.com,cdn.example.com',
       },
@@ -32,6 +39,18 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   }
   if (config.extra?.appVariant !== variant) {
     throw new Error(`${variant}: extra.appVariant 不匹配`)
+  }
+  if (config.owner !== easProject.owner || config.slug !== easProject.slug) {
+    throw new Error(`${variant}: Expo owner/slug 未绑定到 @${easProject.owner}/${easProject.slug}`)
+  }
+  if (config.extra?.eas?.projectId !== easProject.id) {
+    throw new Error(`${variant}: EAS projectId 不匹配`)
+  }
+  if (config.extra?.gatewayOrigin !== 'https://gateway.example.com') {
+    throw new Error(`${variant}: gateway HTTPS origin 未规范化`)
+  }
+  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.11.0') {
+    throw new Error(`${variant}: production transport 版本标记不匹配`)
   }
   if (!config.android?.permissions?.includes('android.permission.VIBRATE')) {
     throw new Error(`${variant}: 缺少 P1-A haptic 所需的 Android VIBRATE 权限`)
@@ -72,6 +91,7 @@ const { stdout: introspectionOutput } = await execFileAsync(
     env: {
       ...process.env,
       APP_VARIANT: 'development',
+      EXPO_PUBLIC_GATEWAY_ORIGIN: 'https://gateway.example.com',
       EXPO_PUBLIC_LINK_HOSTS: 'www.example.com',
       EXPO_PUBLIC_MEDIA_HOSTS: 'media.example.com',
     },
@@ -188,4 +208,4 @@ if (iosEntitlements?.['aps-environment'] !== undefined) {
   throw new Error('本地通知切片不得声明 APNs aps-environment entitlement')
 }
 
-console.log('App 配置验证通过：三环境隔离，本地通知/前台位置/地图/媒体配置最小化，无 APNs/后台位置/录音/相机/Face ID。')
+console.log('App 配置验证通过：三环境安装标识隔离并绑定同一 EAS 项目，本地通知/前台位置/地图/媒体配置最小化，无 APNs/后台位置/录音/相机/Face ID。')

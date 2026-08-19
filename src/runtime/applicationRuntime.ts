@@ -49,6 +49,8 @@ import { CapabilityRegistry } from '@/capabilities/registry'
 import { currentRuntimeAppState, ExpoStatusProbe } from '@/capabilities/status/probe'
 import { createStatusCapability } from '@/capabilities/status/statusCapability'
 import { LOCAL_COMMAND_RETENTION_LIMIT } from '@/commands/repository'
+import { SdkDeviceTransport } from '@/gateway/sdkDeviceTransport'
+import { SecureDeviceCredentialStore } from '@/identity/deviceCredentialStore'
 import { SecureInstallationIdentityStore } from '@/identity/installationIdentityStore'
 import { LocalConfirmationCoordinator } from '@/policy/localConfirmationCoordinator'
 import { PolicyEngine } from '@/policy/policyEngine'
@@ -66,9 +68,14 @@ import type { TimerSnapshot } from '@/capabilities/productivity/timerController'
 import type {
   CapabilityContext,
   CapabilitySnapshot,
+  Reachability,
   RuntimeAppState,
 } from '@/capabilities/types'
 import type { CommandOutcome, ControlMode } from '@/commands/types'
+import type {
+  DeviceTransportIssue,
+  DeviceTransportState,
+} from '@/gateway/sdkDeviceTransport'
 import type { PendingConfirmationSnapshot } from '@/policy/localConfirmationCoordinator'
 
 export type RuntimePhase = 'loading' | 'ready' | 'error'
@@ -84,13 +91,17 @@ export type ApplicationSnapshot = Readonly<{
   auditRecords: readonly AuditRecord[]
   capabilities: readonly CapabilitySnapshot[]
   controlMode: ControlMode
+  deviceId: string | null
   error: string | null
   installationId: string | null
   mediaSession: MediaSessionSnapshot | null
+  mountPath: string | null
   pendingConfirmations: readonly PendingConfirmationSnapshot[]
   phase: RuntimePhase
-  reachability: 'disabled' | 'unconfigured'
+  reachability: Reachability
   timers: readonly TimerSnapshot[]
+  transportIssue: DeviceTransportIssue | null
+  transportState: DeviceTransportState
 }>
 
 const INITIAL_SNAPSHOT: ApplicationSnapshot = {
@@ -99,13 +110,17 @@ const INITIAL_SNAPSHOT: ApplicationSnapshot = {
   auditRecords: [],
   capabilities: [],
   controlMode: 'ask_every_time',
+  deviceId: null,
   error: null,
   installationId: null,
   mediaSession: null,
+  mountPath: null,
   pendingConfirmations: [],
   phase: 'loading',
   reachability: 'unconfigured',
   timers: [],
+  transportIssue: null,
+  transportState: 'unconfigured',
 }
 
 export class ApplicationRuntime {
@@ -116,6 +131,7 @@ export class ApplicationRuntime {
   #commandRepository: SqliteCommandRepository | null = null
   #confirmationCoordinator: LocalConfirmationCoordinator | null = null
   #controlModeRepository: SqliteControlModeRepository | null = null
+  #deviceTransport: SdkDeviceTransport | null = null
   #initialization: Promise<void> | null = null
   #installationId: string | null = null
   #localCommandExecutor: LocalCommandExecutor | null = null
@@ -125,6 +141,7 @@ export class ApplicationRuntime {
   #snapshot = INITIAL_SNAPSHOT
   #timerController: LocalTimerController | null = null
   #timerReconciliation: Promise<void> = Promise.resolve()
+  #transportRevision = 0
 
   getSnapshot = (): ApplicationSnapshot => this.#snapshot
 
@@ -226,10 +243,11 @@ export class ApplicationRuntime {
   handleAppStateChange(appState: string): Promise<void> {
     this.#timerReconciliation = this.#timerReconciliation.then(async () => {
       await this.initialize()
+      const disabled = (await this.#controlModeRepository?.get()) === 'disabled'
       if (appState === 'active' && this.#timerController !== null) {
-        const disabled = (await this.#controlModeRepository?.get()) === 'disabled'
         await this.#timerController.reconcile(disabled)
       }
+      await this.#deviceTransport?.updateLifecycle(appState, !disabled)
       await this.refresh()
     }).catch(async () => { await this.refresh() })
     return this.#timerReconciliation
@@ -242,6 +260,7 @@ export class ApplicationRuntime {
       return
     }
     await this.#controlModeRepository.set(controlMode, new Date().toISOString())
+    await this.#deviceTransport?.updateLifecycle(currentRuntimeAppState(), true)
     await this.refresh()
   }
 
@@ -254,6 +273,7 @@ export class ApplicationRuntime {
       this.#attentionController?.stop(),
       this.#mediaController?.stop(),
       this.#timerController?.stopAll(),
+      this.#deviceTransport?.updateLifecycle(currentRuntimeAppState(), false),
     ])
     await this.refresh()
     const timerStopFailures = stops[2]?.status === 'fulfilled'
@@ -275,27 +295,41 @@ export class ApplicationRuntime {
     ) return
 
     const auditRevision = this.#auditRevision
+    const transportRevision = this.#transportRevision
     const controlMode = await this.#controlModeRepository.get()
     const context = this.#context(controlMode)
+    const transport = this.#deviceTransport?.getSnapshot() ?? {
+      deviceId: null,
+      issue: null,
+      mountPath: null,
+      state: 'unconfigured' as const,
+    }
     const [capabilities, auditRecords, timers] = await Promise.all([
       this.#registry.snapshot(context),
       this.#auditRepository.listRecent(ACTIVITY_HISTORY_DISPLAY_LIMIT),
       this.#timerController?.getVisibleTimers() ?? Promise.resolve([]),
     ])
-    if (auditRevision !== this.#auditRevision) return
+    if (
+      auditRevision !== this.#auditRevision
+      || transportRevision !== this.#transportRevision
+    ) return
     this.#publish({
       appState: context.appState,
       attentionSession: this.#attentionController?.getActiveSession() ?? null,
       auditRecords,
       capabilities,
       controlMode,
+      deviceId: transport.deviceId,
       error: null,
       installationId: this.#installationId,
       mediaSession: this.#mediaController?.getSession() ?? null,
+      mountPath: transport.mountPath,
       pendingConfirmations: this.#confirmationCoordinator?.getPending() ?? [],
       phase: 'ready',
       reachability: context.reachability,
       timers,
+      transportIssue: transport.issue,
+      transportState: transport.state,
     })
   }
 
@@ -359,7 +393,6 @@ export class ApplicationRuntime {
       this.#confirmationCoordinator = new LocalConfirmationCoordinator()
       this.#confirmationCoordinator.subscribe(() => { void this.refresh() })
 
-      // 生产 transport 尚无已发布的上游契约；executor 只通过本地 registry/policy 边界构造。
       this.#localCommandExecutor = new LocalCommandExecutor({
         auditRepository: this.#auditRepository,
         commandRepository: this.#commandRepository,
@@ -371,6 +404,20 @@ export class ApplicationRuntime {
         policyEngine: new PolicyEngine(),
         registry: this.#registry,
       })
+      this.#deviceTransport = new SdkDeviceTransport({
+        baseUrl: ExpoConfigHosts.gatewayOrigin(),
+        credentialStore: new SecureDeviceCredentialStore(),
+        executeCommand: (command, signal) => this.executeLocalCommand(command, signal),
+        onSnapshotChange: () => {
+          this.#transportRevision += 1
+          void this.refresh()
+        },
+        registry: this.#registry,
+      })
+      await this.#deviceTransport.updateLifecycle(
+        currentRuntimeAppState(),
+        initialControlMode !== 'disabled',
+      )
       await this.refresh()
     } catch {
       this.#publish({
@@ -387,8 +434,16 @@ export class ApplicationRuntime {
       appState: currentRuntimeAppState(),
       controlMode,
       installationId: this.#installationId,
-      reachability: controlMode === 'disabled' ? 'disabled' : 'unconfigured',
+      reachability: this.#reachability(controlMode),
     }
+  }
+
+  #reachability(controlMode: ControlMode): Reachability {
+    if (controlMode === 'disabled') return 'disabled'
+    const state = this.#deviceTransport?.getSnapshot().state ?? 'unconfigured'
+    if (state === 'ready') return 'online'
+    if (state === 'unconfigured' || state === 'credentials_required') return 'unconfigured'
+    return 'offline'
   }
 
   #publish(snapshot: ApplicationSnapshot): void {
@@ -398,6 +453,11 @@ export class ApplicationRuntime {
 }
 
 class ExpoConfigHosts {
+  static gatewayOrigin(): string | null {
+    const value: unknown = Constants.expoConfig?.extra?.gatewayOrigin
+    return typeof value === 'string' ? value : null
+  }
+
   static read(key: 'linkHosts' | 'mediaHosts'): ReadonlySet<string> {
     const value: unknown = Constants.expoConfig?.extra?.[key]
     if (!Array.isArray(value) || !value.every(host => typeof host === 'string')) return new Set()

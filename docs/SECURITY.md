@@ -136,7 +136,17 @@ Device credential ---- Mobile Runtime
 - 不进入 AsyncStorage、SQLite、剪贴板、deep link、push、analytics；
 - UI 最多显示 keyId 和尾部指纹。
 
+当前 `@tool-bridge/sdk/device@0.11.0` 原生 RN 路径每次连接从 SecureStore 重新读取 envelope，要求
+`audienceOrigin` 与构建配置的 HTTPS gateway origin 完全一致，再把 material 仅放入 WebSocket upgrade
+Authorization header；secret 不进入 URL。deviceId/keyId 拒绝控制与双向覆盖字符，header material
+拒绝 CR/LF。网关拒绝连接后客户端 fail closed 并清除本地 envelope。
+
+0.11.0 call 尚未把 Agent caller identity 传到设备；当前本地审计只能把 credential `keyId` 记作 gateway
+principal。它不能证明具体 Agent，相关 UI/审计不得作更强归因。
+
 ### 3.2 WebSocket ticket
+
+状态：U-3 目标，当前 0.11.0 原生 RN transport 使用既有 device credential header，不等于短期 ticket。
 
 - 单次使用；
 - 短 TTL；
