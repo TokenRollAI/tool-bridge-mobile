@@ -16,9 +16,9 @@ const easProject = {
 }
 
 const releaseMetadata = {
-  androidVersionCode: 1,
-  iosBuildNumber: '1',
-  version: '0.0.1',
+  androidVersionCode: 2,
+  iosBuildNumber: '2',
+  version: '0.0.2',
 }
 
 for (const [variant, expectedIdentifier] of Object.entries(variants)) {

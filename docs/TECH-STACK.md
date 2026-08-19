@@ -266,7 +266,7 @@ E2E 工具只负责驱动 UI；平台是否真正发声、振动、拍照和接�
 - 服务端 protocol compatibility gate；
 - 可回滚到上一 App 版本和关闭 capability flag。
 
-当前 `v0.0.1` 流程只实现前述 GitHub Pre-release，不是本节 production/store Release。它继续使用 Preview
+当前 `v0.0.2` 流程只实现前述 GitHub Pre-release，不是本节 production/store Release。它继续使用 Preview
 application id 与 debug test key，不会生成 AAB/IPA、上传商店或绕过 gateway、真机、安全与合规门禁。
 
 仓库已绑定到单一 Expo 项目 `@tokenroll/tool-bridge`（Project ID
