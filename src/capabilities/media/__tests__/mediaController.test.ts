@@ -1,3 +1,5 @@
+import { createReactNativeAbortSignal } from '@/testFixtures/reactNativeAbortSignal'
+
 import { MediaSessionController } from '../controller'
 import { mediaPlayArgumentsSchema } from '../schema'
 
@@ -14,6 +16,7 @@ class FakeMediaPort implements MediaPlaybackPort {
   pauses = 0
   request: MediaPlaybackRequest | null = null
   resumes = 0
+  seeks: number[] = []
   starts = 0
   stops = 0
 
@@ -25,6 +28,11 @@ class FakeMediaPort implements MediaPlaybackPort {
   async resume(): Promise<void> {
     this.resumes += 1
     this.onStatus?.({ currentTimeSeconds: 3, durationSeconds: 30, state: 'playing' })
+  }
+
+  async seek(positionSeconds: number): Promise<void> {
+    this.seeks.push(positionSeconds)
+    this.onStatus?.({ currentTimeSeconds: positionSeconds, durationSeconds: 30, state: 'playing' })
   }
 
   async start(
@@ -88,12 +96,13 @@ function createController() {
 }
 
 describe('MediaSessionController', () => {
-  test('play/pause/resume/stop 使用同一会话且快照不泄露完整 URL', async () => {
+  test('play/pause/resume/seek/stop 使用同一会话且快照不泄露完整 URL', async () => {
     const { controller, factory, resolver } = createController()
+    const signal = createReactNativeAbortSignal()
     const session = await controller.play(
       playArguments,
       'caller_a',
-      new AbortController().signal,
+      signal,
     )
 
     expect(session).toMatchObject({
@@ -106,14 +115,39 @@ describe('MediaSessionController', () => {
     })
     expect(factory.ports[0]?.request).toMatchObject({ callerSubjectId: 'caller_a' })
     expect(factory.ports[0]?.request?.maxDurationSeconds).toBe(7_200)
-    expect(factory.ports[0]?.request?.signal).toBeInstanceOf(AbortSignal)
+    expect(factory.ports[0]?.request?.signal).toBe(signal)
+    expect('throwIfAborted' in signal).toBe(false)
     expect(factory.ports[0]?.request?.url).toBe('file:///private/cache/fixture.mp3')
     expect(JSON.stringify(session)).not.toContain('ticket=secret')
     await expect(controller.pause(session.sessionId)).resolves.toMatchObject({ state: 'paused' })
     await expect(controller.resume(session.sessionId)).resolves.toMatchObject({ state: 'playing' })
+    await expect(controller.seek(session.sessionId, 12_500)).resolves.toMatchObject({
+      currentTimeSeconds: 12.5,
+    })
     await expect(controller.stop(session.sessionId)).resolves.toMatchObject({ state: 'stopped' })
-    expect(factory.ports[0]).toMatchObject({ pauses: 1, resumes: 1, starts: 1, stops: 1 })
+    expect(factory.ports[0]).toMatchObject({
+      pauses: 1,
+      resumes: 1,
+      seeks: [12.5],
+      starts: 1,
+      stops: 1,
+    })
     expect(resolver.releases).toBe(1)
+  })
+
+  test('seek 拒绝超过媒体时长的位置', async () => {
+    const { controller, factory } = createController()
+    const session = await controller.play(
+      playArguments,
+      'caller_a',
+      new AbortController().signal,
+    )
+
+    await expect(controller.seek(session.sessionId, 30_001)).rejects.toMatchObject({
+      code: 'invalid_argument',
+    })
+    expect(factory.ports[0]?.seeks).toEqual([])
+    await controller.stop()
   })
 
   test('不同 play 在活动会话期间不能创建重叠 player', async () => {

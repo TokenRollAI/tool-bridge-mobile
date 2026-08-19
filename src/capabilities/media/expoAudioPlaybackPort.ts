@@ -63,6 +63,15 @@ export class ExpoAudioPlaybackPort implements MediaPlaybackPort {
     }
   }
 
+  async seek(positionSeconds: number): Promise<void> {
+    const player = this.#requirePlayer()
+    try {
+      await player.seekTo(positionSeconds)
+    } catch {
+      throw this.#nativeFailure('定位播放位置')
+    }
+  }
+
   async start(
     request: MediaPlaybackRequest,
     onStatus: (status: MediaPlaybackStatus) => void,

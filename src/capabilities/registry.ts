@@ -25,7 +25,9 @@ export type RegisteredCapability = Readonly<{
     invocation: CapabilityInvocation,
     signal: AbortSignal,
   ): Promise<unknown>
+  expose: boolean
   inputSchema: z.ZodType
+  outputSchema: z.ZodType
   parse(argumentsValue: unknown): ArgumentParseResult
   probe(context: CapabilityContext): Promise<CapabilityAvailability>
   preflight(argumentsValue: unknown): Promise<void>
@@ -65,9 +67,12 @@ export class CapabilityRegistry {
       descriptor,
       execute: async (argumentsValue, context, invocation, signal) => {
         const parsed = capability.inputSchema.parse(argumentsValue)
-        return capability.execute(parsed, context, invocation, signal)
+        const result = await capability.execute(parsed, context, invocation, signal)
+        return capability.outputSchema.parse(result)
       },
+      expose: capability.expose ?? true,
       inputSchema: capability.inputSchema,
+      outputSchema: capability.outputSchema,
       parse: argumentsValue => {
         const parsed = capability.inputSchema.safeParse(argumentsValue)
         if (parsed.success) return { data: parsed.data, success: true }
@@ -96,15 +101,18 @@ export class CapabilityRegistry {
     for (const capability of this.#capabilities.values()) {
       const { descriptor } = capability
       const commands = nodes.get(descriptor.path) ?? []
-      commands.push({
-        confirm: descriptor.confirmation === 'always'
-          || descriptor.risk === 'high'
-          || descriptor.effect === 'destructive',
-        description: descriptor.description,
-        effect: descriptor.effect,
-        inputSchema: z.toJSONSchema(capability.inputSchema),
-        name: descriptor.tool,
-      })
+      if (capability.expose) {
+        commands.push({
+          confirm: descriptor.confirmation !== 'never'
+            || descriptor.risk === 'high'
+            || descriptor.effect !== 'read',
+          description: descriptor.description,
+          effect: descriptor.effect,
+          inputSchema: z.toJSONSchema(capability.inputSchema),
+          name: descriptor.tool,
+          outputSchema: z.toJSONSchema(capability.outputSchema),
+        })
+      }
       nodes.set(descriptor.path, commands)
     }
 

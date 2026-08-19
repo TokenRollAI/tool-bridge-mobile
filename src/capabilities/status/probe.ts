@@ -2,6 +2,8 @@ import * as Battery from 'expo-battery'
 import * as Network from 'expo-network'
 import { AppState, Platform } from 'react-native'
 
+import { throwIfSignalAborted } from '@/capabilities/abortSignal'
+
 import type {
   BatterySummary,
   FieldAvailability,
@@ -52,9 +54,9 @@ async function observeNetwork(): Promise<FieldAvailability<NetworkSummary>> {
 
 export class ExpoStatusProbe implements StatusProbe {
   async observe(signal: AbortSignal): Promise<StatusObservation> {
-    signal.throwIfAborted()
+    throwIfSignalAborted(signal)
     const [battery, network] = await Promise.all([observeBattery(), observeNetwork()])
-    signal.throwIfAborted()
+    throwIfSignalAborted(signal)
     return {
       battery,
       network,

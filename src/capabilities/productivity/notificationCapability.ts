@@ -1,4 +1,7 @@
-import { localNotificationArgumentsSchema } from './notificationSchema'
+import {
+  localNotificationArgumentsSchema,
+  localNotificationResultSchema,
+} from './notificationSchema'
 
 import type {
   LocalNotificationController,
@@ -35,6 +38,7 @@ export function createLocalNotificationCapability(
       controller.notify(argumentsValue, invocation, signal)
     ),
     inputSchema: localNotificationArgumentsSchema,
+    outputSchema: localNotificationResultSchema,
     probe: context => controller.probe(context.appState),
   }
 }

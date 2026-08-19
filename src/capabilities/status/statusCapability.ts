@@ -1,5 +1,5 @@
 
-import { statusArgumentsSchema } from './schema'
+import { statusArgumentsSchema, statusResultSchema } from './schema'
 
 import type { StatusProbe } from './probe'
 import type { StatusArguments, StatusResult } from './schema'
@@ -30,6 +30,7 @@ export function createStatusCapability(
       reachability: context.reachability,
     }),
     inputSchema: statusArgumentsSchema,
+    outputSchema: statusResultSchema,
     probe: async () => ({ status: 'available' }),
   }
 }

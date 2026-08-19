@@ -1,5 +1,5 @@
 import { summarizeMapTarget } from './mapTargetBuilder'
-import { openMapArgumentsSchema } from './openMapSchema'
+import { openMapArgumentsSchema, openMapResultSchema } from './openMapSchema'
 
 import type { OpenMapController, OpenMapResult } from './openMapController'
 import type { OpenMapArguments } from './openMapSchema'
@@ -36,6 +36,7 @@ export function createOpenMapCapability(
       controller.open(argumentsValue, signal, invocation.expiresAt)
     ),
     inputSchema: openMapArgumentsSchema,
+    outputSchema: openMapResultSchema,
     probe: context => controller.probe(context.appState),
   }
 }

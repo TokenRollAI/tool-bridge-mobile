@@ -19,5 +19,24 @@ export const mediaSessionArgumentsSchema = z.strictObject({
   sessionId: z.string().min(1).max(128),
 })
 
+export const mediaSeekArgumentsSchema = z.strictObject({
+  positionMs: z.number().int().min(0).max(7_200_000),
+  sessionId: z.string().min(1).max(128),
+})
+
+export const mediaSessionResultSchema = z.strictObject({
+  artist: z.string().nullable(),
+  callerSubjectId: z.string(),
+  currentTimeSeconds: z.number().nonnegative(),
+  durationSeconds: z.number().positive().nullable(),
+  mimeType: z.string(),
+  sessionId: z.string(),
+  sizeBytes: z.number().int().nonnegative(),
+  sourceHost: z.string(),
+  state: z.enum(['loading', 'playing', 'paused', 'interrupted', 'stopped', 'failed']),
+  title: z.string(),
+})
+
 export type MediaPlayArguments = z.infer<typeof mediaPlayArgumentsSchema>
+export type MediaSeekArguments = z.infer<typeof mediaSeekArgumentsSchema>
 export type MediaSessionArguments = z.infer<typeof mediaSessionArgumentsSchema>

@@ -1,3 +1,4 @@
+import { throwIfSignalAborted } from '@/capabilities/abortSignal'
 import { ToolExecutionError } from '@/capabilities/types'
 
 import { validateAllowedMediaSource } from './sourcePolicy'
@@ -84,7 +85,7 @@ export class BoundedMediaSourceResolver implements MediaSourceResolver {
     allowedHosts: ReadonlySet<string>,
     signal: AbortSignal,
   ): Promise<ResolvedMediaSource> {
-    signal.throwIfAborted()
+    throwIfSignalAborted(signal)
     const abortController = new AbortController()
     const forwardAbort = () => { abortController.abort() }
     let timedOut = false
@@ -138,7 +139,7 @@ export class BoundedMediaSourceResolver implements MediaSourceResolver {
       let sizeBytes = 0
       let signature: Uint8Array = new Uint8Array()
       while (true) {
-        abortController.signal.throwIfAborted()
+        throwIfSignalAborted(abortController.signal)
         const chunk = await reader.read()
         if (chunk.done) break
         sizeBytes += chunk.value.byteLength

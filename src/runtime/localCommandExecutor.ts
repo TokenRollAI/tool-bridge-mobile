@@ -82,8 +82,18 @@ type ExecutorDependencies = Readonly<{
   registry: CapabilityRegistry
 }>
 
+export type ActiveCommandSnapshot = Readonly<{
+  callerSubjectId: string
+  commandId: string
+  createdAt: string
+  expiresAt: string
+  path: string
+  tool: string
+}>
+
 export class LocalCommandExecutor {
   readonly #admissionController: Pick<LocalAdmissionController, 'consume'>
+  readonly #activeCommands = new Map<string, ActiveCommandSnapshot>()
   readonly #abortControllers = new Map<string, AbortController>()
   readonly #clock: () => Date
   readonly #idGenerator: () => string
@@ -112,9 +122,17 @@ export class LocalCommandExecutor {
     const forwardAbort = () => { abortController.abort() }
     if (signal.aborted) abortController.abort()
     else signal.addEventListener('abort', forwardAbort, { once: true })
+    this.#activeCommands.set(command.commandId, {
+      callerSubjectId: command.caller.subjectId,
+      commandId: command.commandId,
+      createdAt: command.createdAt,
+      expiresAt: command.expiresAt,
+      path: command.path,
+      tool: command.tool,
+    })
+    this.#abortControllers.set(command.commandId, abortController)
     const execution = this.#executeCommand(command, abortController.signal)
     this.#inFlight.set(command.commandId, execution)
-    this.#abortControllers.set(command.commandId, abortController)
     try {
       return await execution
     } finally {
@@ -122,6 +140,7 @@ export class LocalCommandExecutor {
       if (this.#inFlight.get(command.commandId) === execution) {
         this.#inFlight.delete(command.commandId)
         this.#abortControllers.delete(command.commandId)
+        this.#activeCommands.delete(command.commandId)
       }
     }
   }
@@ -130,6 +149,30 @@ export class LocalCommandExecutor {
     const active = [...this.#abortControllers.values()]
     for (const abortController of active) abortController.abort()
     return active.length
+  }
+
+  cancelForCaller(commandId: string, callerSubjectId: string): boolean {
+    const active = this.#activeCommands.get(commandId)
+    if (active?.callerSubjectId !== callerSubjectId) return false
+    const abortController = this.#abortControllers.get(commandId)
+    if (abortController === undefined || abortController.signal.aborted) return false
+    abortController.abort()
+    return true
+  }
+
+  listActiveForCaller(
+    callerSubjectId: string,
+    excludeCommandId?: string,
+  ): readonly ActiveCommandSnapshot[] {
+    return [...this.#activeCommands.values()]
+      .filter(command => (
+        command.callerSubjectId === callerSubjectId
+        && command.commandId !== excludeCommandId
+      ))
+      .sort((left, right) => (
+        left.createdAt.localeCompare(right.createdAt)
+        || left.commandId.localeCompare(right.commandId)
+      ))
   }
 
   async #executeCommand(command: LocalCommand, signal: AbortSignal): Promise<CommandOutcome> {

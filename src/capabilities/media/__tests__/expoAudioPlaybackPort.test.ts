@@ -90,6 +90,8 @@ describe('ExpoAudioPlaybackPort', () => {
     )
     expect(fixture.player.setActiveForLockScreen).toHaveBeenCalledTimes(1)
     expect(fixture.player.play).toHaveBeenCalledTimes(1)
+    await port.seek(12.5)
+    expect(fixture.player.seekTo).toHaveBeenCalledWith(12.5)
     await port.stop()
   })
 

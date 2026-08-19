@@ -30,6 +30,7 @@ POST /device/my-phone/phone/attention
 - `name`
 - `description`
 - `inputSchema`
+- `outputSchema`
 - `effect`
 - `confirm`
 
@@ -56,7 +57,7 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 | `phone/attention.ring` | 3 / 6 | 8 KiB |
 | `phone/attention.stop` | 60 / 120 | 4 KiB |
 | `phone/media.play` | 10 / 20 | 8 KiB |
-| `phone/media.pause/resume/stop/status` | 60 / 120 | 8 KiB |
+| `phone/media.pause/resume/seek/stop/status` | 60 / 120 | 8 KiB |
 | `phone/apps.can_open_url` | 30 / 60 | 4 KiB |
 | `phone/apps.open_url` | 10 / 20 | 4 KiB |
 | `phone/location.current` | 6 / 12 | 4 KiB |
@@ -64,6 +65,8 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 | `phone/productivity.notify` | 5 / 10 | 2 KiB |
 | `phone/productivity.timer_start` | 5 / 10 | 2 KiB |
 | `phone/productivity.timer_cancel/timer_status` | 60 / 120 | 2 KiB |
+| `phone/runtime.capabilities/pending_commands` | 60 / 120 | 32 KiB |
+| `phone/runtime.cancel` | 60 / 120 | 2 KiB |
 
 结果超限返回 `result_too_large`，大值不进入 SQLite。rate limit、command deadline、能力自身 timeout
 和用户可停止 session 是不同边界。HTTPS 媒体另有 MIME/签名、redirect 最终 URL 和 25 MiB 实际
@@ -126,9 +129,15 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 
 | 工具 | 用途 | 风险 | 阶段 |
 | --- | --- | --- | --- |
-| `capabilities` | 返回当前能力 profile 与版本 | low | P0 |
-| `pending_commands` | 返回仍在等待确认/执行的命令摘要 | low | P0 |
-| `cancel` | 取消尚未开始或可中断的命令 | medium | P0 |
+| `capabilities` | 返回当前本地 registry descriptor 与实时 availability | low | 本地已实现 |
+| `pending_commands` | 返回仍在等待确认/执行的安全命令元数据 | low | 本地已实现 |
+| `cancel` | 请求取消尚未完成且可中断的本地命令 | low | 本地已实现 |
+
+这三个工具只使用 `@tool-bridge/sdk/device@0.11.0` 已有的自定义 command、result 与 cancel signal 能力，
+没有增加 wire 字段。当前 SDK call 不携带具体 Agent identity，因此查询和取消严格按 device credential
+的非秘密 `keyId`（结果中标为 `gateway_credential_principal`）隔离，不能描述为具体 Agent ownership。
+`pending_commands` 不返回 arguments、confirmation detail 或结果正文；`cancel` 只报告
+`cancellation_requested`，不虚报目标已经完成取消。它们不等于尚未交付的 mailbox/claim 状态机。
 
 ## 3. P1：注意力与找手机
 
@@ -139,17 +148,19 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 - `ring` / `stop` 已有 strict schema、session TTL、本地 stop UI、commandId 幂等 contract，以及每
   调用方 3 次/分钟、设备全局 6 次/分钟的滑动窗口限流；运行时 session 投影只含调用方 subject、
   剩余秒数和 sessionId，不含完整 message；
-- 只在 App 前台且 native probe 确认 haptic hardware 可用时声明 `ring` available；Android 使用
-  `Vibrator.hasVibrator()`，iOS 使用 `CHHapticEngine.capabilitiesForHardware()`；
-- 当前只重复请求 haptic，结果使用 `vibration: requested`，不把 native API 接受请求等同于用户
-  一定感知；`sound` 与 `flash` 明确为 `unavailable/not_implemented`；
+- 只在 App 前台且内置本地提示音或 native haptic 至少一个 probe 可用时声明 `ring` available；Android
+  haptic 使用 `Vibrator.hasVibrator()`，iOS 使用 `CHHapticEngine.capabilitiesForHardware()`；
+- `sound: find_device` 使用 App 在私有 cache 中本地生成的固定 PCM WAV，通过 `expo-audio` 循环请求播放；
+  不下载远程声音、不请求相机权限、`playsInSilentMode: false`，也不绕过 DND；
+- 结果按通道使用 `requested` / `unavailable`，不把 native API 接受请求等同于用户一定感知；flash 仍
+  明确为 `flash_not_implemented`，没有 Camera 权限或伪实现；
 - 前台 SDK transport 已接入，但尚无 pairing、真实 gateway compatibility、后台 mailbox/push、声音、
-  闪光或真机物理效果证据，因此不构成完整“找手机”能力。
+  闪光或双端真机物理效果证据，因此不构成完整“找手机”能力。
 
 | 平台 | 当前本地支持 |
 | --- | --- |
-| Android 7.0+ | 前台；`Vibrator.hasVibrator()` 为真时请求 haptic；普通 `VIBRATE` 权限 |
-| iOS 16.4+ | 前台；CoreHaptics `supportsHaptics` 为真时请求 haptic；无额外权限 |
+| Android 7.0+ | 前台；固定本地 WAV + `expo-audio`，可选 haptic；普通 `VIBRATE` 权限 |
+| iOS 16.4+ | 前台；固定本地 WAV + `expo-audio`，可选 CoreHaptics；无额外权限 |
 | Web/模拟器无硬件 | `unavailable`，不得以模拟成功替代真机证据 |
 
 #### `ring`
@@ -199,8 +210,8 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 
 当前本地实现范围：
 
-- 注册 `play/pause/resume/stop/status` strict schema；`play.title` 和各控制工具的 `sessionId` 当前
-  必填，不支持 `seek`；
+- 注册 `play/pause/resume/seek/stop/status` strict schema；`play.title`、各控制工具的 `sessionId`
+  以及 `seek.positionMs` 必填，seek 只接受 0 至 7,200,000 毫秒且不得超过已探测媒体时长；
 - `play.source` 当前只接受 `{ kind: 'https', url }`，且 hostname 必须在非秘密构建变量
   `EXPO_PUBLIC_MEDIA_HOSTS` 的精确 allowlist 中；拒绝 HTTP、内嵌凭证、非 443 端口、fragment、
   IP literal 和未授权 hostname；
@@ -223,11 +234,16 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 | 工具 | 主要入参 | 返回 | 说明 |
 | --- | --- | --- | --- |
 | `play` | `source`、`title`、`artist?` | playback session | 当前只播放受控下载后的 allowlisted HTTPS 音频 |
-| `pause` | `sessionId?` | 当前状态 | 暂停本 App 会话 |
-| `resume` | `sessionId?` | 当前状态 | 恢复本 App 会话 |
-| `stop` | `sessionId?` | stopped | 停止并释放资源 |
-| `seek` | `positionMs` | 当前状态 | 仅媒体支持 seek 时 |
-| `status` | 无 | 当前媒体和控制能力 | read |
+| `pause` | `sessionId` | 当前状态 | 暂停本 App 会话 |
+| `resume` | `sessionId` | 当前状态 | 恢复本 App 会话 |
+| `stop` | `sessionId` | stopped | 停止并释放资源 |
+| `seek` | `sessionId`、`positionMs` | 当前状态 | App 自有 player 定位到受限毫秒位置 |
+| `status` | `sessionId` | 当前媒体和控制能力 | read |
+
+当 `EXPO_PUBLIC_MEDIA_HOSTS` 为空时，本机能力页仍显示 `media_hosts_unconfigured`，但这些媒体工具不会
+作为 command 进入 SDK expose；App 会发送同 path 的空 command 集合以清理旧 session 的注册残留。
+`EXPO_PUBLIC_LINK_HOSTS` 为空时 App handoff 同理。这样 Agent 不会发现一个在当前构建中注定
+unavailable 的静态工具。
 
 目标 `source` 是以下联合类型；当前 strict schema 仅接受第一种，第二种等待上游正式契约：
 

@@ -49,7 +49,8 @@
 
 - 当前位置只使用逐次确认后的前台权限与一次性采集，不声明后台/Always/location foreground service。
 - 媒体只允许 App 自有、系统可见的播放会话；未声明录音权限。
-- attention 当前只有可探测、可停止的 haptic 通道；声音、闪光和后台物理效果不能虚报。
+- attention 的 haptic 与固定本地 find-device sound 必须分别 probe、分别停止；sound 只使用 App 私有 cache
+  中生成的有限 PCM，不接收远端音频、不请求录音权限、不绕过静音/DND。闪光和后台物理效果不能虚报。
 - App handoff 只处理配置 allowlist 内的 HTTPS URL，并只返回 `handed_off`，不声称第三方动作完成。
 - 地图 handoff 只接收 strict coordinate/query，由本地按平台生成 Android `geo:` 或 Apple Maps HTTPS；
   caller 不能提供 URL、scheme 或 provider，返回值与普通审计不能回显 coordinate/query。

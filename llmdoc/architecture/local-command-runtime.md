@@ -15,10 +15,14 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
 - `src/gateway/manualGatewayConfigurationController.ts`：协调首页手工 Gateway URL/API key 的配置切换；
   保存和清除都先停止旧 transport，SecureStore 失败时保持断开。
 - `src/runtime/localCommandExecutor.ts` (`LocalCommandExecutor`)：唯一的本地 command 执行入口和安全顺序。
+- `src/capabilities/runtime/runtimeCapabilities.ts`：按当前 gateway credential principal 投影活动命令并请求
+  取消；不声称拥有具体 Agent identity 或上游 mailbox。
 - `src/capabilities/registry.ts` (`CapabilityRegistry`)：解析 path/tool、strict arguments、probe 和 handler。
 - `src/policy/policyEngine.ts` (`PolicyEngine`)：根据 control mode、risk、confirmation 与前后台裁决。
 - `src/policy/localConfirmationCoordinator.ts` (`LocalConfirmationCoordinator`)：最多 10 个内存 pending，
   只投影 UI 必需元数据和 capability 显式挑选的详情。
+- `src/ui/components/PendingConfirmationModal.tsx`：挂在 root runtime provider 下的全局裁决入口；无论当前
+  tab 或首页滚动位置，都显示队列中最早一项并提供一次允许/拒绝。
 - `src/storage/commandRepository.ts` (`SqliteCommandRepository`)：以 `commandId` 原子 claim、保存终态并
   去重；每次 complete 在同一 exclusive transaction 内把终态总数维持在 10,000。
 - `src/storage/auditRepository.ts` (`SqliteAuditRepository`)：只保存脱敏调用元数据；每次写入同一 SQLite
@@ -50,6 +54,10 @@ handler 前失败也会持久化终态，从而让同一 `commandId` 重放得�
 Promise；SQLite 中已为 running 的命令返回 `result_unknown`，不会再次触发副作用。
 每个本地 descriptor 声明 caller/global 滑动窗口和 inline 结果字节上限；admission 在 confirmation
 之前消费，避免靠未确认 command 填满 UI 队列。当前窗口只在进程内，不是上游 quota。
+
+executor 只保留活动命令的安全元数据，不保留 arguments。`runtime.pending_commands` 排除查询命令自身，
+并把正在等待 modal 的同 principal 命令标记为 `awaiting_user`；`runtime.cancel` 只能中止同一 principal 的
+当前活动命令。这里的 principal 是 gateway credential keyId，不是具体 Agent，也不是跨进程 mailbox。
 
 ## Activity 投影与仅审计清除
 
@@ -94,6 +102,7 @@ Promise；SQLite 中已为 running 的命令返回 `result_unknown`，不会再�
 - 手工配置从随机 installation UUID 派生 `mobile_<uuid>` SDK deviceId 与
   `manual_api_key_<uuid>` gateway principal。两者都是客户端声明值，不是网关签发身份或具体 Agent caller。
 - confirmation coordinator 不持久化完整参数，也不等同于上游 mailbox 的 `awaiting_user` 状态。
+- 确认 modal 的 accessibility announcement 只包含待处理数量；调用参数和 capability detail 不进入公告。
 
 ## 相关文档
 

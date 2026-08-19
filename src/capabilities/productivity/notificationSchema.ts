@@ -13,4 +13,11 @@ export const localNotificationArgumentsSchema = z.strictObject({
   purpose: safeDisplayText(120, 'purpose'),
 })
 
+export const localNotificationResultSchema = z.strictObject({
+  notificationId: z.string(),
+  presentation: z.literal('system_determined'),
+  scheduledAt: z.string(),
+  status: z.literal('scheduled'),
+})
+
 export type LocalNotificationArguments = z.infer<typeof localNotificationArgumentsSchema>

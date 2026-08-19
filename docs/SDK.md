@@ -82,14 +82,19 @@ type DeviceNodeCmd = {
   name: string
   description?: string
   inputSchema?: unknown
+  outputSchema?: unknown
   effect?: string
   confirm?: boolean
 }
 ```
 
-- Zod strict input schema 通过 Zod 官方 JSON Schema 转换进入 `inputSchema`；
+- Zod strict input/output schema 通过 Zod 官方 JSON Schema 转换进入 `inputSchema` / `outputSchema`，
+  handler 返回值也会先经过 output schema，再进入 JSON/字节上限与持久化边界；
 - `effect`、description 和 tool name 来自同一个本地 descriptor；
-- high risk、destructive 或 `confirmation: always` 投影为 `confirm: true`；
+- 所有非 read、high risk 或本地 `confirmation !== never` 的工具保守投影为 `confirm: true`；这是给
+  Agent/gateway 的发现提示，设备上的 Ask every time policy 仍独立生效；
+- 静态 hostname allowlist 为空的 `phone/apps` / `phone/media` 能力保留在本机诊断 snapshot；SDK expose
+  对相应 path 发送空 command 集合，以覆盖旧 session 的 providerConfig，但不注册注定不可调用的工具；
 - `when_locked`、availability、risk、queue policy 与本地 limits 不私塞进未正式化的 wire 字段；
 - 本地 policy 始终拥有最终裁决权，gateway/dashboard 的 `confirm` 不能替代设备本地确认。
 

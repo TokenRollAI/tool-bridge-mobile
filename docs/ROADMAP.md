@@ -61,6 +61,9 @@ Android/iOS 真机可配对、显示设备状态、前台注册 `phone/status.ge
 - [x] `phone/attention.ring/stop` schema 与 capability；
 - [ ] Android sound/vibration/flash adapter；
 - [ ] iOS sound/haptic/notification adapter；
+- [x] 双端共享的固定本地 WAV sound adapter（不绕过静音/DND）；
+- [x] Android vibration / iOS haptic adapter；
+- [ ] flash adapter（当前不声明 Camera 权限）；
 - [x] 本地停止 UI；
 - [x] session TTL、限流、幂等；
 - [ ] DND/静音/权限降级结果；

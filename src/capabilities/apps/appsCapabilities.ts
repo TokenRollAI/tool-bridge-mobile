@@ -1,4 +1,8 @@
-import { appUrlArgumentsSchema } from './schema'
+import {
+  appCanOpenResultSchema,
+  appOpenResultSchema,
+  appUrlArgumentsSchema,
+} from './schema'
 
 import type { AppHandoffController, AppUrlTarget } from './controller'
 import type { AppUrlArguments } from './schema'
@@ -34,10 +38,12 @@ export function createCanOpenUrlCapability(
       risk: 'low',
       tool: 'can_open_url',
     },
+    expose: controller.hasConfiguredTarget(),
     execute: (argumentsValue, _context, invocation, signal) => (
       controller.canOpen(argumentsValue.url, signal, invocation.expiresAt)
     ),
     inputSchema: appUrlArgumentsSchema,
+    outputSchema: appCanOpenResultSchema,
     preflight: argumentsValue => { controller.validate(argumentsValue.url) },
     probe: async context => probe(controller, context.appState),
   }
@@ -64,10 +70,12 @@ export function createOpenUrlCapability(
       risk: 'medium',
       tool: 'open_url',
     },
+    expose: controller.hasConfiguredTarget(),
     execute: (argumentsValue, _context, invocation, signal) => (
       controller.open(argumentsValue.url, signal, invocation.expiresAt)
     ),
     inputSchema: appUrlArgumentsSchema,
+    outputSchema: appOpenResultSchema,
     preflight: argumentsValue => { controller.validate(argumentsValue.url) },
     probe: async context => probe(controller, context.appState),
   }

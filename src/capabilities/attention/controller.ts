@@ -1,18 +1,22 @@
 import * as Crypto from 'expo-crypto'
 
+import { throwIfSignalAborted } from '@/capabilities/abortSignal'
 import { ToolExecutionError } from '@/capabilities/types'
 
 import type { AttentionHapticsAdapter } from './hapticsAdapter'
 import type { RingArguments, RingResult, StopResult } from './schema'
+import type { AttentionSoundAdapter } from './soundAdapter'
 
 type ActiveAttentionSession = Readonly<{
   abortSignal: AbortSignal
   abortListener: () => void
   callerSubjectId: string
   expiresAt: string
-  interval: ReturnType<typeof setInterval>
+  interval: ReturnType<typeof setInterval> | null
   sessionId: string
+  soundStarted: boolean
   timeout: ReturnType<typeof setTimeout>
+  vibrationStarted: boolean
 }>
 
 export type AttentionSessionSnapshot = Readonly<{
@@ -26,12 +30,14 @@ type AttentionControllerOptions = Readonly<{
   clock?: () => Date
   idGenerator?: () => string
   pulseIntervalMs?: number
+  sound?: AttentionSoundAdapter
 }>
 
 export class AttentionSessionController {
   readonly #clock: () => Date
   readonly #idGenerator: () => string
   readonly #pulseIntervalMs: number
+  readonly #sound: AttentionSoundAdapter | null
   readonly #listeners = new Set<() => void>()
   #active: ActiveAttentionSession | null = null
 
@@ -42,10 +48,15 @@ export class AttentionSessionController {
     this.#clock = options.clock ?? (() => new Date())
     this.#idGenerator = options.idGenerator ?? Crypto.randomUUID
     this.#pulseIntervalMs = options.pulseIntervalMs ?? 1_500
+    this.#sound = options.sound ?? null
   }
 
-  probeHaptics(): Promise<boolean> {
-    return this.haptics.probe()
+  async probeChannels(): Promise<Readonly<{ haptics: boolean; sound: boolean }>> {
+    const [haptics, sound] = await Promise.all([
+      this.haptics.probe().catch(() => false),
+      this.#sound?.probe().catch(() => false) ?? Promise.resolve(false),
+    ])
+    return { haptics, sound }
   }
 
   getActiveSession(): AttentionSessionSnapshot | null {
@@ -79,19 +90,22 @@ export class AttentionSessionController {
         false,
       )
     }
-    signal.throwIfAborted()
+    throwIfSignalAborted(signal)
     this.#throwIfExpired(commandExpiresAt)
-    if (!argumentsValue.vibrate || !await this.haptics.probe()) {
-      throw new ToolExecutionError('unavailable', '设备没有可探测的 haptic channel', false)
-    }
-    signal.throwIfAborted()
-    this.#throwIfExpired(commandExpiresAt)
-    if (!await this.haptics.pulse()) {
-      throw new ToolExecutionError('unavailable', 'haptic channel 在执行前变为不可用', false)
+    const available = await this.probeChannels()
+    let soundStarted = false
+    let vibrationStarted = false
+    if (available.sound && this.#sound !== null) soundStarted = await this.#sound.start()
+    if (argumentsValue.vibrate && available.haptics) vibrationStarted = await this.haptics.pulse()
+    if (!soundStarted && !vibrationStarted) {
+      throw new ToolExecutionError('unavailable', '设备没有可执行的 attention channel', false)
     }
     if (signal.aborted || this.#isExpired(commandExpiresAt)) {
-      await this.haptics.cancel()
-      signal.throwIfAborted()
+      await Promise.allSettled([
+        soundStarted ? this.#sound?.stop() : Promise.resolve(),
+        vibrationStarted ? this.haptics.cancel() : Promise.resolve(),
+      ])
+      throwIfSignalAborted(signal)
       this.#throwIfExpired(commandExpiresAt)
     }
 
@@ -107,12 +121,12 @@ export class AttentionSessionController {
     const abortListener = () => {
       void this.stop(sessionId).catch(() => undefined)
     }
-    const interval = setInterval(() => {
+    const interval = vibrationStarted ? setInterval(() => {
       void this.haptics.pulse().then(pulsed => {
         if (pulsed) this.#notify()
         else void this.stop(sessionId).catch(() => undefined)
       }).catch(() => this.stop(sessionId).catch(() => undefined))
-    }, this.#pulseIntervalMs)
+    }, this.#pulseIntervalMs) : null
     const timeout = setTimeout(() => {
       void this.stop(sessionId).catch(() => undefined)
     }, remainingMs)
@@ -124,15 +138,24 @@ export class AttentionSessionController {
       expiresAt,
       interval,
       sessionId,
+      soundStarted,
       timeout,
+      vibrationStarted,
     }
     this.#notify()
 
     return {
       channels: {
-        flash: { reason: 'flash_not_implemented', status: 'unavailable' },
-        sound: { reason: 'sound_not_implemented', status: 'unavailable' },
-        vibration: { status: 'requested' },
+        flash: {
+          reason: argumentsValue.flash ? 'flash_not_implemented' : 'not_requested',
+          status: 'unavailable',
+        },
+        sound: soundStarted
+          ? { status: 'requested' }
+          : { reason: 'sound_unavailable', status: 'unavailable' },
+        vibration: vibrationStarted
+          ? { status: 'requested' }
+          : { reason: argumentsValue.vibrate ? 'haptics_unavailable' : 'not_requested', status: 'unavailable' },
       },
       expiresAt,
       sessionId,
@@ -146,10 +169,13 @@ export class AttentionSessionController {
     }
     this.#active = null
     this.#notify()
-    clearInterval(active.interval)
+    if (active.interval !== null) clearInterval(active.interval)
     clearTimeout(active.timeout)
     active.abortSignal.removeEventListener('abort', active.abortListener)
-    await this.haptics.cancel()
+    await Promise.allSettled([
+      active.soundStarted ? this.#sound?.stop() : Promise.resolve(),
+      active.vibrationStarted ? this.haptics.cancel() : Promise.resolve(),
+    ])
     return { sessionId: active.sessionId, status: 'stopped' }
   }
 

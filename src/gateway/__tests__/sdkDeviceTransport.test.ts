@@ -127,6 +127,7 @@ function createRegistry(): CapabilityRegistry {
     },
     execute: async () => ({ status: 'ok' }),
     inputSchema: z.strictObject({}),
+    outputSchema: z.strictObject({ status: z.literal('ok') }),
     probe: async () => ({ status: 'available' }),
   }
   const registry = new CapabilityRegistry()

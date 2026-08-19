@@ -58,7 +58,9 @@ export type CapabilityDescriptor = Readonly<{
 
 export interface MobileCapability<Arguments, Result> {
   readonly descriptor: CapabilityDescriptor
+  readonly expose?: boolean
   readonly inputSchema: z.ZodType<Arguments>
+  readonly outputSchema: z.ZodType<Result>
   confirmationDetails?(argumentsValue: Arguments): readonly ConfirmationDetail[]
   execute(
     argumentsValue: Arguments,

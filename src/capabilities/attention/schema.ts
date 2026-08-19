@@ -21,24 +21,29 @@ export const stopArgumentsSchema = z.strictObject({
   sessionId: z.string().min(1).max(128).optional(),
 })
 
+export const attentionChannelResultSchema = z.discriminatedUnion('status', [
+  z.strictObject({ status: z.literal('requested') }),
+  z.strictObject({ reason: z.string(), status: z.literal('unavailable') }),
+])
+
+export const ringResultSchema = z.strictObject({
+  channels: z.strictObject({
+    flash: attentionChannelResultSchema,
+    sound: attentionChannelResultSchema,
+    vibration: attentionChannelResultSchema,
+  }),
+  expiresAt: z.string(),
+  sessionId: z.string(),
+})
+
+export const stopResultSchema = z.strictObject({
+  sessionId: z.string().nullable(),
+  status: z.enum(['stopped', 'not_active']),
+})
+
 export type RingArguments = z.infer<typeof ringArgumentsSchema>
 export type StopArguments = z.infer<typeof stopArgumentsSchema>
 
-export type AttentionChannelResult =
-  | Readonly<{ status: 'requested' }>
-  | Readonly<{ reason: string; status: 'unavailable' }>
-
-export type RingResult = Readonly<{
-  channels: Readonly<{
-    flash: AttentionChannelResult
-    sound: AttentionChannelResult
-    vibration: AttentionChannelResult
-  }>
-  expiresAt: string
-  sessionId: string
-}>
-
-export type StopResult = Readonly<{
-  sessionId: string | null
-  status: 'stopped' | 'not_active'
-}>
+export type AttentionChannelResult = z.infer<typeof attentionChannelResultSchema>
+export type RingResult = z.infer<typeof ringResultSchema>
+export type StopResult = z.infer<typeof stopResultSchema>

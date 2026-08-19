@@ -33,6 +33,7 @@ class CountingMediaFactory implements MediaPlaybackPortFactory {
     return {
       pause: async () => undefined,
       resume: async () => undefined,
+      seek: async () => undefined,
       start: async (
         _request: MediaPlaybackRequest,
         onStatus: (status: MediaPlaybackStatus) => void,

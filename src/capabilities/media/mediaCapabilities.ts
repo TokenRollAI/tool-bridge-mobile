@@ -1,10 +1,12 @@
 import {
   mediaPlayArgumentsSchema,
+  mediaSeekArgumentsSchema,
   mediaSessionArgumentsSchema,
+  mediaSessionResultSchema,
 } from './schema'
 
 import type { MediaSessionController, MediaSessionSnapshot } from './controller'
-import type { MediaPlayArguments, MediaSessionArguments } from './schema'
+import type { MediaPlayArguments, MediaSeekArguments, MediaSessionArguments } from './schema'
 import type { CapabilityAvailability, MobileCapability } from '@/capabilities/types'
 
 async function probe(controller: MediaSessionController): Promise<CapabilityAvailability> {
@@ -40,10 +42,12 @@ export function createMediaPlayCapability(
       risk: 'medium',
       tool: 'play',
     },
+    expose: controller.hasConfiguredSource(),
     execute: (argumentsValue, _context, invocation, signal) => (
       controller.play(argumentsValue, invocation.caller.subjectId, signal)
     ),
     inputSchema: mediaPlayArgumentsSchema,
+    outputSchema: mediaSessionResultSchema,
     preflight: argumentsValue => {
       controller.validateSource(argumentsValue.source.url)
     },
@@ -63,6 +67,34 @@ export function createMediaResumeCapability(
   return createSessionCapability(controller, 'resume')
 }
 
+export function createMediaSeekCapability(
+  controller: MediaSessionController,
+): MobileCapability<MediaSeekArguments, MediaSessionSnapshot> {
+  return {
+    descriptor: {
+      confirmation: 'never',
+      description: '把 App 自有媒体会话定位到指定毫秒位置',
+      effect: 'write',
+      limits: {
+        maxResultBytes: 8_192,
+        rate: { maxGlobal: 120, maxPerCaller: 60, windowSeconds: 60 },
+      },
+      path: 'phone/media',
+      queuePolicy: 'reject_offline',
+      risk: 'low',
+      tool: 'seek',
+    },
+    execute: argumentsValue => controller.seek(
+      argumentsValue.sessionId,
+      argumentsValue.positionMs,
+    ),
+    expose: controller.hasConfiguredSource(),
+    inputSchema: mediaSeekArgumentsSchema,
+    outputSchema: mediaSessionResultSchema,
+    probe: async () => probe(controller),
+  }
+}
+
 export function createMediaStopCapability(
   controller: MediaSessionController,
 ): MobileCapability<MediaSessionArguments, MediaSessionSnapshot | null> {
@@ -80,8 +112,10 @@ export function createMediaStopCapability(
       risk: 'low',
       tool: 'stop',
     },
+    expose: controller.hasConfiguredSource(),
     execute: argumentsValue => controller.stop(argumentsValue.sessionId),
     inputSchema: mediaSessionArgumentsSchema,
+    outputSchema: mediaSessionResultSchema.nullable(),
     probe: async () => probe(controller),
   }
 }
@@ -103,8 +137,10 @@ export function createMediaStatusCapability(
       risk: 'low',
       tool: 'status',
     },
+    expose: controller.hasConfiguredSource(),
     execute: argumentsValue => Promise.resolve(controller.status(argumentsValue.sessionId)),
     inputSchema: mediaSessionArgumentsSchema,
+    outputSchema: mediaSessionResultSchema,
     probe: async () => probe(controller),
   }
 }
@@ -127,8 +163,10 @@ function createSessionCapability(
       risk: 'low',
       tool: operation,
     },
+    expose: controller.hasConfiguredSource(),
     execute: argumentsValue => controller[operation](argumentsValue.sessionId),
     inputSchema: mediaSessionArgumentsSchema,
+    outputSchema: mediaSessionResultSchema,
     probe: async () => probe(controller),
   }
 }

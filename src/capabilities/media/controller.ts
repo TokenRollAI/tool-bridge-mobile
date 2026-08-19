@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto'
 
+import { throwIfSignalAborted } from '@/capabilities/abortSignal'
 import { ToolExecutionError } from '@/capabilities/types'
 
 import { validateAllowedMediaSource } from './sourcePolicy'
@@ -99,19 +100,19 @@ export class MediaSessionController {
         false,
       )
     }
-    signal.throwIfAborted()
+    throwIfSignalAborted(signal)
     const source = validateAllowedMediaSource(argumentsValue.source.url, this.allowedHosts)
     if (!await this.portFactory.probe()) {
       throw new ToolExecutionError('unavailable', '设备音频播放模块不可用', false)
     }
-    signal.throwIfAborted()
+    throwIfSignalAborted(signal)
 
     this.#starting = true
     let resolvedSource: ResolvedMediaSource | null = null
     let sessionId: string | null = null
     try {
       resolvedSource = await this.sourceResolver.resolve(source.url, this.allowedHosts, signal)
-      signal.throwIfAborted()
+      throwIfSignalAborted(signal)
       const port = this.portFactory.create()
       const createdSessionId = `media_${this.#idGenerator()}`
       sessionId = createdSessionId
@@ -147,7 +148,7 @@ export class MediaSessionController {
         title: argumentsValue.title,
         url: resolvedSource.uri,
       }, status => this.#receiveStatus(createdSessionId, status))
-      signal.throwIfAborted()
+      throwIfSignalAborted(signal)
       return this.#requireSession(createdSessionId).snapshot
     } catch (error) {
       if (sessionId !== null) await this.#finish(sessionId, 'failed')
@@ -177,6 +178,24 @@ export class MediaSessionController {
     }
     await active.port.resume()
     this.#replaceSnapshot(active, { state: 'playing' })
+    return this.#requireSession(sessionId).snapshot
+  }
+
+  async seek(sessionId: string, positionMs: number): Promise<MediaSessionSnapshot> {
+    const active = this.#requireSession(sessionId)
+    if (!Number.isSafeInteger(positionMs) || positionMs < 0) {
+      throw new ToolExecutionError('invalid_argument', '媒体播放位置无效', false)
+    }
+    const positionSeconds = positionMs / 1_000
+    const durationSeconds = active.snapshot.durationSeconds
+    if (durationSeconds === null) {
+      throw new ToolExecutionError('invalid_state', '媒体时长尚不可用，当前不能 seek', true)
+    }
+    if (positionSeconds > durationSeconds) {
+      throw new ToolExecutionError('invalid_argument', '媒体播放位置超过总时长', false)
+    }
+    await active.port.seek(positionSeconds)
+    this.#replaceSnapshot(active, { currentTimeSeconds: positionSeconds })
     return this.#requireSession(sessionId).snapshot
   }
 

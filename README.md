@@ -11,13 +11,16 @@
 
 > 当前状态：**P0 本地安全运行时已开始实现，尚未达到 MVP**。仓库已有 Expo development-build
 > 双端脚手架、本地状态页、SecureStore `installationId`、SQLite command/audit、动态 probe、
-> policy、单命令本地确认、前台 haptic attention、受 HTTPS allowlist、25 MiB 流式下载与 2 小时
-> 播放时长上限约束的 App 自有媒体会话，
+> policy、跨标签页全局单命令本地确认、前台内置提示音/haptic attention、受 HTTPS allowlist、
+> 25 MiB 流式下载与 2 小时播放时长上限约束且支持 seek 的 App 自有媒体会话，
 > 受控 HTTPS App handoff、只接受结构化目标的地图 handoff、逐次确认的一次性前台位置、由用户在
 > App 内主动授权的即时本地通知、以 SQLite 为真源的单次 App 内计时器、可解释且可由用户单独清除的
 > 本机活动审计、跨四个本地页面的无障碍语义自动化基线，以及持久化/并发幂等测试。
 > 本地执行还包含确认前 caller/global admission、inline 结果字节上限、claim 后取消/到期复检和
 > emergency disable 的进行中命令取消。
+> SDK expose 现在为每个公开工具同时提供输入/输出 JSON Schema，并只注册静态配置完整的 App/媒体
+> 工具；`phone/runtime.capabilities/pending_commands/cancel` 提供当前 credential principal 范围内的
+> 本地能力、活动命令与取消控制。
 > 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.11.0`：Android/iOS 前台 transport 使用官方
 > hello/ready/call/result、心跳、重连与 cancel，调用继续经过本地安全执行链；只有收到 gateway ready
 > 才显示 online。当前内测入口允许用户在本机填写 Gateway HTTPS URL 与 API key，secret 只进入
