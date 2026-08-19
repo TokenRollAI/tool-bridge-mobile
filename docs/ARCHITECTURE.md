@@ -18,7 +18,8 @@ Expo Router UI
 
 具体事实：
 
-- `installationId` 由 SecureStore 保存，只是本地安装标识，不冒充网关 `deviceId`；
+- `installationId` 由 SecureStore 保存，只是本地安装标识；手工 API key 内测模式从中派生
+  `mobile_<uuid>` 作为客户端声明的 SDK `deviceId`，明确不冒充网关签发身份；
 - SQLite schema version 2 保存 control mode、command intent/终态、审计元数据与非敏感 timer 状态；
 - opaque device credential envelope 只由 SecureStore facade 保存，不进入 SQLite；本地撤销协调器先
   复用 runtime emergency disable，再以有界超时停止 realtime/mailbox adapter，最终清除凭证；
@@ -47,8 +48,9 @@ Expo Router UI
 - `@tool-bridge/sdk/device@0.11.0` 已接入前台 realtime：SecureStore 动态取 credential、RN WebSocket
   header、官方 hello/ready/call/result、心跳、cancel 与 AppState suspend/resume 均进入生产 wiring；
   registry 只投影 SDK 正式字段，没有私自定义 frame；
-- 当前没有 pairing UI、短期 ticket、mailbox 或 push。无 gateway origin 时 transport 为 `unconfigured`，
-  有 origin 但无签发 credential 时为 `credentials_required`，只有 ready 为 `online`。
+- 首页已提供手工 Gateway HTTPS origin + API key 内测入口。保存严格执行“停止旧 transport -> 写
+  SecureStore -> 连接新 audience”；清除严格执行“停止 -> 删除 API key -> 恢复可选构建 URL”，失败时
+  保持连接关闭。当前仍没有正式 pairing、短期 ticket、mailbox 或 push；只有 ready 为 `online`。
 
 本地 contract test 使用注入的 fake dispatcher/probe 验证安全顺序；SDK transport contract 另以官方
 encode/decode 和 fake WebSocket 验证 consumer wiring。两者都不等同于真实 gateway compatibility matrix
@@ -169,6 +171,10 @@ TypeScript interface 暴露；平台差异保留为结构化 availability 和 re
 - `keyId`：设备凭证标识，可轮换和撤销；
 - 平台硬件序列号不进入协议。
 
+当前手工内测模式不是上述目标身份模型：它从随机 `installationId` 派生 `mobile_<uuid>` 作为客户端
+deviceId，并用本地固定前缀的 `manual_api_key_<uuid>` 作为 gateway principal。两者只提供稳定路由与
+本地归因，不证明网关签发、具体 Agent 身份、最小权限或可撤销性。
+
 ### 3.2 配对流程（新增）
 
 1. 已登录的管理端向网关创建短期 `pairingSession`；
@@ -204,6 +210,10 @@ wss://<gateway>/system/device/ws?deviceId=<deviceId>
 当前移动实现通过 `@tool-bridge/sdk/device@0.11.0` 注入 React Native 原生 WebSocket factory，使用其
 非 WHATWG 第三个参数把 Authorization 放在 upgrade header；长期 SK 不进入 URL。App 只在前台
 resume，后台/inactive 与 Disabled 时 suspend，因为操作系统可能暂停或终止连接。
+
+当前内测可由首页提供 `baseUrl + API key`：URL 经 canonical HTTPS origin 校验，API key 只作为
+`Authorization: Bearer ...` material 写入 SecureStore。手工配置优先于可选的
+`EXPO_PUBLIC_GATEWAY_ORIGIN` 构建预置；后者永远不能携带 secret。
 
 0.11.0 call 只含 id/path/tool/arguments/signal，没有具体 caller identity 或 gateway deadline。移动适配
 暂以 device credential `keyId` 作为 gateway principal，并从本地接收时间生成 30 秒 commit deadline；

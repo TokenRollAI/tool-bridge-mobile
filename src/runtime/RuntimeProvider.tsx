@@ -8,6 +8,7 @@ import {
 } from './applicationRuntime'
 
 import type { ControlMode } from '@/commands/types'
+import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
 
 
 const RuntimeContext = createContext<ApplicationRuntime | null>(null)
@@ -32,11 +33,13 @@ export function useRuntime(): Readonly<{
   approveConfirmation(commandId: string): boolean
   cancelTimer(timerId: string): Promise<void>
   clearAuditHistory(): Promise<number>
+  clearGatewayConfiguration(): Promise<void>
   openNotificationSettings(): Promise<void>
   pauseMediaSession(sessionId: string): Promise<void>
   rejectConfirmation(commandId: string): boolean
   requestNotificationPermission(): Promise<void>
   resumeMediaSession(sessionId: string): Promise<void>
+  saveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void>
   setControlMode(mode: ControlMode): Promise<void>
   snapshot: ApplicationSnapshot
   stopAttentionSession(): Promise<void>
@@ -53,11 +56,13 @@ export function useRuntime(): Readonly<{
     approveConfirmation: commandId => runtime.approveConfirmation(commandId),
     cancelTimer: timerId => runtime.cancelTimer(timerId),
     clearAuditHistory: () => runtime.clearAuditHistory(),
+    clearGatewayConfiguration: () => runtime.clearGatewayConfiguration(),
     openNotificationSettings: () => runtime.openNotificationSettings(),
     pauseMediaSession: sessionId => runtime.pauseMediaSession(sessionId),
     rejectConfirmation: commandId => runtime.rejectConfirmation(commandId),
     requestNotificationPermission: () => runtime.requestNotificationPermission(),
     resumeMediaSession: sessionId => runtime.resumeMediaSession(sessionId),
+    saveGatewayConfiguration: input => runtime.saveGatewayConfiguration(input),
     setControlMode: mode => runtime.setControlMode(mode),
     snapshot,
     stopAttentionSession: () => runtime.stopAttentionSession(),

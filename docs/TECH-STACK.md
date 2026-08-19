@@ -205,8 +205,8 @@ P0 不引入大型全局状态框架。
 ## 7. 网络与协议
 
 - HTTP：React Native 标准 `fetch`，由 gateway client 包装超时、错误和 redaction；
-- 前台实时：`@tool-bridge/sdk/device` + React Native WebSocket header adapter；当前读取既有 SecureStore
-  device credential，短期 ticket 仍是 U-3；
+- 前台实时：`@tool-bridge/sdk/device` + React Native WebSocket header adapter；当前支持首页手工 URL +
+  API key 写入 SecureStore 的内测入口，短期 ticket 与正式 pairing 仍是 U-2/U-3；
 - 后台：mailbox HTTP pull/claim/result；
 - 上传：网关签发单次预签名 URL，文件直传对象存储；
 - 实时媒体：P2 WebRTC；

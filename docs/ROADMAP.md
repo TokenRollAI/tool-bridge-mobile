@@ -14,6 +14,7 @@
 - [ ] 建立严格 TypeScript、lint、test、CI；
 - [x] 建立 app/service/storage/native module 目录；
 - [x] 接入上游公共 `@tool-bridge/sdk/device@0.11.0`；
+- [x] 本机 Gateway HTTPS URL + API key 内测入口（非 pairing）；
 - [ ] pairing UI + SecureStore；
 - [x] SQLite command/audit schema 和 migration；
 - [ ] 前台 WebSocket ticket 连接；
@@ -41,8 +42,10 @@
 - U-1 已由 `@tool-bridge/sdk/device@0.11.0` 交付并接入：官方 supervisor、RN Authorization header、
   AppState suspend/resume、registry expose 与 SDK call adapter 已有 contract 和双端 Metro 证据；只有
   `ready` 才显示 online；
-- U-2 至 U-6 仍未交付。当前 fresh install 没有 pairing credential，显示 `credentials_required`；短期
-  ticket、真实 gateway fixture、具体 caller/deadline attribution、mailbox 与 push 均未完成。
+- 首页已提供手工 URL + API key fallback，secret 只进入 SecureStore，保存/清除前先停止旧 transport；
+  它使用客户端派生 deviceId，不满足 pairing、最小权限 credential、rotation/revoke 或短期 ticket；
+- U-2 至 U-6 仍未交付。短期 ticket、真实 gateway fixture、具体 caller/deadline attribution、mailbox 与
+  push 均未完成。
 
 ### 出口
 

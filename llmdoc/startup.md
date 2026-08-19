@@ -14,6 +14,8 @@
 - 碰到协议、网关、后台可达或对象传输：读
   `llmdoc/reference/sdk-device-transport.md` 和
   `llmdoc/reference/upstream-and-platform-blockers.md`。
+- 修改首页 Gateway URL/API key、credential audience 或 transport 配置切换：再读
+  `llmdoc/reference/manual-gateway-configuration.md`。
 
 已有相关 guide 或 reflection 时，在规划和编辑前主动阅读；事实冲突时回到代码、HTBP 正式规范、
 Tool Bridge 已发布 API 和可复现验证记录。

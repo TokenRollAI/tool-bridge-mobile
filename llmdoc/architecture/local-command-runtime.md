@@ -12,6 +12,8 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
   transport 与 UI snapshot；AppState 变化时重新 probe 并 suspend/resume realtime。
 - `src/gateway/sdkDeviceTransport.ts`：只用上游公开 `/device` 入口，把 SDK call 归一为本地 command；
   负责 credential audience、RN header、AppState lifecycle 和 ready-only online。
+- `src/gateway/manualGatewayConfigurationController.ts`：协调首页手工 Gateway URL/API key 的配置切换；
+  保存和清除都先停止旧 transport，SecureStore 失败时保持断开。
 - `src/runtime/localCommandExecutor.ts` (`LocalCommandExecutor`)：唯一的本地 command 执行入口和安全顺序。
 - `src/capabilities/registry.ts` (`CapabilityRegistry`)：解析 path/tool、strict arguments、probe 和 handler。
 - `src/policy/policyEngine.ts` (`PolicyEngine`)：根据 control mode、risk、confirmation 与前后台裁决。
@@ -86,7 +88,11 @@ Promise；SQLite 中已为 running 的命令返回 `result_unknown`，不会再�
 - SQLite command 表不保存 arguments；audit 表不保存完整 arguments、坐标或 URL。
 - timer 表只保存确定性 id、owner、来源 command、`firesAt` 与状态；确认用 `purpose` 不进入 DB、原生通知、
   command outcome 或普通 audit。
-- opaque credential envelope 只由 SecureStore facade 管理；其结构不是上游 credential wire 契约。
+- opaque credential envelope 只由 SecureStore facade 管理；其结构不是上游 credential wire 契约。手工
+  API key 不进入 SQLite、日志、审计、源码或 `EXPO_PUBLIC_*`；手工 credential 的 audience 优先于可选
+  的非秘密 build origin。
+- 手工配置从随机 installation UUID 派生 `mobile_<uuid>` SDK deviceId 与
+  `manual_api_key_<uuid>` gateway principal。两者都是客户端声明值，不是网关签发身份或具体 Agent caller。
 - confirmation coordinator 不持久化完整参数，也不等同于上游 mailbox 的 `awaiting_user` 状态。
 
 ## 相关文档
@@ -94,5 +100,6 @@ Promise；SQLite 中已为 running 的命令返回 `result_unknown`，不会再�
 - `llmdoc/must/safety-boundaries.md`
 - `llmdoc/reference/command-retention.md`
 - `llmdoc/reference/local-activity-history.md`
+- `llmdoc/reference/manual-gateway-configuration.md`
 - `llmdoc/reference/sdk-device-transport.md`
 - `llmdoc/reference/upstream-and-platform-blockers.md`
