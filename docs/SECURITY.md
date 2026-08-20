@@ -157,7 +157,9 @@ pairing 交付前的内测 fallback 允许用户在本机手工输入 URL + API 
   `EXPO_PUBLIC_*`、SQLite、普通审计、日志或 crash report；
 - 保存先关闭旧 transport，再写 SecureStore，最后连接新 audience；写入失败时保持关闭；
 - 清除先关闭 transport，再删除 SecureStore key；删除结果未知时不得重新使用旧 key；
-- `mobile_<uuid>` deviceId 和 `manual_api_key_<uuid>` principal 从随机 installation identity 派生，只是
+- 客户端 deviceId 默认由设备硬件标识（Android ID / iOS IDFV）加域分隔盐经 SHA-256 单向摘要截断派生，
+  原始硬件标识不进入协议、存储或日志；用户自定义 deviceId 只接受 `[A-Za-z0-9._-]{1,64}`；
+  `manual_api_key_<uuid>` principal 从随机 installation identity 派生。两者只是
   客户端路由/本地归因，不是网关签发身份或具体 Agent caller；
 - 手工长期 API key 可能拥有比设备专用凭证更大权限，不能作为正式 pairing、最小 scope、rotation、
   revoke 或 U-3 短期 ticket 的发布替代品。

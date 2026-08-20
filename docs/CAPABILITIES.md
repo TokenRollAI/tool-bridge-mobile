@@ -5,16 +5,16 @@
 
 ## 1. 命名与返回约定
 
-设备默认挂载在：
+设备在 hello 中声明挂载到：
 
 ```text
-device/<deviceId>/phone/*
+device/phone/<deviceId>/*
 ```
 
 调用路径沿用 Tool Bridge 的“节点路径 + tool 名称”模型，例如：
 
 ```http
-POST /device/my-phone/phone/attention
+POST /device/phone/my-phone/attention
 {
   "tool": "ring",
   "arguments": {
@@ -24,6 +24,9 @@ POST /device/my-phone/phone/attention
   }
 }
 ```
+
+本地 capability 的规范命名空间仍是 `phone/*`（见下方 limits 表）；expose 时去掉 `phone/` 前缀作为
+相对 node 路径，`phone` 段由挂载路径承载。
 
 能力元数据沿用当前 `DeviceExpose.nodes[].cmds[]` 可表达的字段：
 

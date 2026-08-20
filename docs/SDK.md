@@ -58,8 +58,13 @@ const connection = connectDevice({
 
 - 用户只输入 Gateway URL 与 API key；URL 会规范化并限制为无 path/query/fragment/userinfo 的 HTTPS
   origin，API key 只接受不含空白的可打印 ASCII token；
-- App 从 SecureStore 中随机 `installationId` 派生稳定的 `mobile_<uuid>` SDK deviceId，以及仅供本地归因
-  的 `manual_api_key_<uuid>` keyId；它们不是网关签发身份或具体 Agent caller；
+- SDK deviceId 默认由设备硬件标识（Android ID / iOS IDFV）加域分隔盐经 SHA-256 派生为 12 位十六进制
+  短 ID，跨重装/清数据保持稳定；硬件标识不可用时回退到 SecureStore `installationId` 派生。用户也可在
+  同一表单自定义 deviceId（`[A-Za-z0-9._-]{1,64}`，与网关 DO 路由约束一致）。仅供本地归因
+  的 keyId 仍为 `manual_api_key_<uuid>`；它们不是网关签发身份或具体 Agent caller；
+- 设备在 hello 中声明 `mountPath: device/phone/<deviceId>`；expose node 使用去掉 `phone/` 前缀的相对
+  路径，网关下发的相对 call path 在进入本地 executor 前补回前缀，本地 `phone/*` 规范命名空间与
+  SQLite 历史格式不变；
 - `audienceOrigin`、派生标识和 API key material 一起保存为 SecureStore `DeviceCredentialEnvelope`；API key
   保存后从表单清空，界面不回显；
 - 保存顺序为“停止旧 transport -> 写 SecureStore -> 连接新 audience”，写入失败时保持关闭；清除顺序为

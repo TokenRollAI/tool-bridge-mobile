@@ -29,6 +29,7 @@ function createHarness(options: Readonly<{
       },
     },
     installationId: 'installation_00000000-0000-4000-8000-000000000000',
+    defaultDeviceId: 'a1b2c3d4e5f6',
     transport: {
       updateConfiguration: async baseUrl => {
         events.push(`transport:${baseUrl ?? 'null'}`)
@@ -49,8 +50,15 @@ describe('ManualGatewayConfigurationController', () => {
     ])
     expect(harness.readStored()).toMatchObject({
       audienceOrigin: 'https://gateway.example.com',
+      deviceId: 'a1b2c3d4e5f6',
       material: 'tb_sk_fixture_secret',
     })
+  })
+
+  test('保存时自定义设备 ID 覆盖 seeded 默认值', async () => {
+    const harness = createHarness()
+    await harness.controller.save({ ...input, deviceId: 'my-phone' })
+    expect(harness.readStored()).toMatchObject({ deviceId: 'my-phone' })
   })
 
   test('SecureStore 写入失败时保持 transport 关闭且不回显底层错误', async () => {

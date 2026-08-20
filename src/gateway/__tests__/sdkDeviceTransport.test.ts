@@ -164,7 +164,7 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     await expect(handler({
       arguments: {},
       id: 'call_01',
-      path: 'phone/fixture',
+      path: 'fixture',
       signal: new AbortController().signal,
       tool: 'get',
     })).resolves.toEqual({ observed: true })
@@ -179,6 +179,16 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       tool: 'get',
     })])
 
+    // 旧 mount（device/<deviceId>）会话仍可能发送带 phone/ 前缀的绝对路径。
+    await handler({
+      arguments: {},
+      id: 'call_01b',
+      path: 'phone/fixture',
+      signal: new AbortController().signal,
+      tool: 'get',
+    })
+    expect(commands[1]).toMatchObject({ path: 'phone/fixture' })
+
     const deniedHandler = createSdkDeviceCallHandler({
       callerSubjectId: 'device_key_01',
       executeCommand: async () => ({
@@ -189,7 +199,7 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     await expect(deniedHandler({
       arguments: {},
       id: 'call_02',
-      path: 'phone/fixture',
+      path: 'fixture',
       signal: new AbortController().signal,
       tool: 'get',
     })).rejects.toMatchObject({ code: 'permission_denied', retryable: false })
@@ -227,24 +237,25 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       expose: {
         nodes: [{
           cmds: [{ name: 'get' }],
-          path: 'phone/fixture',
+          path: 'fixture',
         }],
       },
+      mountPath: 'device/phone/device_01',
       type: 'hello',
     })
 
-    socket.receive({ type: 'ready', mountPath: 'device/device_01' })
+    socket.receive({ type: 'ready', mountPath: 'device/phone/device_01' })
     await eventually(() => expect(transport.getSnapshot()).toMatchObject({
       deviceId: 'device_01',
       gatewayOrigin: 'https://gateway.example.com',
-      mountPath: 'device/device_01',
+      mountPath: 'device/phone/device_01',
       state: 'ready',
     }))
     socket.sent.length = 0
     socket.receive({
       arguments: {},
       id: 'call_03',
-      path: 'phone/fixture',
+      path: 'fixture',
       tool: 'get',
       type: 'call',
     })
@@ -300,7 +311,7 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     const recoveredSocket = harness.sockets[1]
     if (recoveredSocket === undefined) throw new Error('missing recovered SDK fixture WebSocket')
     recoveredSocket.open()
-    recoveredSocket.receive({ type: 'ready', mountPath: 'device/device_01' })
+    recoveredSocket.receive({ type: 'ready', mountPath: 'device/phone/device_01' })
     await eventually(() => expect(transport.getSnapshot()).toMatchObject({
       diagnostic: null,
       issue: null,

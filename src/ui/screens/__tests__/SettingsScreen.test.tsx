@@ -27,6 +27,7 @@ const snapshot: ApplicationSnapshot = {
   backgroundRuntimeEnabled: false,
   capabilities: [],
   controlMode: 'ask_every_time',
+  defaultDeviceId: null,
   deviceId: null,
   error: null,
   gatewayOrigin: null,

@@ -13,8 +13,9 @@ Tool Bridge Mobile 的产品闭环需要 HTBP 和 `TokenRollAI/tool-bridge` 同�
   因此“已有凭证 + 前台”的实时 transport 已不再受 Node runtime 阻塞；
 - U-2 至 U-7 所需 pairing、短期 ticket、dynamic profile、mailbox、push 与 object upload 仍未交付；
   0.11.0 call 也没有具体 caller identity 或 gateway deadline；
-- 移动 App 已提供手工 Gateway HTTPS origin + API key 内测 fallback；从本地 installation identity 派生
-  SDK deviceId，secret 只进 SecureStore。它不完成 U-2/U-3，也不冒充真实 gateway、pairing、最小权限
+- 移动 App 已提供手工 Gateway HTTPS origin + API key 内测 fallback；SDK deviceId 默认由设备硬件标识
+  经单向摘要派生（可自定义），secret 只进 SecureStore。它不完成 U-2/U-3，也不冒充真实 gateway、
+  pairing、最小权限
   credential、撤销或后台 wire contract；没有任何 URL 时仍显示 `unconfigured`。
 
 ## 1. 当前可复用

@@ -67,6 +67,7 @@ import { LOCAL_COMMAND_RETENTION_LIMIT } from '@/commands/repository'
 import { ManualGatewayConfigurationController } from '@/gateway/manualGatewayConfigurationController'
 import { SdkDeviceTransport } from '@/gateway/sdkDeviceTransport'
 import { SecureDeviceCredentialStore } from '@/identity/deviceCredentialStore'
+import { resolveDefaultDeviceId } from '@/identity/deviceIdentity'
 import { SecureInstallationIdentityStore } from '@/identity/installationIdentityStore'
 import { LocalConfirmationCoordinator } from '@/policy/localConfirmationCoordinator'
 import { PolicyEngine } from '@/policy/policyEngine'
@@ -113,6 +114,7 @@ export type ApplicationSnapshot = Readonly<{
   backgroundRuntimeEnabled: boolean
   capabilities: readonly CapabilitySnapshot[]
   controlMode: ControlMode
+  defaultDeviceId: string | null
   deviceId: string | null
   error: string | null
   gatewayOrigin: string | null
@@ -135,6 +137,7 @@ const INITIAL_SNAPSHOT: ApplicationSnapshot = {
   backgroundRuntimeEnabled: false,
   capabilities: [],
   controlMode: 'ask_every_time',
+  defaultDeviceId: null,
   deviceId: null,
   error: null,
   gatewayOrigin: null,
@@ -161,6 +164,7 @@ export class ApplicationRuntime {
   #confirmationRevision = 0
   #confirmationCoordinator: LocalConfirmationCoordinator | null = null
   #controlModeRepository: SqliteControlModeRepository | null = null
+  #defaultDeviceId: string | null = null
   #deviceCredentialStore: SecureDeviceCredentialStore | null = null
   #deviceTransport: SdkDeviceTransport | null = null
   #gatewayConfigurationController: ManualGatewayConfigurationController | null = null
@@ -404,6 +408,7 @@ export class ApplicationRuntime {
       backgroundRuntimeEnabled,
       capabilities,
       controlMode,
+      defaultDeviceId: this.#defaultDeviceId,
       deviceId: transport.deviceId,
       error: null,
       gatewayOrigin: transport.gatewayOrigin,
@@ -425,6 +430,7 @@ export class ApplicationRuntime {
       const database = await MobileDatabase.open()
       const identityStore = new SecureInstallationIdentityStore()
       this.#installationId = await identityStore.getOrCreate()
+      this.#defaultDeviceId = await resolveDefaultDeviceId(this.#installationId)
       this.#auditRepository = new SqliteAuditRepository(database)
       this.#commandRepository = new SqliteCommandRepository(database)
       this.#controlModeRepository = new SqliteControlModeRepository(database)
@@ -529,6 +535,7 @@ export class ApplicationRuntime {
       this.#gatewayConfigurationController = new ManualGatewayConfigurationController({
         buildGatewayOrigin: ExpoConfigHosts.gatewayOrigin(),
         credentialStore: this.#deviceCredentialStore,
+        defaultDeviceId: this.#defaultDeviceId,
         installationId: this.#installationId,
         transport: this.#deviceTransport,
       })

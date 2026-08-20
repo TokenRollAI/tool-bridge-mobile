@@ -92,6 +92,8 @@
   全局确认 modal、principal-scoped runtime control 与本地 attention sound 得出的能力交付经验。
 - `memory/reflections/2026-08-20-android-control-expansion.md`：盘点 Android 控制能力时区分 policy、probe、
   reachability 与 platform privilege，并追踪 caller/deadline、后台投递和受保护对象的上游缺口。
+- `memory/reflections/2026-08-19-stable-device-identity.md`：区分“生成逻辑不稳定”与“持久化根基被清空”，
+  用硬件派生稳定 deviceId 并在 wire 边界做挂载路径双向转换的经验。
 
 ## 路由规则
 

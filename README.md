@@ -98,9 +98,10 @@ pnpm start
 零 warning lint、unit/component 和本地/SDK transport 契约测试。
 
 安装 App 后可在首页“网关连接设置”中填写纯 HTTPS origin 和 Tool Bridge API key。API key 不应写入
-`.env`、`EXPO_PUBLIC_*`、源码或 URL；保存时 App 会先停止旧连接，再把 key 写入系统 SecureStore，
-并用当前安装实例派生的稳定 `mobile_<uuid>` 作为客户端声明的 SDK `deviceId`。该 deviceId 不是网关
-签发身份，手工入口只是 pairing 交付前的内测通道。
+`.env`、`EXPO_PUBLIC_*`、源码或 URL；保存时 App 会先停止旧连接，再把 key 写入系统 SecureStore。
+SDK `deviceId` 默认由设备硬件标识（Android ID / iOS IDFV）经单向摘要派生为稳定短 ID，跨重装保持
+不变；也可在同一表单中自定义（字母、数字、`.`、`_`、`-`，最长 64 字符）。设备声明挂载到
+`device/phone/<deviceId>`。该 deviceId 不是网关签发身份，手工入口只是 pairing 交付前的内测通道。
 
 原生构建命令：
 

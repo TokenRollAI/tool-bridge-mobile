@@ -11,7 +11,11 @@ rotation/revoke 或 U-3 短期 ticket。
 - URL 只接受无 path/query/fragment/userinfo 的 HTTPS origin；首尾空白可规范化，最终保存 `URL.origin`。
 - API key 长度为 1..16,384，只允许不含空白的 printable ASCII；不静默 trim 或规范化 secret。
 - API key 输入框遮蔽，保存成功立即清空；UI snapshot 和 announcement 不包含 secret。
-- 从 SecureStore 中随机 `installation_<uuid>` 派生 `mobile_<uuid>` 作为客户端声明的 SDK deviceId。
+- 客户端声明的 SDK deviceId 默认由设备硬件标识（Android ID / iOS IDFV）加域分隔盐经 SHA-256 截断
+  派生为 12 位十六进制短 ID，跨重装稳定；硬件标识不可用时回退 SecureStore `installation_<uuid>` 派生。
+  用户可在表单自定义 deviceId，只接受 `[A-Za-z0-9._-]{1,64}`（与网关 `assertDeviceId` DO 路由约束一致）。
+- 设备在 hello 中声明 `mountPath: device/phone/<deviceId>`；expose node 去掉 `phone/` 前缀，
+  相对 call path 进入本地 executor 前补回，`phone/*` 本地规范命名空间与 SQLite 历史格式不变。
 - `manual_api_key_<uuid>` 只是同一安装实例的 gateway principal/local caller bucket，不是具体 Agent 身份。
 
 ## 存储与优先级

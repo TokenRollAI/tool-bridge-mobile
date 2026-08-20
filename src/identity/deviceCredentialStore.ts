@@ -1,6 +1,8 @@
 import * as SecureStore from 'expo-secure-store'
 import { z } from 'zod'
 
+import { DEVICE_ID_PATTERN } from './deviceIdentity'
+
 const DEVICE_CREDENTIAL_KEY = 'tool-bridge-mobile.device-credential.v1'
 const unsafeIdentifierCharacter = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/
 
@@ -15,9 +17,10 @@ function isHttpsOrigin(value: string): boolean {
 
 export const deviceCredentialEnvelopeSchema = z.strictObject({
   audienceOrigin: z.string().max(2048).refine(isHttpsOrigin, 'audienceOrigin 必须是 HTTPS origin'),
-  deviceId: z.string().min(1).max(256).refine(
-    value => !unsafeIdentifierCharacter.test(value),
-    'deviceId 不能包含控制或双向覆盖字符',
+  // 与网关 assertDeviceId 的 DO 路由字符集一致，避免连上后才被 invalid_argument 拒绝。
+  deviceId: z.string().regex(
+    DEVICE_ID_PATTERN,
+    "deviceId 只能包含 1 到 64 个字母、数字、'.'、'_' 或 '-'",
   ),
   keyId: z.string().min(1).max(256).refine(
     value => !unsafeIdentifierCharacter.test(value),

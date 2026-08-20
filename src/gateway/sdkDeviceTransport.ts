@@ -25,6 +25,26 @@ import type {
 
 export const LOCAL_REALTIME_COMMAND_TTL_MS = 30_000
 
+// 本地 capability 的规范命名空间是 `phone/*`；wire 上 `phone` 段改由挂载路径承载，
+// 因此 expose 前剥掉前缀、call 进入本地 executor 前再补回，SQLite 历史与审计格式不变。
+const LOCAL_CAPABILITY_NAMESPACE = 'phone/'
+
+export function deviceMountPath(deviceId: string): string {
+  return `device/phone/${deviceId}`
+}
+
+export function toWireNodePath(path: string): string {
+  return path.startsWith(LOCAL_CAPABILITY_NAMESPACE)
+    ? path.slice(LOCAL_CAPABILITY_NAMESPACE.length)
+    : path
+}
+
+export function toLocalCapabilityPath(path: string): string {
+  return path.startsWith(LOCAL_CAPABILITY_NAMESPACE)
+    ? path
+    : `${LOCAL_CAPABILITY_NAMESPACE}${path}`
+}
+
 export type DeviceTransportState =
   | DeviceConnectionState
   | 'credentials_required'
@@ -131,7 +151,7 @@ export function createSdkDeviceCallHandler(options: Readonly<{
       commandId: call.id,
       createdAt: receivedAt.toISOString(),
       expiresAt: new Date(receivedAt.getTime() + LOCAL_REALTIME_COMMAND_TTL_MS).toISOString(),
-      path: call.path,
+      path: toLocalCapabilityPath(call.path),
       tool: call.tool,
     }, call.signal)
     if (!outcome.ok) throw sdkErrorFor(outcome)
@@ -338,8 +358,14 @@ export class SdkDeviceTransport {
         },
       },
       deviceId: initialCredential.deviceId,
-      expose: () => this.dependencies.registry.deviceExpose(),
+      expose: () => {
+        const expose = this.dependencies.registry.deviceExpose()
+        return {
+          nodes: expose.nodes.map(node => ({ ...node, path: toWireNodePath(node.path) })),
+        }
+      },
       handler,
+      mountPath: deviceMountPath(initialCredential.deviceId),
       onError: () => {
         if (this.#connection !== createdConnection || diagnosticsSuppressed) return
         this.#publish({

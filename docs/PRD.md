@@ -135,8 +135,9 @@ MVP 明确不做：
 - 日志与界面不得展示完整凭证。
 
 现状：正式 pairing/rotation/revoke 仍未实现。为便于内测，首页提供独立的手工 URL + API key 入口；
-URL 必须是纯 HTTPS origin，API key 只进入 SecureStore，保存后表单立即清空。App 从随机本地
-`installationId` 派生 `mobile_<uuid>` 作为客户端声明的协议 deviceId。此 fallback 不能用于验收上述
+URL 必须是纯 HTTPS origin，API key 只进入 SecureStore，保存后表单立即清空。协议 deviceId 默认由
+设备硬件标识经单向摘要派生为稳定短 ID，用户也可自定义；设备声明挂载到 `device/phone/<deviceId>`。
+此 fallback 不能用于验收上述
 pairing、设备专用最小权限凭证或撤销条目，产品发布前仍需回到正式流程。
 
 ### FR-2：设备状态
