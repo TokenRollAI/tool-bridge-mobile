@@ -9,8 +9,9 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 
 ## Android 原生控制面现状
 
-- 仓库自有 Android Expo native module 当前只有 `modules/tool-bridge-attention` 的 haptic probe/执行；
-  其余已实现能力通过受限 Expo API、App 内状态机或系统 handoff 提供。
+- 仓库自有 Android Expo native module 当前是 `modules/tool-bridge-attention` 的 haptic probe/执行与
+  torch 闪光灯 probe/enable/disable（走 `CameraManager`，不需 Camera 权限）；其余已实现能力通过受限
+  Expo API、App 内状态机或系统 handoff 提供。
 - 当前没有 AccessibilityService、MediaProjection、notification-listener 或 DevicePolicyManager/device-owner
   控制实现，也没有对应 service/config；因此不能跨 App 操作任意 UI、捕获屏幕或管理专用设备。
 - 当前原生权限面仍按已实现切片最小化：未声明相机、麦克风或后台位置权限。Android 更高权限控制路线尚未
@@ -30,8 +31,11 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 - controller 提供 TTL、取消、单活动会话、调用方/全局 rate limit 和 UI stop；声音与 haptic 独立 probe、
   独立启动并在 stop/到期时共同释放。
 - `find_device` sound 是固定参数生成的短 PCM WAV，只进入 App 私有 cache 后交给 `expo-audio`，不读取远端
-  音频、不请求录音权限，也不设置静音模式播放。闪光仍未实现；DND/静音、后台/锁屏和真实物理输出待
-  双端真机证据。
+  音频、不请求录音权限，也不设置静音模式播放。
+- flash 通过系统 torch API 实现（Android `CameraManager.setTorchMode`、iOS `AVCaptureDevice.torchMode`），
+  独立 probe/enable/disable，与 sound、haptic 一样纳入会话 TTL/取消/停止的共同释放；只在探测到闪光灯
+  硬件时点亮，不声明 Camera 权限、不打开采集流，torch 被占用或系统拒绝时返回 `flash_unavailable`。
+- DND/静音、后台/锁屏、真实音频与闪光物理输出（含 torch 被其他 App 抢占）待双端真机证据。
 
 ### `phone/media.play|pause|resume|seek|stop|status`
 

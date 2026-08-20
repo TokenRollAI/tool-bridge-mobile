@@ -12,9 +12,9 @@ type VariantConfig = Readonly<{
 export const EXPO_OWNER = 'tokenroll'
 export const EAS_PROJECT_ID = '378c7a3e-437a-49a6-ae20-fef5af6f6188'
 export const EXPO_PROJECT_SLUG = 'tool-bridge'
-export const APP_VERSION = '0.0.4'
-export const ANDROID_VERSION_CODE = 4
-export const IOS_BUILD_NUMBER = '4'
+export const APP_VERSION = '0.0.5'
+export const ANDROID_VERSION_CODE = 5
+export const IOS_BUILD_NUMBER = '5'
 
 export const APP_VARIANTS: Readonly<Record<AppVariant, VariantConfig>> = {
   development: {
@@ -95,6 +95,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     orientation: 'portrait',
     scheme: variant.scheme,
     userInterfaceStyle: 'automatic',
+    // 全部图标由 assets/icon/brand-mark.svg 这一份矢量源导出（pnpm icons:generate）。
+    icon: './assets/icon/app-icon.png',
     plugins: [
       'expo-router',
       'expo-dev-client',
@@ -144,8 +146,17 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       buildNumber: IOS_BUILD_NUMBER,
       deploymentTarget: '16.4',
       supportsTablet: false,
+      // iOS 应用图标不支持透明通道，直接复用带深色底的方形图标。
+      icon: './assets/icon/app-icon.png',
     },
     android: {
+      adaptiveIcon: {
+        // 前景层留透明，背景色走 theme.colors.background，避免双层底色叠加。
+        backgroundColor: '#08111f',
+        foregroundImage: './assets/icon/adaptive-icon.png',
+        // Android 13+ 主题化图标：系统按壁纸取色重新着色，只读取 alpha 通道。
+        monochromeImage: './assets/icon/monochrome-icon.png',
+      },
       blockedPermissions: [
         'android.permission.RECEIVE_BOOT_COMPLETED',
         'android.permission.READ_EXTERNAL_STORAGE',
@@ -180,6 +191,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'android.permission.POST_NOTIFICATIONS',
         'android.permission.VIBRATE',
       ],
+    },
+    web: {
+      favicon: './assets/icon/favicon.png',
     },
     extra: {
       eas: {

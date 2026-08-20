@@ -124,7 +124,9 @@ e2e/
 | 设备状态 | `expo-device`、`expo-battery`、`expo-network` | capability/status 的最小状态 |
 | 后台回调 | `expo-task-manager` | push/background callback 编排 |
 | schema | `zod` | 与 Tool Bridge 现有技术栈一致 |
-| attention haptic | 本地 Expo Module `tool-bridge-attention` | Expo/RN 公共 API 无硬件 probe；仅封装 hasVibrator/CoreHaptics 与单次 pulse |
+| attention haptic / flash | 本地 Expo Module `tool-bridge-attention` | Expo/RN 公共 API 无硬件 probe；仅封装 hasVibrator/CoreHaptics 与单次 pulse，以及 torch 探测与开关 |
+| 界面图标 | `@expo/vector-icons` `15.1.1` | 经 `src/ui/components/Icon.tsx` 语义层集中映射 Ionicons glyph |
+| 图标字体加载 | `expo-font` `57.0.1` | `@expo/vector-icons` 声明的原生 peer，必须由 App 直接安装 |
 
 `@tool-bridge/sdk` 由 Tool Bridge 上游同仓维护，0.11.0 首次提供正式 `/device` export；已有依赖没有
 官方 device frame/session 状态机，移动仓库也不得复制 `@tool-bridge/core` 私有源码。包根仍有 Node
@@ -143,6 +145,11 @@ Android/iOS Metro 也必须实际 bundle。package 级 Node engine 由本仓库�
 和超过 2 小时的媒体。不使用 URL 后缀猜测类型。对象 TTL 仍等待上游 `objectRef` 契约。
 `expo-asset` 是 `expo-audio` 声明的 native peer，必须由 App 直接安装，不能依赖 pnpm 的传递安装；
 版本按 Expo SDK 57 的 `bundledNativeModules.json` 精确锁定。
+
+`expo-font` 同理是 `@expo/vector-icons` 声明的 native peer。它属于必须直接安装的原生依赖，缺失时
+`expo-doctor` 报 `Missing peer dependency` 且 App 在 Expo Go 之外可能崩溃，因此以精确版本直接列入
+依赖。不注册它的 config plugin：该 plugin 只用于把自定义字体文件嵌入原生工程，而本仓库只用
+`@expo/vector-icons` 自带的运行时加载字体。`verify:doctor` 守住这条线。
 
 `expo-file-system` 同样由 Expo 维护并与 SDK 57 同步发布，覆盖 Android/iOS App 私有目录和流式文件
 handle。媒体 resolver 的生产代码直接 import 它，因此即使它曾由其他 Expo 包传递安装，也必须作为
@@ -227,7 +234,28 @@ P0 不引入大型全局状态框架。
 
 E2E 工具只负责驱动 UI；平台是否真正发声、振动、拍照和接收 push 仍需真机证据与运行日志。
 
-## 9. CI/CD
+## 9. 应用图标
+
+品牌形状只在 `assets/icon/brand-mark.svg` 一处维护，形状按上游 `tool-bridge` 仓库根目录的
+`tool-bridge.png` 逐行扫描测量重建，配色取 `src/ui/theme.ts` 的 `background` / `primary`，
+和应用内视觉同源。四份 PNG 由 `pnpm icons:generate` 从该 SVG 导出并提交进仓库：
+
+| 资源 | 用途 | 约束 |
+| --- | --- | --- |
+| `app-icon.png` 1024² | 通用与 iOS 应用图标 | 不透明；iOS 不接受 alpha |
+| `adaptive-icon.png` 1024² | Android 自适应图标前景层 | 透明底；背景色走 `adaptiveIcon.backgroundColor` |
+| `monochrome-icon.png` 1024² | Android 13+ 主题化图标 | 透明底；系统只读 alpha 并按壁纸取色 |
+| `favicon.png` 48² | `react-native-web` 页签 | 不透明；小尺寸下笔画显著加粗 |
+
+Android 自适应图标 108dp 画布中，系统保证不被任何厂商遮罩裁掉的只有居中 66dp 圆。标识宽扁
+（1048:480），要让墨迹包围盒的半对角落进该圆，宽度上限约为画布边长的 0.548，因此前景层看起来
+比 iOS 图标小一圈——这是换取任意遮罩下两端节点都不被切掉。
+
+导出依赖 `rsvg-convert`（macOS `brew install librsvg`），它不进 `package.json`，也不在 CI 执行；
+CI 跑的是 `pnpm verify:app-icons`，直接解析已提交 PNG 的尺寸、透明通道与上述安全区比例，并检查
+`app.config.ts` 的引用完整，避免图标悄悄退回 Expo 默认或破掉平台约束。
+
+## 10. CI/CD
 
 ### 每个 PR
 
@@ -285,7 +313,7 @@ tag 驱动的 GitHub Preview 发布，
 [2026-08-19 Android emulator smoke](verification/2026-08-19-android-emulator.md)。macOS CI 已有 iOS
 simulator 成功记录；它仍不能替代 iOS 真机、签名 archive 或商店包。
 
-## 10. 未选择的方案
+## 11. 未选择的方案
 
 ### Flutter
 
@@ -311,7 +339,7 @@ simulator 成功记录；它仍不能替代 iOS 真机、签名 archive 或商�
 短期看快，长期会产生协议分叉、修复不同步和安全边界不一致。必须以公共跨运行时 SDK 作为 P0
 上游闸门。
 
-## 11. 重新评估触发条件
+## 12. 重新评估触发条件
 
 发生以下任一情况，新增 ADR：
 

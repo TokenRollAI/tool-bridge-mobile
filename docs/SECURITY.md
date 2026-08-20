@@ -36,8 +36,10 @@ deadline 会截断 attention session 和 location wait，emergency disable 会 a
 没有具体 Agent caller，因此 UI、审计和工具结果均不得把这一边界描述成 per-Agent ownership。
 
 attention 内置提示音是 App 本地生成的固定短 WAV，只写 App 私有 cache，不接受 URL/objectRef 或远端
-音频字节。播放请求明确不启用 silent-mode bypass，也不声称越过 DND；flash 仍未实现，App 不为其声明
-Camera 权限。
+音频字节。播放请求明确不启用 silent-mode bypass，也不声称越过 DND；flash 使用系统 torch API
+（Android `CameraManager.setTorchMode`、iOS `AVCaptureDevice.torchMode`），只在存在闪光灯硬件时点亮，
+不声明 Camera 权限、不打开相机采集流；无硬件、被占用或系统拒绝时诚实返回 unavailable。真机物理输出
+（含亮度、被其他 App 抢占 torch）仍待双端验收。
 
 command 防重放记录不能只在 App 启动时清理：每次从 running 写入终态都与 retention prune 共用同一
 SQLite exclusive transaction，终态总数持续限制为 10,000 条。裁剪按 receivedAt/commandId 淘汰最旧

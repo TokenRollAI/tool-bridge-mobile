@@ -5,6 +5,7 @@ import { AttentionSessionController } from '../controller'
 import { AttentionRateLimiter } from '../rateLimiter'
 import { ringArgumentsSchema } from '../schema'
 
+import type { AttentionFlashAdapter } from '../flashAdapter'
 import type { AttentionHapticsAdapter } from '../hapticsAdapter'
 import type { AttentionSoundAdapter } from '../soundAdapter'
 import type { CapabilityContext } from '@/capabilities/types'
@@ -21,6 +22,20 @@ function createHaptics(available = true) {
     },
   }
   return { adapter, cancelled: () => cancelled, pulses: () => pulses }
+}
+
+function createFlash(available = true, enableResult = available) {
+  let disabled = 0
+  let enabled = 0
+  const adapter: AttentionFlashAdapter = {
+    disable: async () => { disabled += 1 },
+    enable: async () => {
+      enabled += 1
+      return enableResult
+    },
+    probe: async () => available,
+  }
+  return { adapter, disabled: () => disabled, enabled: () => enabled }
 }
 
 const activeContext: CapabilityContext = {
@@ -111,6 +126,67 @@ describe('AttentionSessionController', () => {
     expect(starts).toBe(1)
     await controller.stop(result.sessionId)
     expect(stops).toBe(1)
+  })
+
+  test('请求闪光灯且硬件可用时点亮 torch，并在 stop 时释放', async () => {
+    const flash = createFlash()
+    const controller = new AttentionSessionController(createHaptics(false).adapter, {
+      clock: () => new Date('2026-08-19T00:00:00.000Z'),
+      flash: flash.adapter,
+      idGenerator: () => 'flash-fixture',
+    })
+
+    const result = await controller.start(
+      ringArgumentsSchema.parse({ durationSeconds: 3, flash: true, vibrate: false }),
+      'caller_a',
+      new AbortController().signal,
+    )
+
+    expect(result.channels.flash).toEqual({ status: 'requested' })
+    expect(flash.enabled()).toBe(1)
+    await controller.stop(result.sessionId)
+    expect(flash.disabled()).toBe(1)
+  })
+
+  test('请求闪光灯但无硬件时诚实返回 unavailable，不假装点亮', async () => {
+    const flash = createFlash(false)
+    const controller = new AttentionSessionController(createHaptics().adapter, {
+      clock: () => new Date('2026-08-19T00:00:00.000Z'),
+      flash: flash.adapter,
+      idGenerator: () => 'flash-unavailable-fixture',
+    })
+
+    const result = await controller.start(
+      ringArgumentsSchema.parse({ durationSeconds: 3, flash: true }),
+      'caller_a',
+      new AbortController().signal,
+    )
+
+    expect(result.channels.flash).toEqual({ reason: 'flash_unavailable', status: 'unavailable' })
+    expect(flash.enabled()).toBe(0)
+  })
+
+  test('仅闪光灯可用时也能建立会话并在到期释放 torch', async () => {
+    jest.useFakeTimers()
+    const flash = createFlash()
+    const controller = new AttentionSessionController(createHaptics(false).adapter, {
+      clock: () => new Date('2026-08-19T00:00:00.000Z'),
+      flash: flash.adapter,
+      idGenerator: () => 'flash-only-fixture',
+    })
+
+    const result = await controller.start(
+      ringArgumentsSchema.parse({ durationSeconds: 2, flash: true, vibrate: false }),
+      'caller_a',
+      new AbortController().signal,
+    )
+    expect(result.channels).toEqual({
+      flash: { status: 'requested' },
+      sound: { reason: 'sound_unavailable', status: 'unavailable' },
+      vibration: { reason: 'not_requested', status: 'unavailable' },
+    })
+    await jest.advanceTimersByTimeAsync(2_000)
+    expect(flash.disabled()).toBe(1)
   })
 
   test('TTL 到期自动停止并取消后续 pulse', async () => {

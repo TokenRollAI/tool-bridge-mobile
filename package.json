@@ -1,7 +1,7 @@
 {
   "name": "tool-bridge-mobile",
   "private": true,
-  "version": "0.0.4",
+  "version": "0.0.5",
   "type": "module",
   "main": "index.js",
   "packageManager": "pnpm@11.21.0",
@@ -12,6 +12,7 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "icons:generate": "node scripts/generate-app-icons.mjs",
     "prebuild": "expo prebuild",
     "prebuild:clean": "expo prebuild --clean",
     "prebuild:android": "expo prebuild --clean --platform android",
@@ -28,6 +29,7 @@
     "verify:config": "node scripts/verify-app-config.mjs",
     "verify:dependency-mitigations": "node scripts/verify-dependency-mitigations.mjs",
     "verify:android:emulator": "node scripts/verify-android-emulator.mjs",
+    "verify:app-icons": "node scripts/verify-app-icons.mjs",
     "verify:doctor": "expo-doctor",
     "verify:expo": "expo install --check",
     "verify:licenses": "node scripts/verify-licenses.mjs",
@@ -35,7 +37,7 @@
     "verify:release-tag": "node scripts/verify-release-tag.mjs",
     "verify:sdk-device": "node scripts/verify-sdk-device-entry.mjs",
     "verify:secrets": "node scripts/verify-secrets.mjs",
-    "verify": "pnpm verify:docs && pnpm verify:release-tag && pnpm verify:config && pnpm verify:native-modules && pnpm verify:sdk-device && pnpm verify:secrets && pnpm verify:licenses && pnpm verify:dependency-mitigations && pnpm verify:expo && pnpm typecheck && pnpm lint && pnpm test"
+    "verify": "pnpm verify:docs && pnpm verify:release-tag && pnpm verify:config && pnpm verify:app-icons && pnpm verify:native-modules && pnpm verify:sdk-device && pnpm verify:secrets && pnpm verify:licenses && pnpm verify:dependency-mitigations && pnpm verify:expo && pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
     "@expo/vector-icons": "15.1.1",
@@ -51,6 +53,7 @@
     "expo-dev-client": "57.0.13",
     "expo-device": "57.0.1",
     "expo-file-system": "57.0.4",
+    "expo-font": "57.0.1",
     "expo-linking": "57.0.6",
     "expo-location": "57.0.11",
     "expo-network": "57.0.1",

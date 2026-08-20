@@ -5,6 +5,8 @@ node_modules/
 dist/
 coverage/
 **/build/
+# 本地构建出的 APK 与校验和；发布产物只经 release workflow 上传。
+/artifacts/
 .DS_Store
 *.log
 .env

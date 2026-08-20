@@ -155,15 +155,17 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
   haptic 使用 `Vibrator.hasVibrator()`，iOS 使用 `CHHapticEngine.capabilitiesForHardware()`；
 - `sound: find_device` 使用 App 在私有 cache 中本地生成的固定 PCM WAV，通过 `expo-audio` 循环请求播放；
   不下载远程声音、不请求相机权限、`playsInSilentMode: false`，也不绕过 DND；
-- 结果按通道使用 `requested` / `unavailable`，不把 native API 接受请求等同于用户一定感知；flash 仍
-  明确为 `flash_not_implemented`，没有 Camera 权限或伪实现；
-- 前台 SDK transport 已接入，但尚无 pairing、真实 gateway compatibility、后台 mailbox/push、声音、
-  闪光或双端真机物理效果证据，因此不构成完整“找手机”能力。
+- 结果按通道使用 `requested` / `unavailable`，不把 native API 接受请求等同于用户一定感知；flash 通过
+  系统 torch API 实现（Android `CameraManager.setTorchMode`、iOS `AVCaptureDevice.torchMode`），只在
+  探测到闪光灯硬件时点亮，不声明 Camera 权限、不打开相机采集流，无硬件或被占用时返回
+  `flash_unavailable`；
+- 前台 SDK transport 已接入，但尚无 pairing、真实 gateway compatibility、后台 mailbox/push，以及声音与
+  闪光的双端真机物理效果证据，因此不构成完整“找手机”能力。
 
 | 平台 | 当前本地支持 |
 | --- | --- |
-| Android 7.0+ | 前台；固定本地 WAV + `expo-audio`，可选 haptic；普通 `VIBRATE` 权限 |
-| iOS 16.4+ | 前台；固定本地 WAV + `expo-audio`，可选 CoreHaptics；无额外权限 |
+| Android 7.0+ | 前台；固定本地 WAV + `expo-audio`，可选 haptic 与 torch 闪光灯；普通 `VIBRATE` 权限，torch 走 `CameraManager` 无需 Camera 权限 |
+| iOS 16.4+ | 前台；固定本地 WAV + `expo-audio`，可选 CoreHaptics 与 `AVCaptureDevice` torch 闪光灯；无额外权限 |
 | Web/模拟器无硬件 | `unavailable`，不得以模拟成功替代真机证据 |
 
 #### `ring`
@@ -175,7 +177,7 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 | `durationSeconds` | integer | 30 | 1–120 |
 | `sound` | string enum | `find_device` | 仅内置音效 |
 | `vibrate` | boolean | true | 受系统能力限制 |
-| `flash` | boolean | false | 使用闪光灯时需能力探测 |
+| `flash` | boolean | false | 请求点亮 torch 闪光灯，需能力探测；无硬件返回 `flash_unavailable` |
 | `message` | string | 无 | 最长 120 字，过滤控制字符 |
 
 结果必须报告每个通道的实际状态：

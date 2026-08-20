@@ -3,6 +3,7 @@ import * as Crypto from 'expo-crypto'
 import { throwIfSignalAborted } from '@/capabilities/abortSignal'
 import { ToolExecutionError } from '@/capabilities/types'
 
+import type { AttentionFlashAdapter } from './flashAdapter'
 import type { AttentionHapticsAdapter } from './hapticsAdapter'
 import type { RingArguments, RingResult, StopResult } from './schema'
 import type { AttentionSoundAdapter } from './soundAdapter'
@@ -12,6 +13,7 @@ type ActiveAttentionSession = Readonly<{
   abortListener: () => void
   callerSubjectId: string
   expiresAt: string
+  flashStarted: boolean
   interval: ReturnType<typeof setInterval> | null
   sessionId: string
   soundStarted: boolean
@@ -28,6 +30,7 @@ export type AttentionSessionSnapshot = Readonly<{
 
 type AttentionControllerOptions = Readonly<{
   clock?: () => Date
+  flash?: AttentionFlashAdapter
   idGenerator?: () => string
   pulseIntervalMs?: number
   sound?: AttentionSoundAdapter
@@ -35,6 +38,7 @@ type AttentionControllerOptions = Readonly<{
 
 export class AttentionSessionController {
   readonly #clock: () => Date
+  readonly #flash: AttentionFlashAdapter | null
   readonly #idGenerator: () => string
   readonly #pulseIntervalMs: number
   readonly #sound: AttentionSoundAdapter | null
@@ -46,17 +50,19 @@ export class AttentionSessionController {
     options: AttentionControllerOptions = {},
   ) {
     this.#clock = options.clock ?? (() => new Date())
+    this.#flash = options.flash ?? null
     this.#idGenerator = options.idGenerator ?? Crypto.randomUUID
     this.#pulseIntervalMs = options.pulseIntervalMs ?? 1_500
     this.#sound = options.sound ?? null
   }
 
-  async probeChannels(): Promise<Readonly<{ haptics: boolean; sound: boolean }>> {
-    const [haptics, sound] = await Promise.all([
+  async probeChannels(): Promise<Readonly<{ flash: boolean; haptics: boolean; sound: boolean }>> {
+    const [haptics, sound, flash] = await Promise.all([
       this.haptics.probe().catch(() => false),
       this.#sound?.probe().catch(() => false) ?? Promise.resolve(false),
+      this.#flash?.probe().catch(() => false) ?? Promise.resolve(false),
     ])
-    return { haptics, sound }
+    return { flash, haptics, sound }
   }
 
   getActiveSession(): AttentionSessionSnapshot | null {
@@ -95,15 +101,20 @@ export class AttentionSessionController {
     const available = await this.probeChannels()
     let soundStarted = false
     let vibrationStarted = false
+    let flashStarted = false
     if (available.sound && this.#sound !== null) soundStarted = await this.#sound.start()
     if (argumentsValue.vibrate && available.haptics) vibrationStarted = await this.haptics.pulse()
-    if (!soundStarted && !vibrationStarted) {
+    if (argumentsValue.flash && available.flash && this.#flash !== null) {
+      flashStarted = await this.#flash.enable()
+    }
+    if (!soundStarted && !vibrationStarted && !flashStarted) {
       throw new ToolExecutionError('unavailable', '设备没有可执行的 attention channel', false)
     }
     if (signal.aborted || this.#isExpired(commandExpiresAt)) {
       await Promise.allSettled([
         soundStarted ? this.#sound?.stop() : Promise.resolve(),
         vibrationStarted ? this.haptics.cancel() : Promise.resolve(),
+        flashStarted ? this.#flash?.disable() : Promise.resolve(),
       ])
       throwIfSignalAborted(signal)
       this.#throwIfExpired(commandExpiresAt)
@@ -136,6 +147,7 @@ export class AttentionSessionController {
       abortSignal: signal,
       callerSubjectId,
       expiresAt,
+      flashStarted,
       interval,
       sessionId,
       soundStarted,
@@ -146,10 +158,12 @@ export class AttentionSessionController {
 
     return {
       channels: {
-        flash: {
-          reason: argumentsValue.flash ? 'flash_not_implemented' : 'not_requested',
-          status: 'unavailable',
-        },
+        flash: flashStarted
+          ? { status: 'requested' }
+          : {
+              reason: argumentsValue.flash ? 'flash_unavailable' : 'not_requested',
+              status: 'unavailable',
+            },
         sound: soundStarted
           ? { status: 'requested' }
           : { reason: 'sound_unavailable', status: 'unavailable' },
@@ -175,6 +189,7 @@ export class AttentionSessionController {
     await Promise.allSettled([
       active.soundStarted ? this.#sound?.stop() : Promise.resolve(),
       active.vibrationStarted ? this.haptics.cancel() : Promise.resolve(),
+      active.flashStarted ? this.#flash?.disable() : Promise.resolve(),
     ])
     return { sessionId: active.sessionId, status: 'stopped' }
   }
