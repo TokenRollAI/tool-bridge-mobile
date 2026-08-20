@@ -124,7 +124,9 @@ e2e/
 | 设备状态 | `expo-device`、`expo-battery`、`expo-network` | capability/status 的最小状态 |
 | 后台回调 | `expo-task-manager` | push/background callback 编排 |
 | schema | `zod` | 与 Tool Bridge 现有技术栈一致 |
-| attention haptic | 本地 Expo Module `tool-bridge-attention` | Expo/RN 公共 API 无硬件 probe；仅封装 hasVibrator/CoreHaptics 与单次 pulse |
+| attention haptic / flash | 本地 Expo Module `tool-bridge-attention` | Expo/RN 公共 API 无硬件 probe；仅封装 hasVibrator/CoreHaptics 与单次 pulse，以及 torch 探测与开关 |
+| 界面图标 | `@expo/vector-icons` `15.1.1` | 经 `src/ui/components/Icon.tsx` 语义层集中映射 Ionicons glyph |
+| 图标字体加载 | `expo-font` `57.0.1` | `@expo/vector-icons` 声明的原生 peer，必须由 App 直接安装 |
 
 `@tool-bridge/sdk` 由 Tool Bridge 上游同仓维护，0.11.0 首次提供正式 `/device` export；已有依赖没有
 官方 device frame/session 状态机，移动仓库也不得复制 `@tool-bridge/core` 私有源码。包根仍有 Node
@@ -143,6 +145,11 @@ Android/iOS Metro 也必须实际 bundle。package 级 Node engine 由本仓库�
 和超过 2 小时的媒体。不使用 URL 后缀猜测类型。对象 TTL 仍等待上游 `objectRef` 契约。
 `expo-asset` 是 `expo-audio` 声明的 native peer，必须由 App 直接安装，不能依赖 pnpm 的传递安装；
 版本按 Expo SDK 57 的 `bundledNativeModules.json` 精确锁定。
+
+`expo-font` 同理是 `@expo/vector-icons` 声明的 native peer。它属于必须直接安装的原生依赖，缺失时
+`expo-doctor` 报 `Missing peer dependency` 且 App 在 Expo Go 之外可能崩溃，因此以精确版本直接列入
+依赖。不注册它的 config plugin：该 plugin 只用于把自定义字体文件嵌入原生工程，而本仓库只用
+`@expo/vector-icons` 自带的运行时加载字体。`verify:doctor` 守住这条线。
 
 `expo-file-system` 同样由 Expo 维护并与 SDK 57 同步发布，覆盖 Android/iOS App 私有目录和流式文件
 handle。媒体 resolver 的生产代码直接 import 它，因此即使它曾由其他 Expo 包传递安装，也必须作为
