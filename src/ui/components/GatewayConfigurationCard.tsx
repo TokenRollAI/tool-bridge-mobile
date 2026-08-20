@@ -4,7 +4,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
-import { colors } from '@/ui/theme'
+import { colors, radius, spacing } from '@/ui/theme'
 
 import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
 
@@ -137,9 +137,9 @@ export function GatewayConfigurationCard({
         accessibilityHint="先停止旧连接，再把 API key 写入系统安全存储并连接这个 Gateway"
         busy={isBusy}
         disabled={displayedOrigin.trim() === '' || apiKey === ''}
+        icon="connection"
         label="保存 Gateway URL 和 API key 并连接"
         onPress={() => { void save() }}
-        style={styles.saveButton}
         visualLabel={isBusy ? '正在保存…' : '保存并连接'}
       />
 
@@ -156,16 +156,18 @@ export function GatewayConfigurationCard({
               busy={isBusy}
               label="取消清除网关连接配置"
               onPress={() => { setConfirmingClear(false) }}
-              style={styles.secondaryButton}
-              textStyle={styles.secondaryButtonText}
+              style={styles.flexButton}
+              variant="secondary"
               visualLabel="取消"
             />
             <AccessibleAction
               accessibilityHint="停止连接并删除系统安全存储中的 API key"
               busy={isBusy}
+              icon="trash"
               label="确认清除网关连接配置"
               onPress={() => { void clear() }}
-              style={styles.clearButton}
+              style={styles.flexButton}
+              variant="danger"
               visualLabel={isBusy ? '正在清除…' : '确认清除'}
             />
           </View>
@@ -179,8 +181,7 @@ export function GatewayConfigurationCard({
             setFeedback(null)
             setConfirmingClear(true)
           }}
-          style={styles.secondaryButton}
-          textStyle={styles.secondaryButtonText}
+          variant="secondary"
         />
       )}
 
@@ -193,24 +194,20 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing.md,
   },
   body: {
     color: colors.muted,
     fontSize: 14,
     lineHeight: 21,
   },
-  clearButton: {
-    backgroundColor: colors.danger,
-    borderRadius: 12,
-    flex: 1,
-  },
   confirmation: {
+    backgroundColor: colors.panelElevated,
     borderColor: colors.danger,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    gap: 12,
-    padding: 12,
+    gap: spacing.md,
+    padding: spacing.md,
   },
   confirmationTitle: {
     color: colors.text,
@@ -222,14 +219,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  flexButton: {
+    flexBasis: 120,
+    flexGrow: 1,
+  },
   hint: {
     color: colors.muted,
     fontSize: 12,
     lineHeight: 18,
   },
   input: {
+    backgroundColor: colors.panelElevated,
     borderColor: colors.outline,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     color: colors.text,
     fontSize: 16,
@@ -241,18 +243,5 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
-  },
-  saveButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-  },
-  secondaryButton: {
-    borderColor: colors.outline,
-    borderRadius: 12,
-    borderWidth: 1,
-    flex: 1,
-  },
-  secondaryButtonText: {
-    color: colors.text,
   },
 })

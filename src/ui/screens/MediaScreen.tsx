@@ -1,10 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
-import { AccessibleAction } from '@/ui/components/AccessibleAction'
+import { AccessibleAction, type ActionVariant } from '@/ui/components/AccessibleAction'
+import { Icon, type IconName } from '@/ui/components/Icon'
 import { Screen } from '@/ui/components/Screen'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
-import { colors } from '@/ui/theme'
+import { colors, radius, spacing } from '@/ui/theme'
 
 import type { MediaSessionSnapshot } from '@/capabilities/media/controller'
 
@@ -35,9 +36,12 @@ export function MediaScreen({
       title="媒体"
     >
       {session === null ? (
-        <Text style={styles.empty}>暂无 App 自有媒体会话。</Text>
+        <View style={styles.emptyCard}>
+          <Icon color={colors.muted} name="media" size={28} />
+          <Text style={styles.empty}>暂无 App 自有媒体会话。</Text>
+        </View>
       ) : (
-        <StatusCard title={session.title}>
+        <StatusCard icon="media" title={session.title}>
           <StatusRow label="调用方" value={session.callerSubjectId} />
           <StatusRow label="来源" value={session.sourceHost} />
           <StatusRow label="状态" value={session.state} />
@@ -50,12 +54,14 @@ export function MediaScreen({
           <View style={styles.actions}>
             {session.state === 'playing' || session.state === 'loading' ? (
               <Action
+                icon="pause"
                 label="暂停当前媒体会话"
                 onPress={() => onPause(session.sessionId)}
                 visualLabel="暂停"
               />
             ) : session.state === 'paused' || session.state === 'interrupted' ? (
               <Action
+                icon="resume"
                 label="继续当前媒体会话"
                 onPress={() => onResume(session.sessionId)}
                 visualLabel="继续"
@@ -63,8 +69,10 @@ export function MediaScreen({
             ) : null}
             {session.state === 'stopped' || session.state === 'failed' ? null : (
               <Action
+                icon="stop"
                 label="停止当前媒体会话"
                 onPress={() => onStop(session.sessionId)}
+                variant="secondary"
                 visualLabel="停止"
               />
             )}
@@ -76,16 +84,26 @@ export function MediaScreen({
 }
 
 function Action({
+  icon,
   label,
   onPress,
+  variant = 'primary',
   visualLabel,
-}: Readonly<{ label: string; onPress(): void; visualLabel: string }>) {
+}: Readonly<{
+  icon: IconName
+  label: string
+  onPress(): void
+  variant?: ActionVariant
+  visualLabel: string
+}>) {
   return (
     <AccessibleAction
       accessibilityHint="控制当前由 Tool Bridge App 自有播放器管理的会话"
+      icon={icon}
       label={label}
       onPress={onPress}
       style={styles.action}
+      variant={variant}
       visualLabel={visualLabel}
     />
   )
@@ -93,16 +111,27 @@ function Action({
 
 const styles = StyleSheet.create({
   action: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    flex: 1,
+    flexBasis: 120,
+    flexGrow: 1,
   },
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing.md,
   },
   empty: {
     color: colors.muted,
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  emptyCard: {
+    alignItems: 'center',
+    backgroundColor: colors.panel,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxl,
   },
 })

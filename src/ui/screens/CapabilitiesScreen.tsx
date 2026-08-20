@@ -1,9 +1,10 @@
-import { StyleSheet, Text } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
+import { Icon } from '@/ui/components/Icon'
 import { Screen } from '@/ui/components/Screen'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
-import { colors } from '@/ui/theme'
+import { colors, radius, spacing } from '@/ui/theme'
 
 import type { CapabilitySnapshot } from '@/capabilities/types'
 
@@ -29,8 +30,9 @@ export function CapabilitiesScreen({
     >
       {capabilities.map(({ availability, descriptor }) => {
         const capability = `${descriptor.path}.${descriptor.tool}`
+        const available = availability.status === 'available'
         return (
-          <StatusCard key={capability} title={capability}>
+          <StatusCard icon={available ? 'positive' : 'warning'} key={capability} title={capability}>
             <Text style={styles.description}>{descriptor.description}</Text>
             <StatusRow
               label="effect / risk"
@@ -39,14 +41,19 @@ export function CapabilitiesScreen({
             <StatusRow label="确认" value={descriptor.confirmation} />
             <StatusRow
               label="availability"
-              value={availability.status === 'available'
+              value={available
                 ? 'available'
                 : `${availability.status}: ${availability.reason}`}
             />
           </StatusCard>
         )
       })}
-      {capabilities.length === 0 ? <Text style={styles.empty}>运行时尚未完成能力探测。</Text> : null}
+      {capabilities.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Icon color={colors.warning} name="warning" size={28} />
+          <Text style={styles.empty}>运行时尚未完成能力探测。</Text>
+        </View>
+      ) : null}
     </Screen>
   )
 }
@@ -58,5 +65,17 @@ const styles = StyleSheet.create({
   },
   empty: {
     color: colors.warning,
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  emptyCard: {
+    alignItems: 'center',
+    backgroundColor: colors.panel,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxl,
   },
 })

@@ -6,9 +6,10 @@ import {
   useDiscreteAccessibilityAnnouncement,
 } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
+import { Icon } from '@/ui/components/Icon'
 import { Screen } from '@/ui/components/Screen'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
-import { colors } from '@/ui/theme'
+import { colors, radius, spacing } from '@/ui/theme'
 
 import type { AuditRecord } from '@/audit/types'
 import type { Pressable, Text as NativeText } from 'react-native'
@@ -66,28 +67,41 @@ export function ActivityScreen({
       focused={focused}
       title="活动"
     >
-      {records.map(record => (
-        <StatusCard key={record.id} title={`${record.path}.${record.tool}`}>
-          <StatusRow label="来源" value={record.callerSubjectId} />
-          <StatusRow label="时间" value={record.occurredAt} />
-          <StatusRow label="影响" value={record.effect} />
-          <StatusRow label="风险" value={record.risk} />
-          <StatusRow label="决策" value={record.decision} />
-          <StatusRow label="结果" value={record.outcomeCode} />
-        </StatusCard>
-      ))}
-      {records.length === 0 ? <Text style={styles.empty}>暂无远程调用记录。</Text> : null}
+      {records.map(record => {
+        const allowed = record.decision === 'allowed'
+        return (
+          <StatusCard
+            icon={allowed ? 'positive' : 'danger'}
+            key={record.id}
+            title={`${record.path}.${record.tool}`}
+          >
+            <StatusRow label="来源" value={record.callerSubjectId} />
+            <StatusRow label="时间" value={record.occurredAt} />
+            <StatusRow label="影响" value={record.effect} />
+            <StatusRow label="风险" value={record.risk} />
+            <StatusRow label="决策" value={record.decision} />
+            <StatusRow label="结果" value={record.outcomeCode} />
+          </StatusCard>
+        )
+      })}
+      {records.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Icon color={colors.muted} name="activity" size={28} />
+          <Text style={styles.empty}>暂无远程调用记录。</Text>
+        </View>
+      ) : null}
 
       {!confirmingClear ? (
         <AccessibleAction
           accessibilityHint="先显示不可恢复操作的范围确认，不会立即删除"
+          icon="trash"
           label="清除本机活动历史"
           onPress={() => {
             setFeedback(null)
             setConfirmingClear(true)
           }}
           ref={clearTriggerRef}
-          style={styles.clearButton}
+          variant="danger"
         />
       ) : (
         <View style={styles.confirmation}>
@@ -109,16 +123,18 @@ export function ActivityScreen({
                 setConfirmingClear(false)
                 setFeedback(null)
               }}
-              style={styles.secondaryButton}
-              textStyle={styles.secondaryButtonText}
+              style={styles.flexButton}
+              variant="secondary"
               visualLabel="取消"
             />
             <AccessibleAction
               accessibilityHint="不可恢复地删除当前本机活动审计"
               busy={isClearing}
+              icon="trash"
               label="确认清除活动历史"
               onPress={() => { void confirmClear() }}
-              style={[styles.clearButton, isClearing ? styles.disabledButton : null]}
+              style={styles.flexButton}
+              variant="danger"
               visualLabel={isClearing ? '正在清除…' : '确认清除'}
             />
           </View>
@@ -133,48 +149,55 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing.md,
   },
   body: {
     color: colors.muted,
     fontSize: 15,
     lineHeight: 22,
   },
-  clearButton: {
-    backgroundColor: colors.danger,
-    borderRadius: 12,
-    flex: 1,
-  },
   confirmation: {
     backgroundColor: colors.panel,
     borderColor: colors.danger,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    gap: 14,
-    padding: 16,
+    gap: spacing.md,
+    padding: spacing.lg,
   },
   confirmationTitle: {
     color: colors.text,
     fontSize: 18,
     fontWeight: '800',
   },
-  disabledButton: {
-    opacity: 0.5,
-  },
   empty: {
     color: colors.muted,
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  emptyCard: {
+    alignItems: 'center',
+    backgroundColor: colors.panel,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxl,
   },
   feedback: {
+    backgroundColor: colors.panel,
+    borderColor: colors.warning,
+    borderRadius: radius.md,
+    borderWidth: 1,
     color: colors.warning,
     fontSize: 14,
+    lineHeight: 20,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
-  secondaryButton: {
-    borderColor: colors.outline,
-    borderRadius: 12,
-    borderWidth: 1,
-    flex: 1,
-  },
-  secondaryButtonText: {
-    color: colors.text,
+  flexButton: {
+    flexBasis: 120,
+    flexGrow: 1,
   },
 })
