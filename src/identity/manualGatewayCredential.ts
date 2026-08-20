@@ -1,3 +1,5 @@
+import { normalizeDeviceId } from './deviceIdentity'
+
 import type { DeviceCredentialEnvelope } from './deviceCredentialStore'
 
 const INSTALLATION_ID_PATTERN = /^installation_([0-9a-f-]{36})$/
@@ -5,7 +7,13 @@ const PRINTABLE_ASCII_WITHOUT_SPACE = /^[\x21-\x7e]+$/
 
 export type ManualGatewayConfigurationInput = Readonly<{
   apiKey: string
+  deviceId?: string
   origin: string
+}>
+
+export type ManualGatewayIdentity = Readonly<{
+  defaultDeviceId: string
+  installationId: string
 }>
 
 export function normalizeManualGatewayOrigin(value: string): string {
@@ -41,16 +49,21 @@ function validateManualApiKey(value: string): string {
 
 export function createManualGatewayCredential(
   input: ManualGatewayConfigurationInput,
-  installationId: string,
+  identity: ManualGatewayIdentity,
 ): DeviceCredentialEnvelope {
-  const installationMatch = INSTALLATION_ID_PATTERN.exec(installationId)
+  const installationMatch = INSTALLATION_ID_PATTERN.exec(identity.installationId)
   if (installationMatch === null) throw new Error('installationId 格式无效')
   const installationUuid = installationMatch[1]
   if (installationUuid === undefined) throw new Error('installationId 格式无效')
 
+  const customDeviceId = input.deviceId?.trim() ?? ''
+  const deviceId = customDeviceId === ''
+    ? normalizeDeviceId(identity.defaultDeviceId)
+    : normalizeDeviceId(customDeviceId)
+
   return {
     audienceOrigin: normalizeManualGatewayOrigin(input.origin),
-    deviceId: `mobile_${installationUuid}`,
+    deviceId,
     keyId: `manual_api_key_${installationUuid}`,
     material: validateManualApiKey(input.apiKey),
     version: 1,

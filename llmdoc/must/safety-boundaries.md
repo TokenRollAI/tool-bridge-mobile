@@ -24,7 +24,8 @@
   拒绝都 fail closed。
 - 手工 URL/API key fallback 保存时必须先停止旧 transport，再写 SecureStore、连接新 audience；清除时
   必须先停 transport 再删 key。存储结果未知时保持关闭，不得重新使用旧 secret。
-- 手工派生的 `mobile_<uuid>` 只是客户端 SDK deviceId，`manual_api_key_<uuid>` 只是 gateway principal；
+- 手工模式的客户端 SDK deviceId（硬件标识单向摘要派生或用户自定义）只是路由标识，
+  `manual_api_key_<uuid>` 只是 gateway principal；
   两者不能冒充网关签发身份、具体 Agent caller、最小权限、rotation 或 revoke。
 - SDK call 未携带具体 caller/deadline 时，只能归因为 gateway credential principal，并生成更短本地
   commit deadline；不得把 credential keyId 冒充 Agent 身份或把本地时间冒充 gateway deadline。

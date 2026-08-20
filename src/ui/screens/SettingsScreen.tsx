@@ -136,6 +136,7 @@ export function SettingsScreen({
 
           <GatewayConfigurationCard
             currentOrigin={snapshot.gatewayOrigin}
+            defaultDeviceId={snapshot.defaultDeviceId}
             onClear={onClearGatewayConfiguration}
             onSave={onSaveGatewayConfiguration}
           />

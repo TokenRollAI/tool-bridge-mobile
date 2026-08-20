@@ -75,8 +75,8 @@ dependency audit 仍保持未完成。
 - [ ] 撤销配对后 realtime/mailbox 都失效；
 - [x] 重启/crash 后 command 状态可恢复。
 
-这里的 identity 是 SecureStore 中的本地 `installationId`；手工内测模式派生的 `mobile_<uuid>` 只是
-客户端声明的 SDK deviceId，不是网关签发身份。credential 勾选项代表 opaque credential facade 与手工
+这里的 identity 是 SecureStore 中的本地 `installationId`；手工内测模式的客户端 SDK deviceId 默认由
+设备硬件标识经单向摘要派生（或由用户自定义），不是网关签发身份。credential 勾选项代表 opaque credential facade 与手工
 API key 只使用 SecureStore，当前仍无 pairing 签发凭证。前台 realtime
 勾选项证明 `@tool-bridge/sdk/device@0.11.0` 的 RN header、hello/ready/call/result、cancel 与 AppState
 suspend/resume 已接到本地 executor，并通过 fake WebSocket contract 和双端 Metro；它不证明真实 gateway、

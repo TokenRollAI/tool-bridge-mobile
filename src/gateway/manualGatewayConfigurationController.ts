@@ -11,12 +11,16 @@ export class ManualGatewayConfigurationController {
   constructor(private readonly dependencies: Readonly<{
     buildGatewayOrigin: string | null
     credentialStore: DeviceCredentialStore
+    defaultDeviceId: string
     installationId: string
     transport: ReconfigurableTransport
   }>) {}
 
   async save(input: ManualGatewayConfigurationInput): Promise<string> {
-    const credential = createManualGatewayCredential(input, this.dependencies.installationId)
+    const credential = createManualGatewayCredential(input, {
+      defaultDeviceId: this.dependencies.defaultDeviceId,
+      installationId: this.dependencies.installationId,
+    })
     await this.dependencies.transport.updateConfiguration(null)
     try {
       await this.dependencies.credentialStore.save(credential)

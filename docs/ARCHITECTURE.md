@@ -18,8 +18,10 @@ Expo Router UI
 
 具体事实：
 
-- `installationId` 由 SecureStore 保存，只是本地安装标识；手工 API key 内测模式从中派生
-  `mobile_<uuid>` 作为客户端声明的 SDK `deviceId`，明确不冒充网关签发身份；
+- `installationId` 由 SecureStore 保存，只是本地安装标识；手工 API key 内测模式的 SDK `deviceId`
+  默认由设备硬件标识（Android ID / iOS IDFV）经单向摘要派生为稳定短 ID（硬件标识不可用时回退
+  `installationId` 派生），也可由用户自定义，明确不冒充网关签发身份；设备声明挂载到
+  `device/phone/<deviceId>`，本地 capability 仍以 `phone/*` 为规范命名空间，在 wire 边界双向转换；
 - SQLite schema version 2 保存 control mode、command intent/终态、审计元数据与非敏感 timer 状态；
 - opaque device credential envelope 只由 SecureStore facade 保存，不进入 SQLite；本地撤销协调器先
   复用 runtime emergency disable，再以有界超时停止 realtime/mailbox adapter，最终清除凭证；
@@ -171,8 +173,9 @@ TypeScript interface 暴露；平台差异保留为结构化 availability 和 re
 - `keyId`：设备凭证标识，可轮换和撤销；
 - 平台硬件序列号不进入协议。
 
-当前手工内测模式不是上述目标身份模型：它从随机 `installationId` 派生 `mobile_<uuid>` 作为客户端
-deviceId，并用本地固定前缀的 `manual_api_key_<uuid>` 作为 gateway principal。两者只提供稳定路由与
+当前手工内测模式不是上述目标身份模型：客户端 deviceId 默认从设备硬件标识经单向摘要派生（原始
+硬件标识不进入协议，只有截断摘要），或由用户自定义；gateway principal 是本地固定前缀的
+`manual_api_key_<uuid>`。两者只提供稳定路由与
 本地归因，不证明网关签发、具体 Agent 身份、最小权限或可撤销性。
 
 ### 3.2 配对流程（新增）

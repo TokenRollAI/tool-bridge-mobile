@@ -10,6 +10,7 @@ import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCr
 
 type GatewayConfigurationCardProps = Readonly<{
   currentOrigin: string | null
+  defaultDeviceId: string | null
   onClear(): Promise<void>
   onSave(input: ManualGatewayConfigurationInput): Promise<void>
 }>
@@ -20,11 +21,13 @@ function safeFeedback(error: unknown, fallback: string): string {
 
 export function GatewayConfigurationCard({
   currentOrigin,
+  defaultDeviceId,
   onClear,
   onSave,
 }: GatewayConfigurationCardProps) {
   const [apiKey, setApiKey] = useState('')
   const [confirmingClear, setConfirmingClear] = useState(false)
+  const [deviceIdInput, setDeviceIdInput] = useState('')
   const [feedback, setFeedback] = useState<string | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [originDirty, setOriginDirty] = useState(false)
@@ -42,7 +45,12 @@ export function GatewayConfigurationCard({
     setIsBusy(true)
     setFeedback(null)
     try {
-      await onSave({ apiKey, origin: displayedOrigin })
+      const customDeviceId = deviceIdInput.trim()
+      await onSave({
+        apiKey,
+        origin: displayedOrigin,
+        ...(customDeviceId === '' ? {} : { deviceId: customDeviceId }),
+      })
       setApiKey('')
       setOriginDirty(false)
       setFeedback('连接配置已保存；App 会在前台通过官方 SDK 建立连接。')
@@ -108,6 +116,23 @@ export function GatewayConfigurationCard({
         style={styles.input}
         value={apiKey}
       />
+      <Text style={styles.label}>设备 ID（可选）</Text>
+      <TextInput
+        accessibilityHint="留空时使用由本机硬件标识派生的稳定默认值；挂载路径为 device/phone/设备ID"
+        accessibilityLabel="自定义设备 ID"
+        autoCapitalize="none"
+        autoCorrect={false}
+        editable={!isBusy}
+        onChangeText={setDeviceIdInput}
+        placeholder={defaultDeviceId === null ? '留空使用默认设备 ID' : `留空使用默认 ${defaultDeviceId}`}
+        placeholderTextColor={colors.muted}
+        spellCheck={false}
+        style={styles.input}
+        value={deviceIdInput}
+      />
+      <Text style={styles.hint}>
+        只能包含字母、数字、“.”、“_”或“-”，最长 64 个字符；设备将挂载到 device/phone/设备ID。
+      </Text>
       <AccessibleAction
         accessibilityHint="先停止旧连接，再把 API key 写入系统安全存储并连接这个 Gateway"
         busy={isBusy}
@@ -196,6 +221,11 @@ const styles = StyleSheet.create({
     color: colors.warning,
     fontSize: 14,
     lineHeight: 20,
+  },
+  hint: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   input: {
     borderColor: colors.outline,

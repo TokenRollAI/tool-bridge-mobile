@@ -22,6 +22,9 @@
 - 使用 RN WebSocket 第三个参数注入 Authorization，secret 不进 URL；
 - 用本地 registry 生成官方 `DeviceExpose.nodes[].cmds[]`，每个 command 同时包含 input/output schema；
   静态不可配置的 path 仍以空 `cmds` node 发送来尝试覆盖旧注册，不复制/扩展 frame；
+- hello 中声明 `mountPath: device/phone/<deviceId>`；expose node path 去掉本地 `phone/` 前缀，网关
+  下发的相对 call path 在进入 executor 前补回前缀（旧格式绝对路径兼容），本地 `phone/*` 规范命名
+  空间、SQLite 与审计格式不变；
 - active + enabled 时连接/resume，background/inactive/Disabled 时 suspend；
 - 只有 SDK `ready` 映射为 `reachability: online`；
 - 在交给 SDK 的 raw WebSocket factory 外采集脱敏失败分类、阶段与 close code，不复制 SDK 协议状态机；

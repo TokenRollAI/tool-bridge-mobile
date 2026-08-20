@@ -122,8 +122,9 @@ executor 只保留活动命令的安全元数据，不保留 arguments。`runtim
 - opaque credential envelope 只由 SecureStore facade 管理；其结构不是上游 credential wire 契约。手工
   API key 不进入 SQLite、日志、审计、源码或 `EXPO_PUBLIC_*`；手工 credential 的 audience 优先于可选
   的非秘密 build origin。
-- 手工配置从随机 installation UUID 派生 `mobile_<uuid>` SDK deviceId 与
-  `manual_api_key_<uuid>` gateway principal。两者都是客户端声明值，不是网关签发身份或具体 Agent caller。
+- 手工配置的 SDK deviceId 默认由设备硬件标识（Android ID / iOS IDFV）经加盐 SHA-256 截断派生为
+  12 位短 ID（硬件不可用时回退 installation UUID 派生），或由用户自定义（`[A-Za-z0-9._-]{1,64}`）；
+  gateway principal 仍是 `manual_api_key_<uuid>`。两者都是客户端声明值，不是网关签发身份或具体 Agent caller。
 - confirmation coordinator 不持久化完整参数，也不等同于上游 mailbox 的 `awaiting_user` 状态。
 - 确认 modal 的 accessibility announcement 只包含待处理数量；调用参数和 capability detail 不进入公告。
 
