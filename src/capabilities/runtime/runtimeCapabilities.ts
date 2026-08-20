@@ -1,3 +1,5 @@
+import { ToolExecutionError } from '@/capabilities/types'
+
 import {
   runtimeCancelArgumentsSchema,
   runtimeCancelResultSchema,
@@ -15,11 +17,13 @@ import type {
 import type { CapabilityRegistry } from '@/capabilities/registry'
 import type { MobileCapability } from '@/capabilities/types'
 import type { LocalConfirmationCoordinator } from '@/policy/localConfirmationCoordinator'
+import type { PolicyEngine } from '@/policy/policyEngine'
 import type { LocalCommandExecutor } from '@/runtime/localCommandExecutor'
 
 type RuntimeCapabilityDependencies = Readonly<{
   confirmationCoordinator: Pick<LocalConfirmationCoordinator, 'getPending'>
   executor: Pick<LocalCommandExecutor, 'cancelForCaller' | 'listActiveForCaller'>
+  policyEngine: Pick<PolicyEngine, 'authorize'>
   registry: CapabilityRegistry
 }>
 
@@ -49,6 +53,12 @@ export function createRuntimeCapabilitiesCapability(
         confirmation: item.descriptor.confirmation,
         description: item.descriptor.description,
         effect: item.descriptor.effect,
+        // 用当前 controlMode 走一次未授权 authorize：结果为 awaiting_user 即本地会要求确认。
+        // reject/allow 都不触发确认提示，因此统一投影为 not_required。
+        effectiveConfirmation:
+          dependencies.policyEngine.authorize(item.descriptor, context).kind === 'awaiting_user'
+            ? 'required' as const
+            : 'not_required' as const,
         path: item.descriptor.path,
         risk: item.descriptor.risk,
         tool: item.descriptor.tool,
@@ -76,24 +86,34 @@ export function createRuntimePendingCommandsCapability(
       tool: 'pending_commands',
     },
     execute: async (_argumentsValue, _context, invocation) => {
-      const awaitingUser = new Set(
-        dependencies.confirmationCoordinator.getPending()
-          .filter(item => item.callerSubjectId === invocation.caller.subjectId)
-          .map(item => item.commandId),
-      )
-      return {
-        commands: dependencies.executor.listActiveForCaller(
-          invocation.caller.subjectId,
-          invocation.commandId,
-        ).map(command => ({
-          commandId: command.commandId,
-          createdAt: command.createdAt,
-          expiresAt: command.expiresAt,
-          path: command.path,
-          state: awaitingUser.has(command.commandId) ? 'awaiting_user' as const : 'active' as const,
-          tool: command.tool,
-        })),
-        identityScope: 'gateway_credential_principal' as const,
+      // 只读元数据聚合，本不应抛错；一旦底层集合读取异常，用带专属 code 的 ToolExecutionError 归一，
+      // 让调用方在网关侧看到可区分的 runtime_pending_read_failed，而不是黑盒的通用 internal。
+      try {
+        const awaitingUser = new Set(
+          dependencies.confirmationCoordinator.getPending()
+            .filter(item => item.callerSubjectId === invocation.caller.subjectId)
+            .map(item => item.commandId),
+        )
+        return {
+          commands: dependencies.executor.listActiveForCaller(
+            invocation.caller.subjectId,
+            invocation.commandId,
+          ).map(command => ({
+            commandId: command.commandId,
+            createdAt: command.createdAt,
+            expiresAt: command.expiresAt,
+            path: command.path,
+            state: awaitingUser.has(command.commandId) ? 'awaiting_user' as const : 'active' as const,
+            tool: command.tool,
+          })),
+          identityScope: 'gateway_credential_principal' as const,
+        }
+      } catch {
+        throw new ToolExecutionError(
+          'runtime_pending_read_failed',
+          '读取在途命令元数据失败',
+          true,
+        )
       }
     },
     inputSchema: runtimeEmptyArgumentsSchema,

@@ -103,6 +103,7 @@ const permissionErrorCodes = new Set([
 
 const unavailableErrorCodes = new Set([
   'cancelled',
+  'runtime_pending_read_failed',
   'expired',
   'linking_probe_timeout',
   'media_fetch_failed',
