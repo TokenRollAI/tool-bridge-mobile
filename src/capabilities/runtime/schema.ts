@@ -19,9 +19,14 @@ const availabilitySchema = z.discriminatedUnion('status', [
 export const runtimeCapabilitiesResultSchema = z.strictObject({
   capabilities: z.array(z.strictObject({
     availability: availabilitySchema,
+    // 能力自身声明的静态确认策略；仅是内在元数据，不代表当前控制模式下的实际行为。
     confirmation: z.enum(['always', 'never', 'when_locked']),
     description: z.string(),
     effect: z.enum(['read', 'write', 'destructive']),
+    // 当前控制模式下的“有效确认策略”：required 表示此刻调用会触发本地确认，
+    // not_required 表示不会。由同一个 PolicyEngine 裁决得出，与 SDK expose 的 confirm 提示同源，
+    // 让 Agent 无需综合 confirmation/effect/risk/controlMode 自行推断。
+    effectiveConfirmation: z.enum(['required', 'not_required']),
     path: z.string(),
     risk: z.enum(['low', 'medium', 'high']),
     tool: z.string(),

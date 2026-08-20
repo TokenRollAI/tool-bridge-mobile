@@ -190,7 +190,18 @@ export class ApplicationRuntime {
   async executeLocalCommand(command: unknown, signal: AbortSignal): Promise<CommandOutcome> {
     if (this.#localCommandExecutor === null) throw new Error('运行时尚未初始化')
     const outcome = await this.#localCommandExecutor.execute(command, signal)
-    await this.refresh()
+    // outcome 已是 executor 归一化的结果（成功或结构化失败）。刷新只更新本地 UI 快照，
+    // 属于 executor 之外的副产物；它若抛错绝不能把命令 handler 变成裸 rejection——那会让网关只看到
+    // 黑盒的 “device handler failed”，既隐藏真实 outcome，也让 Agent 无法判断命令是否已产生副作用。
+    try {
+      await this.refresh()
+    } catch {
+      // 保留已产出的 outcome，只把刷新失败作为本地 UI 提示，而不是丢给网关一个裸 handler rejection。
+      this.#publish({
+        ...this.#snapshot,
+        error: '命令已执行，但刷新本地状态失败；显示的活动/能力信息可能暂时过期。',
+      })
+    }
     return outcome
   }
 
@@ -495,6 +506,7 @@ export class ApplicationRuntime {
         void this.refresh()
       })
 
+      const policyEngine = new PolicyEngine()
       this.#localCommandExecutor = new LocalCommandExecutor({
         auditRepository: this.#auditRepository,
         commandRepository: this.#commandRepository,
@@ -503,12 +515,13 @@ export class ApplicationRuntime {
           if (this.#controlModeRepository === null) throw new Error('运行时尚未初始化')
           return this.#context(await this.#controlModeRepository.get())
         },
-        policyEngine: new PolicyEngine(),
+        policyEngine,
         registry: this.#registry,
       })
       const runtimeCapabilityDependencies = {
         confirmationCoordinator: this.#confirmationCoordinator,
         executor: this.#localCommandExecutor,
+        policyEngine,
         registry: this.#registry,
       }
       this.#registry.register(createRuntimeCapabilitiesCapability(runtimeCapabilityDependencies))

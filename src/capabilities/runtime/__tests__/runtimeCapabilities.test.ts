@@ -1,10 +1,14 @@
+import { z } from 'zod'
+
 import { CapabilityRegistry } from '@/capabilities/registry'
+import { PolicyEngine } from '@/policy/policyEngine'
 
 import {
   createRuntimeCancelCapability,
   createRuntimeCapabilitiesCapability,
   createRuntimePendingCommandsCapability,
 } from '../runtimeCapabilities'
+
 
 import type { CapabilityContext, CapabilityInvocation } from '@/capabilities/types'
 
@@ -31,6 +35,7 @@ describe('phone/runtime capabilities', () => {
         cancelForCaller: () => false,
         listActiveForCaller: () => [],
       },
+      policyEngine: new PolicyEngine(),
       registry,
     }
     const capability = createRuntimeCapabilitiesCapability(
@@ -46,12 +51,60 @@ describe('phone/runtime capabilities', () => {
           confirmation: 'never',
           description: capability.descriptor.description,
           effect: 'read',
+          effectiveConfirmation: 'not_required',
           path: 'phone/runtime',
           risk: 'low',
           tool: 'capabilities',
         }],
         observedAt: '2026-08-20T00:00:01.000Z',
       })
+  })
+
+  test('effectiveConfirmation 随控制模式反映实际确认，而非只回显 descriptor.confirmation', async () => {
+    // exec_shell 一类高特权工具 descriptor.confirmation 为 never，但在 ask_every_time 下仍会本地确认，
+    // 在 direct_call 下才真正免确认。effectiveConfirmation 必须表达这一点，与 SDK expose 的 confirm 同源。
+    const registry = new CapabilityRegistry()
+    registry.register({
+      descriptor: {
+        confirmation: 'never' as const,
+        description: 'privileged fixture',
+        effect: 'destructive' as const,
+        limits: { maxResultBytes: 1024, rate: { maxGlobal: 10, maxPerCaller: 5, windowSeconds: 60 } },
+        path: 'phone/system',
+        queuePolicy: 'reject_offline' as const,
+        risk: 'high' as const,
+        tool: 'exec_shell_fixture',
+      },
+      execute: async () => ({ ok: true }),
+      inputSchema: z.strictObject({}),
+      outputSchema: z.strictObject({ ok: z.boolean() }),
+      probe: async () => ({ status: 'available' }),
+    })
+    const capability = createRuntimeCapabilitiesCapability({
+      confirmationCoordinator: { getPending: () => [] },
+      executor: { cancelForCaller: () => false, listActiveForCaller: () => [] },
+      policyEngine: new PolicyEngine(),
+      registry,
+    }, () => new Date('2026-08-20T00:00:01.000Z'))
+
+    const asked = await capability.execute({}, context, invocation, new AbortController().signal)
+    expect(asked.capabilities).toContainEqual(expect.objectContaining({
+      confirmation: 'never',
+      effectiveConfirmation: 'required',
+      tool: 'exec_shell_fixture',
+    }))
+
+    const direct = await capability.execute(
+      {},
+      { ...context, controlMode: 'direct_call' },
+      invocation,
+      new AbortController().signal,
+    )
+    expect(direct.capabilities).toContainEqual(expect.objectContaining({
+      confirmation: 'never',
+      effectiveConfirmation: 'not_required',
+      tool: 'exec_shell_fixture',
+    }))
   })
 
   test('pending_commands 只返回当前 credential principal，并标识等待本地确认的命令', async () => {
@@ -90,6 +143,7 @@ describe('phone/runtime capabilities', () => {
         }],
       },
       executor: { cancelForCaller: () => false, listActiveForCaller },
+      policyEngine: new PolicyEngine(),
       registry: new CapabilityRegistry(),
     })
 
@@ -116,6 +170,7 @@ describe('phone/runtime capabilities', () => {
     const capability = createRuntimeCancelCapability({
       confirmationCoordinator: { getPending: () => [] },
       executor: { cancelForCaller, listActiveForCaller: () => [] },
+      policyEngine: new PolicyEngine(),
       registry: new CapabilityRegistry(),
     })
 
