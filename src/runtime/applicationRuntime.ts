@@ -18,6 +18,7 @@ import {
   createAttentionStopCapability,
 } from '@/capabilities/attention/attentionCapabilities'
 import { AttentionSessionController } from '@/capabilities/attention/controller'
+import { NativeAttentionFlashAdapter } from '@/capabilities/attention/flashAdapter'
 import { NativeAttentionHapticsAdapter } from '@/capabilities/attention/hapticsAdapter'
 import { ExpoAttentionSoundAdapter } from '@/capabilities/attention/soundAdapter'
 import { CurrentLocationController } from '@/capabilities/location/controller'
@@ -457,7 +458,10 @@ export class ApplicationRuntime {
       this.#registry.register(createOpenUrlCapability(appHandoffController))
       this.#attentionController = new AttentionSessionController(
         new NativeAttentionHapticsAdapter(),
-        { sound: new ExpoAttentionSoundAdapter() },
+        {
+          flash: new NativeAttentionFlashAdapter(),
+          sound: new ExpoAttentionSoundAdapter(),
+        },
       )
       this.#attentionController.subscribe(() => { void this.refresh() })
       this.#registry.register(createAttentionRingCapability(this.#attentionController))

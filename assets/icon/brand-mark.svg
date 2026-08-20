@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Tool Bridge 品牌标识（矢量源）。
+
+  形状按上游仓库 tool-bridge 根目录的 tool-bridge.png 位图逐行/逐列扫描测量重建：
+  坐标沿用该位图的 1254×1254 像素网格，viewBox 裁到标识实际包围盒 (103,441)-(1151,921)。
+  连线端点收在节点圆外缘之外，保证四个圆环的内孔在任何尺寸下都是干净的镂空。
+
+  笔画用 currentColor，同一份路径即可渲染深底/浅底/单色掩码三套图标。
+  修改此文件后运行 `pnpm icons:generate` 重新导出 assets/icon/*.png。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="103 441 1048 480" fill="none">
+  <g stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 上方主拱：两端截断在左右节点环带上，不侵入内孔 -->
+    <path d="M225 629C586 388 668 388 1029 629" />
+    <!-- 左侧桥面：下层水平段 + 直角台阶 + 上层微上弧 -->
+    <path d="M235 679H370V604C450 597 512 593 569 592" />
+    <!-- 右侧桥面（沿 x=627 镜像） -->
+    <path d="M1019 679H884V604C804 597 742 593 685 592" />
+    <!-- 中心节点到底部节点的竖向连杆 -->
+    <path d="M627 650V789" />
+    <!-- 四个节点圆环 -->
+    <circle cx="177" cy="662" r="58" />
+    <circle cx="1077" cy="662" r="58" />
+    <circle cx="627" cy="592" r="58" />
+    <circle cx="627" cy="847" r="58" />
+  </g>
+</svg>

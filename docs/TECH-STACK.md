@@ -227,7 +227,28 @@ P0 不引入大型全局状态框架。
 
 E2E 工具只负责驱动 UI；平台是否真正发声、振动、拍照和接收 push 仍需真机证据与运行日志。
 
-## 9. CI/CD
+## 9. 应用图标
+
+品牌形状只在 `assets/icon/brand-mark.svg` 一处维护，形状按上游 `tool-bridge` 仓库根目录的
+`tool-bridge.png` 逐行扫描测量重建，配色取 `src/ui/theme.ts` 的 `background` / `primary`，
+和应用内视觉同源。四份 PNG 由 `pnpm icons:generate` 从该 SVG 导出并提交进仓库：
+
+| 资源 | 用途 | 约束 |
+| --- | --- | --- |
+| `app-icon.png` 1024² | 通用与 iOS 应用图标 | 不透明；iOS 不接受 alpha |
+| `adaptive-icon.png` 1024² | Android 自适应图标前景层 | 透明底；背景色走 `adaptiveIcon.backgroundColor` |
+| `monochrome-icon.png` 1024² | Android 13+ 主题化图标 | 透明底；系统只读 alpha 并按壁纸取色 |
+| `favicon.png` 48² | `react-native-web` 页签 | 不透明；小尺寸下笔画显著加粗 |
+
+Android 自适应图标 108dp 画布中，系统保证不被任何厂商遮罩裁掉的只有居中 66dp 圆。标识宽扁
+（1048:480），要让墨迹包围盒的半对角落进该圆，宽度上限约为画布边长的 0.548，因此前景层看起来
+比 iOS 图标小一圈——这是换取任意遮罩下两端节点都不被切掉。
+
+导出依赖 `rsvg-convert`（macOS `brew install librsvg`），它不进 `package.json`，也不在 CI 执行；
+CI 跑的是 `pnpm verify:app-icons`，直接解析已提交 PNG 的尺寸、透明通道与上述安全区比例，并检查
+`app.config.ts` 的引用完整，避免图标悄悄退回 Expo 默认或破掉平台约束。
+
+## 10. CI/CD
 
 ### 每个 PR
 
@@ -285,7 +306,7 @@ tag 驱动的 GitHub Preview 发布，
 [2026-08-19 Android emulator smoke](verification/2026-08-19-android-emulator.md)。macOS CI 已有 iOS
 simulator 成功记录；它仍不能替代 iOS 真机、签名 archive 或商店包。
 
-## 10. 未选择的方案
+## 11. 未选择的方案
 
 ### Flutter
 
@@ -311,7 +332,7 @@ simulator 成功记录；它仍不能替代 iOS 真机、签名 archive 或商�
 短期看快，长期会产生协议分叉、修复不同步和安全边界不一致。必须以公共跨运行时 SDK 作为 P0
 上游闸门。
 
-## 11. 重新评估触发条件
+## 12. 重新评估触发条件
 
 发生以下任一情况，新增 ADR：
 

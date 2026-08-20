@@ -23,7 +23,7 @@ export function createAttentionRingCapability(
     }],
     descriptor: {
       confirmation: 'when_locked',
-      description: '在前台设备上播放内置提示音并可重复请求 haptic；闪光灯未实现',
+      description: '在前台设备上播放内置提示音，并可请求 haptic 与闪光灯',
       effect: 'write',
       limits: {
         maxResultBytes: 8_192,
@@ -57,7 +57,7 @@ export function createAttentionRingCapability(
         return { reason: 'foreground_required', status: 'unavailable' }
       }
       const channels = await controller.probeChannels()
-      return channels.haptics || channels.sound
+      return channels.haptics || channels.sound || channels.flash
         ? { status: 'available' }
         : { reason: 'attention_channels_unavailable', status: 'unavailable' }
     },

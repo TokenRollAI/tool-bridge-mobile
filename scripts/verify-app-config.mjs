@@ -16,9 +16,9 @@ const easProject = {
 }
 
 const releaseMetadata = {
-  androidVersionCode: 3,
-  iosBuildNumber: '3',
-  version: '0.0.3',
+  androidVersionCode: 5,
+  iosBuildNumber: '5',
+  version: '0.0.5',
 }
 
 for (const [variant, expectedIdentifier] of Object.entries(variants)) {
@@ -64,6 +64,17 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   }
   if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.11.0') {
     throw new Error(`${variant}: production transport 版本标记不匹配`)
+  }
+  // 三个环境共用同一套品牌图标：安装标识虽然隔离，视觉标识不应分叉。
+  if (
+    config.icon !== './assets/icon/app-icon.png'
+    || config.ios?.icon !== './assets/icon/app-icon.png'
+    || config.android?.adaptiveIcon?.foregroundImage !== './assets/icon/adaptive-icon.png'
+    || config.android?.adaptiveIcon?.monochromeImage !== './assets/icon/monochrome-icon.png'
+    || config.android?.adaptiveIcon?.backgroundColor !== '#08111f'
+    || config.web?.favicon !== './assets/icon/favicon.png'
+  ) {
+    throw new Error(`${variant}: 应用图标未指向 assets/icon 下的品牌图标资源`)
   }
   if (!config.android?.permissions?.includes('android.permission.VIBRATE')) {
     throw new Error(`${variant}: 缺少 P1-A haptic 所需的 Android VIBRATE 权限`)
@@ -229,4 +240,4 @@ if (iosEntitlements?.['aps-environment'] !== undefined) {
   throw new Error('本地通知切片不得声明 APNs aps-environment entitlement')
 }
 
-console.log('App 配置验证通过：三环境安装标识隔离并绑定同一 EAS 项目，本地通知/前台位置/地图/媒体配置最小化，无 APNs/后台位置/录音/相机/Face ID。')
+console.log('App 配置验证通过：三环境安装标识隔离并绑定同一 EAS 项目，共用同一套品牌图标，本地通知/前台位置/地图/媒体配置最小化，无 APNs/后台位置/录音/相机/Face ID。')

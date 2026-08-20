@@ -16,7 +16,10 @@ function createNativeModule(
 ): ToolBridgeAttentionNativeModule {
   return {
     cancelAsync: async () => undefined,
+    disableTorchAsync: async () => undefined,
+    enableTorchAsync: async () => true,
     probeHapticsAsync: async () => true,
+    probeTorchAsync: async () => true,
     pulseAsync: async () => true,
     ...overrides,
   }
