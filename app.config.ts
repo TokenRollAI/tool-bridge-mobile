@@ -12,9 +12,9 @@ type VariantConfig = Readonly<{
 export const EXPO_OWNER = 'tokenroll'
 export const EAS_PROJECT_ID = '378c7a3e-437a-49a6-ae20-fef5af6f6188'
 export const EXPO_PROJECT_SLUG = 'tool-bridge'
-export const APP_VERSION = '0.0.3'
-export const ANDROID_VERSION_CODE = 3
-export const IOS_BUILD_NUMBER = '3'
+export const APP_VERSION = '0.0.4'
+export const ANDROID_VERSION_CODE = 4
+export const IOS_BUILD_NUMBER = '4'
 
 export const APP_VARIANTS: Readonly<Record<AppVariant, VariantConfig>> = {
   development: {

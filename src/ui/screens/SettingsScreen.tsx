@@ -1,12 +1,13 @@
-import { StyleSheet, Text } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
 import { GatewayConfigurationCard } from '@/ui/components/GatewayConfigurationCard'
+import { Icon } from '@/ui/components/Icon'
 import { Screen } from '@/ui/components/Screen'
 import { SettingToggle } from '@/ui/components/SettingToggle'
 import { StatusCard } from '@/ui/components/StatusCard'
-import { colors } from '@/ui/theme'
+import { colors, radius, spacing } from '@/ui/theme'
 
 import type { ControlMode } from '@/commands/types'
 import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
@@ -88,20 +89,20 @@ export function SettingsScreen({
       title="设置"
     >
       {isDisabled ? (
-        <StatusCard title="远程能力已停用">
+        <StatusCard icon="disabled" title="远程能力已停用" tone="danger">
           <Text style={styles.body}>
             当前处于紧急停用状态：所有新命令在本地策略层被拒绝。恢复后才能调整其他设置。
           </Text>
           <AccessibleAction
             accessibilityHint="恢复为每条有副作用命令都在设备上确认"
+            icon="positive"
             label="恢复为每次确认"
             onPress={onEnable}
-            style={[styles.action, styles.enableAction]}
           />
         </StatusCard>
       ) : (
         <>
-          <StatusCard title="控制模式">
+          <StatusCard icon="settings" title="控制模式">
             <Text style={styles.body}>
               选择 Agent 命令在本机的裁决强度。
             </Text>
@@ -113,19 +114,23 @@ export function SettingsScreen({
                   key={option.mode}
                   label={active ? `${option.label}（当前）` : option.label}
                   onPress={() => { onSetControlMode(option.mode) }}
-                  style={[styles.action, active ? styles.enableAction : styles.modeInactive]}
+                  variant={active ? 'primary' : 'secondary'}
+                  {...(active ? { icon: 'positive' as const } : {})}
                 />
               )
             })}
             {snapshot.controlMode === 'direct_call' ? (
-              <Text style={styles.footnote}>
-                直接调用模式下高特权工具（shell、剪贴板、任意 URL/Intent）可被 Agent 直接执行；
-                请仅在你完全信任当前网关与 Agent 时启用。
-              </Text>
+              <View style={styles.warningNote}>
+                <Icon color={colors.warning} name="warning" size={16} />
+                <Text style={styles.warningText}>
+                  直接调用模式下高特权工具（shell、剪贴板、任意 URL/Intent）可被 Agent 直接执行；
+                  请仅在你完全信任当前网关与 Agent 时启用。
+                </Text>
+              </View>
             ) : null}
           </StatusCard>
 
-          <StatusCard title="后台运行">
+          <StatusCard icon="background" title="后台运行">
             <SettingToggle
               description="退到后台时保持设备连接。Android 会显示一个常驻通知；iOS 不支持后台常驻，仅依赖前台。系统省电策略仍可能中断连接。"
               label="允许后台运行"
@@ -142,42 +147,43 @@ export function SettingsScreen({
           />
 
           {notificationPermissionRequestable ? (
-            <StatusCard title="本地通知未启用">
+            <StatusCard icon="notification" title="本地通知未启用">
               <Text style={styles.body}>
                 Tool Bridge 只在你主动允许后创建可见的即时通知；远程命令不会弹出系统权限框。
               </Text>
               <AccessibleAction
                 accessibilityHint="打开系统通知权限请求；远程命令不能代替你执行此操作"
+                icon="notification"
                 label="启用本地通知"
                 onPress={onRequestNotificationPermission}
-                style={[styles.action, styles.enableAction]}
               />
             </StatusCard>
           ) : null}
 
           {notificationSettingsRequired ? (
-            <StatusCard title="本地通知已关闭">
+            <StatusCard icon="notification" title="本地通知已关闭">
               <Text style={styles.body}>
                 系统通知权限或 Tool Bridge 本地通知 channel 已关闭；远程命令无权改变该设置。
               </Text>
               <AccessibleAction
                 accessibilityHint="前往系统设置调整 Tool Bridge 的通知权限或 channel"
+                icon="settings"
                 label="打开系统设置"
                 onPress={onOpenNotificationSettings}
-                style={[styles.action, styles.enableAction]}
               />
             </StatusCard>
           ) : null}
 
-          <StatusCard title="紧急停用">
+          <StatusCard icon="warning" title="紧急停用" tone="danger">
             <Text style={styles.body}>
               立即拒绝所有新命令并停止仍可撤销的本地副作用。系统权限与用户拒绝始终优先。
             </Text>
             <AccessibleAction
               accessibilityHint="立即拒绝新命令并停止仍可撤销的本地副作用"
+              icon="disabled"
               label="紧急停用远程能力"
               onPress={onEmergencyDisable}
-              style={[styles.action, styles.disableAction]}
+              variant="danger"
             />
           </StatusCard>
         </>
@@ -187,26 +193,23 @@ export function SettingsScreen({
 }
 
 const styles = StyleSheet.create({
-  action: {
-    borderRadius: 14,
-  },
   body: {
     color: colors.muted,
     fontSize: 15,
     lineHeight: 22,
   },
-  disableAction: {
-    backgroundColor: colors.danger,
+  warningNote: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.panelElevated,
+    borderRadius: radius.sm,
+    columnGap: spacing.sm,
+    flexDirection: 'row',
+    padding: spacing.md,
   },
-  enableAction: {
-    backgroundColor: colors.primary,
-  },
-  footnote: {
-    color: colors.muted,
+  warningText: {
+    color: colors.warning,
+    flexShrink: 1,
     fontSize: 13,
     lineHeight: 19,
-  },
-  modeInactive: {
-    backgroundColor: colors.muted,
   },
 })

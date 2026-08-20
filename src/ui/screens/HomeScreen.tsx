@@ -5,7 +5,7 @@ import { AccessibleAction } from '@/ui/components/AccessibleAction'
 import { Pill, type PillTone } from '@/ui/components/Pill'
 import { Screen } from '@/ui/components/Screen'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
-import { colors } from '@/ui/theme'
+import { colors, radius, spacing } from '@/ui/theme'
 
 import type { ControlMode } from '@/commands/types'
 import type { ApplicationSnapshot } from '@/runtime/applicationRuntime'
@@ -78,7 +78,7 @@ export function HomeScreen({
     >
       {snapshot.error === null ? null : <Text style={styles.error}>{snapshot.error}</Text>}
 
-      <StatusCard title="总览">
+      <StatusCard icon="home" title="总览">
         <View style={styles.pills}>
           <Pill
             label="控制模式"
@@ -100,7 +100,7 @@ export function HomeScreen({
       </StatusCard>
 
       {snapshot.deviceId === null && snapshot.mountPath === null ? null : (
-        <StatusCard title="连接详情">
+        <StatusCard icon="connection" title="连接详情">
           {snapshot.deviceId === null ? null : (
             <StatusRow label="SDK deviceId" value={snapshot.deviceId} />
           )}
@@ -114,7 +114,7 @@ export function HomeScreen({
       )}
 
       {snapshot.attentionSession === null ? null : (
-        <StatusCard title="正在提示设备">
+        <StatusCard icon="notification" title="正在提示设备">
           <StatusRow label="调用方" value={snapshot.attentionSession.callerSubjectId} />
           <StatusRow
             label="剩余时间"
@@ -122,15 +122,15 @@ export function HomeScreen({
           />
           <AccessibleAction
             accessibilityHint="立即停止当前由 Tool Bridge 发起的设备提示"
+            icon="stop"
             label="停止设备提示"
             onPress={onStopAttention}
-            style={[styles.action, styles.stopAction]}
           />
         </StatusCard>
       )}
 
       {snapshot.timers.map(timer => (
-        <StatusCard key={timer.timerId} title="App 内计时器">
+        <StatusCard icon="timer" key={timer.timerId} title="App 内计时器">
           <StatusRow label="调用方" value={timer.ownerSubjectId} />
           <StatusRow label="目标时间" value={timer.firesAt} />
           <StatusRow label="持久状态" value={timer.state} />
@@ -141,7 +141,7 @@ export function HomeScreen({
             accessibilityHint="取消并清理这个本机计时器；到点竞态下不声称通知从未展示"
             label={`取消 ${timer.ownerSubjectId} 在 ${timer.firesAt} 的计时器`}
             onPress={() => { onCancelTimer(timer.timerId) }}
-            style={[styles.action, styles.stopAction]}
+            variant="secondary"
             visualLabel="取消此计时器"
           />
         </StatusCard>
@@ -149,21 +149,28 @@ export function HomeScreen({
 
       <AccessibleAction
         accessibilityHint="打开设置页调整控制模式、后台运行、网关连接与通知"
+        icon="settings"
         label="打开设置"
         onPress={onOpenSettings}
-        style={[styles.action, styles.settingsAction]}
-        textStyle={styles.settingsActionText}
+        variant="secondary"
       />
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  action: {
-    borderRadius: 14,
-  },
   error: {
+    backgroundColor: colors.panel,
+    borderColor: colors.danger,
+    borderRadius: radius.md,
+    borderWidth: 1,
     color: colors.danger,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   footnote: {
     color: colors.muted,
@@ -173,16 +180,6 @@ const styles = StyleSheet.create({
   pills: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-  },
-  settingsAction: {
-    borderColor: colors.outline,
-    borderWidth: 1,
-  },
-  settingsActionText: {
-    color: colors.text,
-  },
-  stopAction: {
-    backgroundColor: colors.primary,
+    gap: spacing.sm,
   },
 })

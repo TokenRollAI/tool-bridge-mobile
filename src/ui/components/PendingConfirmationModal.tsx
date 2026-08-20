@@ -3,7 +3,7 @@ import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { focusAccessibilityElement, useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
-import { colors } from '@/ui/theme'
+import { colors, spacing } from '@/ui/theme'
 
 import { AccessibleAction } from './AccessibleAction'
 import { StatusRow } from './StatusCard'
@@ -83,16 +83,20 @@ export function PendingConfirmationModal({
             <View style={styles.actions}>
               <AccessibleAction
                 accessibilityHint="拒绝当前命令，不影响队列中的其他命令"
+                icon="danger"
                 label={`拒绝 ${caller} 调用 ${capability}`}
                 onPress={() => onReject(confirmation.commandId)}
-                style={[styles.action, styles.rejectAction]}
+                style={styles.action}
+                variant="danger"
                 visualLabel="拒绝"
               />
               <AccessibleAction
                 accessibilityHint="只允许当前命令一次，执行前仍会重新检查设备状态"
+                icon="positive"
                 label={`允许 ${caller} 调用 ${capability} 一次`}
                 onPress={() => onApprove(confirmation.commandId)}
-                style={[styles.action, styles.approveAction]}
+                style={styles.action}
+                variant="primary"
                 visualLabel="允许一次"
               />
             </View>
@@ -105,27 +109,24 @@ export function PendingConfirmationModal({
 
 const styles = StyleSheet.create({
   action: {
-    borderRadius: 14,
-    flex: 1,
+    flexBasis: 120,
+    flexGrow: 1,
   },
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-  },
-  approveAction: {
-    backgroundColor: colors.primary,
+    gap: spacing.md,
   },
   backdrop: {
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.72)',
     flex: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   content: {
-    gap: 14,
-    padding: 20,
+    gap: spacing.md,
+    padding: spacing.xl,
   },
   description: {
     color: colors.text,
@@ -157,8 +158,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
-  },
-  rejectAction: {
-    backgroundColor: colors.danger,
   },
 })

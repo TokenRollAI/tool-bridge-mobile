@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { ScrollView, StyleSheet, Text } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { focusAccessibilityElement } from '@/ui/accessibility'
-import { colors } from '@/ui/theme'
+import { colors, spacing } from '@/ui/theme'
 
 import type { PropsWithChildren } from 'react'
 
@@ -29,16 +29,25 @@ export function Screen({
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {eyebrow === undefined ? null : (
-          <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.eyebrow}>
-            {eyebrow}
-          </Text>
-        )}
-        <Text accessibilityRole="header" ref={headingRef} style={styles.heading}>{title}</Text>
-        {description === undefined ? null : (
-          <Text style={styles.description}>{description}</Text>
-        )}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerBlock}>
+          {eyebrow === undefined ? null : (
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+              style={styles.eyebrowBadge}
+            >
+              <Text style={styles.eyebrow}>{eyebrow}</Text>
+            </View>
+          )}
+          <Text accessibilityRole="header" ref={headingRef} style={styles.heading}>{title}</Text>
+          {description === undefined ? null : (
+            <Text style={styles.description}>{description}</Text>
+          )}
+        </View>
         {children}
       </ScrollView>
     </SafeAreaView>
@@ -47,8 +56,10 @@ export function Screen({
 
 const styles = StyleSheet.create({
   content: {
-    gap: 16,
-    padding: 20,
+    gap: spacing.lg,
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
   },
   description: {
     color: colors.muted,
@@ -57,14 +68,27 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: colors.primary,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.5,
+  },
+  eyebrowBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.panelElevated,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+  },
+  headerBlock: {
+    gap: spacing.sm,
   },
   heading: {
     color: colors.text,
     fontSize: 30,
     fontWeight: '800',
+    letterSpacing: -0.5,
   },
   safeArea: {
     backgroundColor: colors.background,
