@@ -12,6 +12,7 @@ const ICONS = {
   activity: 'time-outline',
   activityActive: 'time',
   alert: 'alert-circle',
+  back: 'arrow-back',
   background: 'moon',
   capabilities: 'apps-outline',
   capabilitiesActive: 'apps',

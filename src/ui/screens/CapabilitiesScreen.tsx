@@ -11,7 +11,8 @@ import type { CapabilitySnapshot } from '@/capabilities/types'
 export function CapabilitiesScreen({
   capabilities,
   focused = true,
-}: Readonly<{ capabilities: readonly CapabilitySnapshot[]; focused?: boolean }>) {
+  onBack,
+}: Readonly<{ capabilities: readonly CapabilitySnapshot[]; focused?: boolean; onBack?: (() => void) | undefined }>) {
   const availabilityKey = capabilities.map(({ availability, descriptor }) => (
     `${descriptor.path}.${descriptor.tool}:${availability.status}:${'reason' in availability
       ? availability.reason
@@ -26,6 +27,7 @@ export function CapabilitiesScreen({
     <Screen
       description="能力来自实际 probe；未注册的硬件能力不会出现在此处。"
       focused={focused}
+      onBack={onBack}
       title="能力"
     >
       {capabilities.map(({ availability, descriptor }) => {

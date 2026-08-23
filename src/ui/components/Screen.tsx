@@ -1,24 +1,30 @@
 import { useEffect, useRef } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { focusAccessibilityElement } from '@/ui/accessibility'
-import { colors, spacing } from '@/ui/theme'
+import { MINIMUM_ACCESSIBLE_TARGET_SIZE } from '@/ui/components/AccessibleAction'
+import { Icon } from '@/ui/components/Icon'
+import { colors, radius, spacing } from '@/ui/theme'
 
 import type { PropsWithChildren } from 'react'
 
 type ScreenProps = PropsWithChildren<Readonly<{
+  backLabel?: string
   description?: string
   eyebrow?: string
   focused?: boolean
+  onBack?: (() => void) | undefined
   title: string
 }>>
 
 export function Screen({
+  backLabel = '返回',
   children,
   description,
   eyebrow,
   focused = true,
+  onBack,
   title,
 }: ScreenProps) {
   const headingRef = useRef<Text>(null)
@@ -33,6 +39,17 @@ export function Screen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {onBack === undefined ? null : (
+          <Pressable
+            accessibilityLabel={backLabel}
+            accessibilityRole="button"
+            onPress={onBack}
+            style={({ pressed }) => [styles.backButton, pressed ? styles.backButtonPressed : null]}
+          >
+            <Icon color={colors.primary} name="back" size={20} />
+            <Text style={styles.backLabel}>{backLabel}</Text>
+          </Pressable>
+        )}
         <View style={styles.headerBlock}>
           {eyebrow === undefined ? null : (
             <View
@@ -55,6 +72,24 @@ export function Screen({
 }
 
 const styles = StyleSheet.create({
+  backButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: radius.sm,
+    columnGap: spacing.xs,
+    flexDirection: 'row',
+    marginLeft: -spacing.sm,
+    minHeight: MINIMUM_ACCESSIBLE_TARGET_SIZE,
+    paddingHorizontal: spacing.sm,
+  },
+  backButtonPressed: {
+    opacity: 0.6,
+  },
+  backLabel: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
   content: {
     gap: spacing.lg,
     paddingBottom: spacing.xxl,

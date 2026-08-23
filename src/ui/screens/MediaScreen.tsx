@@ -11,6 +11,7 @@ import type { MediaSessionSnapshot } from '@/capabilities/media/controller'
 
 type MediaScreenProps = Readonly<{
   focused?: boolean
+  onBack?: (() => void) | undefined
   onPause(sessionId: string): void
   onResume(sessionId: string): void
   onStop(sessionId: string): void
@@ -19,6 +20,7 @@ type MediaScreenProps = Readonly<{
 
 export function MediaScreen({
   focused = true,
+  onBack,
   onPause,
   onResume,
   onStop,
@@ -33,6 +35,7 @@ export function MediaScreen({
     <Screen
       description="只播放设备配置 allowlist 内的 HTTPS 来源；完整 URL 不进入此页面或普通审计日志。"
       focused={focused}
+      onBack={onBack}
       title="媒体"
     >
       {session === null ? (

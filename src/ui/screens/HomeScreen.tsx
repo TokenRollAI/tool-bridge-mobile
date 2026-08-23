@@ -32,6 +32,7 @@ function controlModeTone(mode: ControlMode): PillTone {
 
 type HomeScreenProps = Readonly<{
   focused?: boolean
+  onBack?: (() => void) | undefined
   onCancelTimer(timerId: string): void
   onOpenSettings(): void
   onStopAttention(): void
@@ -40,6 +41,7 @@ type HomeScreenProps = Readonly<{
 
 export function HomeScreen({
   focused = true,
+  onBack,
   onCancelTimer,
   onOpenSettings,
   onStopAttention,
@@ -71,10 +73,11 @@ export function HomeScreen({
 
   return (
     <Screen
-      description="设备本地裁决优先于任何远程命令。配置项在“设置”标签页。"
-      eyebrow="TOOL BRIDGE MOBILE"
+      description="设备本地裁决优先于任何远程命令。这里汇总当前的控制模式、连接、后台运行与进行中的会话。"
+      eyebrow="设备状态"
       focused={focused}
-      title="设备裁决优先"
+      onBack={onBack}
+      title="设备状态"
     >
       {snapshot.error === null ? null : <Text style={styles.error}>{snapshot.error}</Text>}
 
@@ -148,9 +151,9 @@ export function HomeScreen({
       ))}
 
       <AccessibleAction
-        accessibilityHint="打开设置页调整控制模式、后台运行、网关连接与通知"
+        accessibilityHint="返回设置页调整控制模式、后台运行、网关连接与通知"
         icon="settings"
-        label="打开设置"
+        label="前往设置"
         onPress={onOpenSettings}
         variant="secondary"
       />

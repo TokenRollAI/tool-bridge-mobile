@@ -56,10 +56,10 @@ describe('HomeScreen', () => {
     rendered.getByLabelText('后台运行：已开启')
   })
 
-  test('提供打开设置入口', async () => {
+  test('提供前往设置入口', async () => {
     const onOpenSettings = jest.fn()
     const rendered = await renderHome(readySnapshot, { onOpenSettings })
-    await fireEvent.press(rendered.getByRole('button', { name: '打开设置' }))
+    await fireEvent.press(rendered.getByRole('button', { name: '前往设置' }))
     expect(onOpenSettings).toHaveBeenCalledTimes(1)
   })
 

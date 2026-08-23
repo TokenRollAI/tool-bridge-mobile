@@ -49,7 +49,10 @@ const snapshot: ApplicationSnapshot = {
 const baseHandlers = {
   onEmergencyDisable: jest.fn(),
   onEnable: jest.fn(),
+  onOpenCapabilities: jest.fn(),
+  onOpenMedia: jest.fn(),
   onOpenNotificationSettings: jest.fn(),
+  onOpenStatus: jest.fn(),
   onRequestNotificationPermission: jest.fn(),
   onSetBackgroundRuntime: jest.fn(),
   onSetControlMode: jest.fn(),
@@ -61,6 +64,25 @@ describe('SettingsScreen', () => {
     const rendered = await renderSettings({ ...baseHandlers, onSetControlMode, snapshot })
     await fireEvent.press(rendered.getByRole('button', { name: '允许直接调用（含高危）' }))
     expect(onSetControlMode).toHaveBeenCalledWith('direct_call')
+  })
+
+  test('设备信息卡片提供状态、能力与媒体的二级导航入口', async () => {
+    const onOpenStatus = jest.fn()
+    const onOpenCapabilities = jest.fn()
+    const onOpenMedia = jest.fn()
+    const rendered = await renderSettings({
+      ...baseHandlers,
+      onOpenCapabilities,
+      onOpenMedia,
+      onOpenStatus,
+      snapshot,
+    })
+    await fireEvent.press(rendered.getByRole('button', { name: '设备状态' }))
+    await fireEvent.press(rendered.getByRole('button', { name: '设备能力' }))
+    await fireEvent.press(rendered.getByRole('button', { name: '媒体会话' }))
+    expect(onOpenStatus).toHaveBeenCalledTimes(1)
+    expect(onOpenCapabilities).toHaveBeenCalledTimes(1)
+    expect(onOpenMedia).toHaveBeenCalledTimes(1)
   })
 
   test('direct_call 模式展示高特权工具警告', async () => {
