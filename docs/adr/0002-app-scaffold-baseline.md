@@ -16,7 +16,7 @@ P0 首个脚手架锁定：
 | --- | --- |
 | Node.js | `22.23.1` |
 | pnpm | `11.21.0` |
-| Expo SDK | `57.0.14` |
+| Expo SDK | `57.0.15` |
 | React Native | `0.86.2` |
 | React | `19.2.3` |
 | TypeScript | `6.0.3`，`strict` |

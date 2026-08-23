@@ -44,6 +44,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="inbox"
+        options={{
+          ...TAB_OPTIONS.inbox,
+          tabBarIcon: tabIcon(TAB_ICONS.inbox.inactive, TAB_ICONS.inbox.active),
+        }}
+      />
+      <Tabs.Screen
         name="capabilities"
         options={{
           ...TAB_OPTIONS.capabilities,

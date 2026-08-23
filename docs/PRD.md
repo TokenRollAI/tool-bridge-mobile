@@ -17,6 +17,7 @@ Agent 可以发现这台设备当下真实可用的能力，并在权限、确�
 - Agent 可以控制本 App 的媒体播放，或经用户许可打开系统/第三方 App；
 - Agent 可以请求手机提供相机、位置和传感器信息；
 - Agent 可以把跨设备任务落到本地提醒、通知和深链；
+- Agent 可以把订阅摘要、新闻与任务更新投递到指定手机的本地信箱；
 - 所有动作都有明确的设备身份、权限边界、执行状态和审计记录。
 
 ## 2. 问题
@@ -99,6 +100,7 @@ Agent 可以发现这台设备当下真实可用的能力，并在权限、确�
 | 本地运行时 | `phone/runtime.capabilities/pending_commands/cancel` | 当前 credential principal 范围内的安全元数据与取消请求 |
 | 打开内容 | `phone/apps.open_url`、`phone/location.open_map` | 已打开/等待用户/拒绝 |
 | 本地通知 | `phone/productivity.notify` | 通知标识和系统调度状态（不等于展示或点击） |
+| 设备本地信箱 | `phone/inbox.deliver` | 本机持久消息与可选固定提醒（不等于离线 mailbox/push） |
 | App 内计时器 | `phone/productivity.timer_start/timer_cancel/timer_status` | SQLite 状态和系统 pending 观察（不等于准时展示） |
 | 相机协作 | `phone/camera.capture_photo` | 经本地确认后的短期对象引用 |
 | 单次位置 | `phone/location.current` | 经授权的坐标、精度和时间 |
@@ -211,7 +213,24 @@ queued -> delivered -> awaiting_user -> running -> succeeded
 - 位置权限按使用时申请；
 - 持续/后台定位不进入 MVP，后续必须单独评审用户价值、耗电与商店政策。
 
-### FR-9：本地通知与深链
+### FR-9：设备信箱、本地通知与深链
+
+- 设备本地信箱的正式路径为 `phone/inbox.deliver`；它通过已建立的设备 direct-call session 到达指定
+  `device/phone/<deviceId>`，不是 gateway command mailbox；
+- strict 入参只接受有界 `title/body/category/format/urgency/sentAt/sourceLabel/notify`；`format` 当前固定为
+  `markdown`，`urgency` 为固定枚举，`sentAt` 是可选的规范 UTC Agent 元数据。`sourceLabel`、紧急程度和
+  发送时间都不能冒充网关认证 caller 或本机收件事实；不接受 action/data/sound/badge 或任意通知 channel；
+- App 把正文保存到专用 SQLite v4 `inbox_messages` 表，按 source `commandId` 确定性去重并在每次写入
+  事务内维持 1,000 条硬上限。UI 最多展示 100 个查询结果，搜索覆盖全部保留消息，支持按收件/发送时间
+  升降序、未读/已读优先排序，以及单条和全部标为已读；
+- Markdown 不经 WebView/HTML 渲染。图片默认不发起网络请求，只有用户主动点按后才从正文提供的合法
+  HTTPS URL 下载，无需预配置 hostname；逐跳复核 URL，并限制 MIME、签名、3 MiB、
+  4096 单边和 16 MP，写入 App 私有临时缓存后只渲染 `file://`；
+- title/body/sourceLabel 不进入 command outcome、普通 audit 或系统通知 payload。可选提醒只显示固定
+  `Tool Bridge 信箱 / 收到一条 Agent 来信` 文案；未授权或原生结果未知不回滚已保存消息；
+- 用户可在二次确认后只清空 `inbox_messages`。command 防重放记录仍保留，因此同一 `commandId` replay
+  返回历史 outcome，但不会重建已清空的来信；
+- App 离线、系统挂起或进程终止时，本地信箱没有自行排队/唤醒能力；U-5/U-6 交付前不得称为后台必达。
 
 - 本地通知的正式路径为 `phone/productivity.notify`，当前只接受 `purpose` 与 `message`；调用方不能
   指定标题、URL、data、action、声音、badge 或未来调度时间；

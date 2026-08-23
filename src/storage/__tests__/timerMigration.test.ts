@@ -28,24 +28,24 @@ describe('timer schema migration', () => {
     expect(TIMER_SCHEMA_SQL).not.toContain('purpose')
   })
 
-  test('fresh v0 顺序执行 v1/v2，v1 升级只执行 v2', async () => {
+  test('fresh v0 顺序执行 v1/v2/v3/v4，v1 升级继续执行 v2/v3/v4', async () => {
     const fresh = database(0)
     openDatabase.mockResolvedValueOnce(fresh as never)
     await MobileDatabase.open()
-    expect(fresh.execAsync).toHaveBeenCalledTimes(2)
+    expect(fresh.execAsync).toHaveBeenCalledTimes(4)
     expect(fresh.execAsync.mock.calls[1]?.[0]).toBe(TIMER_SCHEMA_SQL)
 
     const v1 = database(1)
     openDatabase.mockResolvedValueOnce(v1 as never)
     await MobileDatabase.open()
-    expect(v1.execAsync).toHaveBeenCalledTimes(1)
+    expect(v1.execAsync).toHaveBeenCalledTimes(3)
     expect(v1.execAsync).toHaveBeenCalledWith(TIMER_SCHEMA_SQL)
   })
 
   test('未来版本先关闭数据库再拒绝打开', async () => {
-    const future = database(3)
+    const future = database(5)
     openDatabase.mockResolvedValueOnce(future as never)
-    await expect(MobileDatabase.open()).rejects.toThrow('高于客户端支持的 2')
+    await expect(MobileDatabase.open()).rejects.toThrow('高于客户端支持的 4')
     expect(future.closeAsync).toHaveBeenCalledTimes(1)
     expect(future.execAsync).not.toHaveBeenCalled()
   })

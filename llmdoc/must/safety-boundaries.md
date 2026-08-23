@@ -34,10 +34,28 @@
   与 query 不得进入普通审计。
 - 清除本地活动历史只能删除 `audit_records`；不得连带删除 command 防重放、timer、设置、installation
   identity 或 credential，也不得取消命令或冒充网关撤销、服务端审计清除和完整数据删除。
+- 设备本地信箱 Markdown 与 Agent 提供的 sourceLabel/urgency/sentAt 只能进入 1,000 条硬上限的专用
+  `inbox_messages` 内容域；不得进入 command outcome、普通 audit、普通日志、自动 accessibility
+  announcement 或系统提醒 payload。可空 sentAt 不能用本机 receivedAt 补造；fallback 只可用于排序。
+- 清空信箱只能删除 `inbox_messages`，不得删除 command 防重放、audit、timer、设置、identity 或
+  credential；保留 command 终态，确保清空后 replay 不会重建已删除内容。Agent 提供的 sourceLabel 不能
+  冒充 invocation caller。
 - accessibility label/announcement 也是数据出口：不得包含 message、purpose、地址、坐标、URL、完整
   outcome 或 confirmation detail；倒计时和媒体进度不得形成高频自动公告。
 - 进入确认页或系统媒体 metadata 的远端显示文本必须拒绝 control 与 bidi override/isolate 字符，
   不允许用文本方向覆盖伪装系统提示。
+- 不可信 Markdown 不能进入 WebView、HTML/JavaScript 或任意组件渲染；parser 输出必须再经 React Native
+  token 白名单、nesting/token/图片数硬上限，链接不能自动成为导航入口，超限内容降级为纯文本。
+- Markdown 图片在默认摘要和正文展开时都必须零网络；只有用户点按具体占位后，才可对该图片的一次请求与
+  有界 redirect 链出站。该授权不持久化、不覆盖其他图片或自动预取；不存在 inbox image 构建时 env、
+  Expo extra 或 runtime hostname set。media/link allowlist 保持不变，既不授权也不限制信箱图片。
+- 信箱图片 URL 必须逐跳及最终复核标准端口 HTTPS、无 userinfo/fragment/IP literal；请求必须
+  `credentials: omit` + manual redirect；允许每跳都合规的跨 hostname HTTPS redirect，并限制 3 次
+  redirect、20 秒、声明/实际 3 MiB、PNG/JPEG MIME/签名、4096 单边与 16 MP。只把私有 cache 的
+  `file://` 交给 Image，失败/取消/解码错误/卸载须清理。
+- 图片网络地址防护当前只拒绝 URL 中的 IP literal，未做 DNS 解析后的 private/link-local/loopback 网段或
+  rebinding 防护；点击前只展示初始 hostname，跨 hostname redirect 的最终 hostname 不会再次展示/确认。
+  这两项必须作为剩余风险陈述，不能把“任意合规 HTTPS hostname”缩写为“所有 HTTPS 图片都安全”。
 - 远端 HTTPS 媒体不能直接交给 player：请求必须省略 credentials、手动处理并逐跳复核 redirect，最终
   URL 仍需通过同一 hostname allowlist；声明 MIME、前 16 字节签名、`Content-Length` 与流式实际字节
   都必须在进入 player 前通过本地边界。
@@ -59,6 +77,9 @@
   availability，由用户在本地 UI 请求权限或进入系统设置。
 - 本地通知不能继承任意 title/action/data/sound/badge：系统 title、正文前缀、Android channel 和
   `commandId` 派生 identifier 固定；返回 `scheduled` 只表示系统接受本地调度，不等于 presented/clicked。
+- 信箱可选提醒必须发生在消息 commit 后，只接受确定性 inbox identifier 并使用固定无正文提示；权限
+  requestable/denied/channel disabled、timeout、取消、到期或原生 unknown 都不能回滚已经存储的消息，
+  `scheduled` 也不等于 delivered/read。
 - local-only 通知构建不能保留 APNs entitlement、FCM/C2DM、boot/exact alarm、厂商 badge 或 Firebase
   transport 注册入口；新增 Expo Notifications 版本时必须复核最终 merged manifest/entitlements。
 - 远程 timer start 只接受 canonical UTC `firesAt` 与 `purpose`，并在 reserve 和 native schedule 前都复核
@@ -67,6 +88,10 @@
   presented、clicked 或 on-time；不得为它增加 boot receiver、exact alarm、FCM 或 APNs。
 - timer 的 SQLite 意图与 caller ownership 高于原生 pending 快照。启动恢复必须先恢复中断 command，再
   reconcile timer，最后 prune command；emergency disable 必须用撤销 epoch 隔离迟到的 native schedule。
+- 设备本地信箱只接收已经在线到达 executor 的 direct call，不是 U-5 gateway command mailbox；本地
+  notification 或 Android 后台服务不能充当离线队列、push wake hint 或最终送达证据。
+- 信箱搜索必须在全部最多 1,000 条保留行上参数化过滤和本地枚举排序后才限制到 100 条 UI 投影；搜索
+  wildcard 必须转义，排序不得拼接用户字符串。全局未读和全部已读不得被当前搜索或显示上限截断。
 
 ## 事实真源
 

@@ -41,7 +41,7 @@ if (!iosSystem?.modules?.some(module => module.class === 'ToolBridgeSystemModule
 }
 
 if (
-  androidNotifications?.packageVersion !== '57.0.12'
+  androidNotifications?.packageVersion !== '57.0.13'
   || !androidNotifications.projects?.some(project => (
     project.modules?.some(module => (
       module.classifier === 'expo.modules.notifications.permissions.NotificationPermissionsModule'
@@ -53,13 +53,13 @@ if (
       module.classifier === 'expo.modules.notifications.notifications.scheduling.NotificationScheduler'
     ))
   ))
-) throw new Error('Android expo-notifications 57.0.12 权限/channel/scheduler 模块未被正确发现')
+) throw new Error('Android expo-notifications 57.0.13 权限/channel/scheduler 模块未被正确发现')
 
 if (
-  iosNotifications?.packageVersion !== '57.0.12'
+  iosNotifications?.packageVersion !== '57.0.13'
   || !iosNotifications.pods?.some(pod => pod.podName === 'ExpoNotifications')
   || !iosNotifications.modules?.some(module => module.class === 'PermissionsModule')
   || !iosNotifications.modules?.some(module => module.class === 'SchedulerModule')
-) throw new Error('iOS ExpoNotifications 57.0.12 权限/scheduler 模块未被正确发现')
+) throw new Error('iOS ExpoNotifications 57.0.13 权限/scheduler 模块未被正确发现')
 
-console.log('原生模块验证通过：ToolBridgeAttention、ToolBridgeSystem 与 expo-notifications 57.0.12 已被 Android/iOS autolinking 发现。')
+console.log('原生模块验证通过：ToolBridgeAttention、ToolBridgeSystem 与 expo-notifications 57.0.13 已被 Android/iOS autolinking 发现。')

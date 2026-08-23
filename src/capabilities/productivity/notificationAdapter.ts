@@ -7,6 +7,7 @@ export const LOCAL_NOTIFICATION_IDENTIFIER_PREFIX = 'tb_local_notify_'
 export const LOCAL_TIMER_IDENTIFIER_PREFIX = 'tb_local_timer_'
 export const LOCAL_TIMER_ID_PREFIX = 'timer_'
 const LOCAL_NOTIFICATION_IDENTIFIER = /^tb_local_notify_[a-f0-9]{64}$/
+const LOCAL_INBOX_NOTIFICATION_IDENTIFIER = /^tb_local_inbox_[a-f0-9]{64}$/
 const LOCAL_TIMER_IDENTIFIER = /^tb_local_timer_[a-f0-9]{64}$/
 
 export const LOCAL_NOTIFICATION_CHANNEL: Notifications.NotificationChannelInput = {
@@ -40,6 +41,15 @@ export interface LocalNotificationAdapter {
   schedule(request: LocalNotificationRequest): Promise<string>
 }
 
+export type LocalInboxNotificationRequest = Readonly<{
+  notificationId: string
+}>
+
+export interface InboxNotificationPort {
+  getAuthorization(): Promise<NotificationAuthorization>
+  scheduleInbox(request: LocalInboxNotificationRequest): Promise<string>
+}
+
 export type LocalTimerNotificationRequest = Readonly<{
   firesAt: string
   notificationId: string
@@ -54,7 +64,13 @@ export interface LocalTimerNotificationPort {
 }
 
 export function isLocalCapabilityNotificationIdentifier(identifier: string): boolean {
-  return LOCAL_NOTIFICATION_IDENTIFIER.test(identifier) || LOCAL_TIMER_IDENTIFIER.test(identifier)
+  return LOCAL_NOTIFICATION_IDENTIFIER.test(identifier)
+    || LOCAL_INBOX_NOTIFICATION_IDENTIFIER.test(identifier)
+    || LOCAL_TIMER_IDENTIFIER.test(identifier)
+}
+
+export function isLocalInboxNotificationIdentifier(identifier: string): boolean {
+  return LOCAL_INBOX_NOTIFICATION_IDENTIFIER.test(identifier)
 }
 
 export function isLocalTimerNotificationIdentifier(identifier: string): boolean {
@@ -121,6 +137,23 @@ export function buildExpoTimerNotificationRequest(
       date: Date.parse(request.firesAt),
       type: Notifications.SchedulableTriggerInputTypes.DATE,
     },
+  }
+}
+
+export function buildExpoInboxNotificationRequest(
+  request: LocalInboxNotificationRequest,
+  platform: 'android' | 'ios' | null,
+): Notifications.NotificationRequestInput {
+  return {
+    content: {
+      autoDismiss: true,
+      body: '收到一条 Agent 来信，请在 App 内查看。',
+      sound: false,
+      sticky: false,
+      title: 'Tool Bridge 信箱',
+    },
+    identifier: request.notificationId,
+    trigger: platform === 'android' ? { channelId: LOCAL_NOTIFICATION_CHANNEL_ID } : null,
   }
 }
 
@@ -219,6 +252,16 @@ export class ExpoLocalNotificationAdapter implements LocalNotificationAdapter {
       request,
       nativePlatform(),
       identifier,
+    ))
+  }
+
+  async scheduleInbox(request: LocalInboxNotificationRequest): Promise<string> {
+    if (!isLocalInboxNotificationIdentifier(request.notificationId)) {
+      throw new Error('inbox notification identifier 无效')
+    }
+    return Notifications.scheduleNotificationAsync(buildExpoInboxNotificationRequest(
+      request,
+      nativePlatform(),
     ))
   }
 

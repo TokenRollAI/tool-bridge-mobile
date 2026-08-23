@@ -190,12 +190,16 @@ let source = await launchApp()
 for (const expected of ['ready', 'unconfigured', 'ask_every_time']) {
   if (!hasText(source, expected)) throw new Error(`首页缺少运行时状态: ${expected}`)
 }
-for (const tabLabel of ['状态标签页', '能力标签页', '媒体标签页', '活动标签页']) {
+for (const tabLabel of ['状态标签页', '信箱标签页', '能力标签页', '媒体标签页', '活动标签页']) {
   if (nodeWithAttribute(source, 'content-desc', value => value === tabLabel) === null) {
     throw new Error(`首页缺少唯一 tab accessibility label: ${tabLabel}`)
   }
 }
 requireSelectedTab(source, '状态标签页')
+
+await tapByDescription('信箱标签页')
+source = await waitForUi(current => hasText(current, '最近还没有 Agent 来信。'), '信箱页')
+requireSelectedTab(source, '信箱标签页')
 
 await tapByDescription('能力标签页')
 source = await waitForUi(current => hasText(current, 'phone/apps.can_open_url'), '能力页')

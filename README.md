@@ -15,17 +15,23 @@
 > 25 MiB 流式下载与 2 小时播放时长上限约束且支持 seek 的 App 自有媒体会话，
 > 受控 HTTPS App handoff、只接受结构化目标的地图 handoff、逐次确认的一次性前台位置、由用户在
 > App 内主动授权的即时本地通知、以 SQLite 为真源的单次 App 内计时器、可解释且可由用户单独清除的
-> 本机活动审计、跨四个本地页面的无障碍语义自动化基线，以及持久化/并发幂等测试。
+> 本机活动审计，以及由 Agent 通过在线 direct call 投递、在 SQLite 中保留最近 1,000 条并可选发出
+> 固定隐私提醒的设备本地信箱；信箱支持 Markdown、用户主动安全加载的 HTTPS 图片、紧急程度、可选
+> Agent 发送时间、全文搜索、六种排序、单条/全部已读。App 现有六个本地页面的无障碍语义自动化基线
+> 与持久化/并发幂等测试。
 > 本地执行还包含确认前 caller/global admission、inline 结果字节上限、claim 后取消/到期复检和
 > emergency disable 的进行中命令取消。
 > SDK expose 现在为每个公开工具同时提供输入/输出 JSON Schema，并只注册静态配置完整的 App/媒体
 > 工具；`phone/runtime.capabilities/pending_commands/cancel` 提供当前 credential principal 范围内的
 > 本地能力、活动命令与取消控制。
-> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.11.0`：Android/iOS 前台 transport 使用官方
-> hello/ready/call/result、心跳、重连与 cancel，调用继续经过本地安全执行链；只有收到 gateway ready
-> 才显示 online。当前内测入口允许用户在本机填写 Gateway HTTPS URL 与 API key，secret 只进入
-> SecureStore；这不等于 pairing、最小权限设备凭证或短期 ticket，mailbox、objectRef 与远程 push 仍
-> 等待[上游交付](docs/UPSTREAM.md)。
+> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.14.1`：Android/iOS transport 使用官方
+> hello/ready/call/result、心跳、重连与 cancel，支持命令叶子并入 path 的新 device wire 与网关签发
+> invocation context；调用继续经过本地安全执行链，只有收到 gateway ready
+> 才显示 online。Android Preview 0.0.6 已通过当前 Railway Gateway 的单次真机
+> `status/get` 直连读调用；该证据不外推到其他能力、iOS、后台、弱网或完整 pairing。
+> 当前内测入口允许用户在本机填写 Gateway HTTPS URL 与 API key，secret 只进入
+> SecureStore；这不等于 pairing、最小权限设备凭证或短期 ticket。设备本地信箱不是网关 command
+> mailbox；离线队列、objectRef 与远程 push 仍等待[上游交付](docs/UPSTREAM.md)。
 
 ## 它解决什么问题
 
@@ -36,6 +42,7 @@ Agent 今天大多只能调用云端 API。这个项目让 Agent 在用户许可
 - “看看路由器指示灯”——请求用户确认后调用相机，拍一张照片并返回对象引用；
 - “我到公司时提醒我提交报销”——创建本地提醒或地理围栏任务；
 - “把这个地址在手机地图里打开”——通过受控深链交给系统应用。
+- “把每天的订阅摘要发到这台手机”——投递 Markdown 到设备本地信箱，用户可搜索、排序并管理已读状态。
 
 它不是远程桌面、监控软件或 MDM。系统权限、用户确认和平台限制始终优先于 Agent 指令。
 
@@ -63,12 +70,13 @@ Agent 今天大多只能调用云端 API。这个项目让 Agent 在用户许可
 - 设备运行时、权限与用户确认 UI；
 - 移动端原生模块（Kotlin / Swift）；
 - 本地队列、审计记录和凭证安全存储；
+- 设备本地信箱内容、未读状态与用户清空入口；
 - 移动端集成、端到端测试和商店构建配置。
 
 这个仓库不拥有：
 
 - HTBP 通用协议定义：在 [TokenRollAI/HTBP](https://github.com/TokenRollAI/HTBP)；
-- 网关、通用 SDK、设备命令邮箱和对象存储：在
+- 网关、通用 SDK、持久化设备命令邮箱、push 分发和对象存储：在
   [TokenRollAI/tool-bridge](https://github.com/TokenRollAI/tool-bridge)；
 - 浏览器扩展：后续单独放在 `tool-bridge-browser`。
 
@@ -118,7 +126,7 @@ APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，a
 
 ## 版本与 GitHub 预发布
 
-当前 App/package 版本为 `0.0.2`。推送匹配 `vX.Y.Z` 的 tag 时，
+当前 App/package 版本为 `0.0.6`。推送匹配 `vX.Y.Z` 的 tag 时，
 [`release-preview`](.github/workflows/release.yml) 会先验证 tag、`package.json`、Expo App 版本和对应
 `docs/releases/<tag>.md` 完全一致，再执行 frozen install、全量 verify、peer/dependency gate、Android
 preview APK clean build 与 iOS simulator build。所有门禁成功后才创建 GitHub Pre-release，并附带
@@ -150,8 +158,8 @@ pnpm verify:android:emulator
 ```
 
 该脚本会卸载 emulator 中的 dev application id 后重新安装 APK，并验证安装后权限、首页状态、动态
-能力、local-only 通知/timer 边界、紧急停用重启持久化，以及四个标签页在 200% 系统字号下的语义
-名称、选中状态和关键操作最小尺寸；不会操作 preview/production 包，也不替代 TalkBack、VoiceOver
+能力、local-only 通知/timer 边界、紧急停用重启持久化、六个标签页的唯一语义，以及关键页面在 200%
+系统字号下的名称、选中状态和操作最小尺寸；不会操作 preview/production 包，也不替代 TalkBack、VoiceOver
 或真机验收。
 
 Android 需要 Java 17；iOS 需要 macOS、Xcode 26.4+ 与 CocoaPods。涉及 push、后台、相机、音频、

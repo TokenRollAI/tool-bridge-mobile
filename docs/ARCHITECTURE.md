@@ -22,7 +22,8 @@ Expo Router UI
   默认由设备硬件标识（Android ID / iOS IDFV）经单向摘要派生为稳定短 ID（硬件标识不可用时回退
   `installationId` 派生），也可由用户自定义，明确不冒充网关签发身份；设备声明挂载到
   `device/phone/<deviceId>`，本地 capability 仍以 `phone/*` 为规范命名空间，在 wire 边界双向转换；
-- SQLite schema version 2 保存 control mode、command intent/终态、审计元数据与非敏感 timer 状态；
+- SQLite schema version 4 保存 control mode、command intent/终态、审计元数据、非敏感 timer 状态，以及
+  独立受限的设备本地信箱正文/未读状态；
 - opaque device credential envelope 只由 SecureStore facade 保存，不进入 SQLite；本地撤销协调器先
   复用 runtime emergency disable，再以有界超时停止 realtime/mailbox adapter，最终清除凭证；
 - `phone/status.get` 从 Expo Battery/Network 与 AppState probe 读取；不可读取字段返回结构化
@@ -39,7 +40,7 @@ Expo Router UI
   transaction 内把终态总数裁剪至 10,000 条，同时保留 running、当前刚完成的 command 和活动 timer
   source；每次审计 insert 也在同一事务内把元数据裁剪至 5,000 条，两项硬上限都不依赖下一次 App
   启动；
-- 首页、能力页和活动页读取同一本地运行时；活动页投影最近 100 条 caller/path/tool/effect/risk/decision/
+- 首页、信箱、能力页和活动页读取同一本地运行时；活动页投影最近 100 条 caller/path/tool/effect/risk/decision/
   outcome 元数据，并提供只删除 `audit_records` 的本地二次确认入口。刷新 revision 防止清除后的旧异步
   snapshot 回写；command 去重、timer、设置、identity 和 credential 不在清除范围；
 - 共用 `Screen`/`StatusCard`/`StatusRow`/`AccessibleAction` 统一页面与卡片 header、label/value 关联、
@@ -47,7 +48,7 @@ Expo Router UI
   状态公告按 semantic key 去重，倒计时、媒体进度和敏感确认正文不进入自动公告；
 - emergency disable 会取消进行中 handler、拒绝 pending confirmation、停止 attention/media/timer、
   suspend SDK realtime，并使后续命令在 handler 前拒绝；
-- `@tool-bridge/sdk/device@0.11.0` 已接入前台 realtime：SecureStore 动态取 credential、RN WebSocket
+- `@tool-bridge/sdk/device@0.14.1` 已接入 realtime：SecureStore 动态取 credential、RN WebSocket
   header、官方 hello/ready/call/result、心跳、cancel 与 AppState suspend/resume 均进入生产 wiring；
   registry 只投影 SDK 正式字段，没有私自定义 frame；
 - 首页已提供手工 Gateway HTTPS origin + API key 内测入口。保存严格执行“停止旧 transport -> 写
@@ -84,6 +85,15 @@ available、permission_required 或 unavailable；high-risk 本地确认完成�
 后，使用固定 channel、固定 `Tool Bridge` 标题和确定性 commandId 摘要调度一次原生通知。持久化结果
 只报告 `scheduled/system_determined` 且不保存正文；这条链路不获取 push token、不接 mailbox，也不
 把 schedule promise、notification received callback 或模拟器 UI 当作已展示/已点击证据。
+
+`phone/inbox.deliver` 是在线 direct call 到本机内容存储的独立切片：strict schema 与 executor 安全链通过后，
+controller 在 commit 前复检取消/期限，以 `source_command_id UNIQUE` 和确定性 message id 写入 SQLite v4
+`inbox_messages`，同一事务内裁剪到 1,000 条。正文不进入 command outcome/audit/系统提醒；repository 在
+全部保留消息上参数化搜索，并按本地枚举生成收件/发送/已读顺序，页面只投影最多 100 条。单条/全部已读、
+搜索、排序和清空共用 inbox revision。Markdown 解析不使用 WebView；图片只有用户点按后，才从正文提供的
+合法 HTTPS URL 经逐跳复核、有界下载、MIME/签名/像素校验写到 App 私有 cache，再以 `file://` 渲染。
+可选提醒在存储成功后使用固定 payload best-effort 调度，失败不回滚。
+该表与上游 command mailbox 目的、状态机和所有权不同，没有 session 时不会离线收件或 push 唤醒。
 
 `phone/productivity.timer_start/timer_cancel/timer_status` 复用同一个 local-only notification adapter，但
 timer 的事实真源是 SQLite `timers` 表：executor claim 后先在事务中 reserve `preparing`，再以
@@ -210,17 +220,19 @@ wss://<gateway>/system/device/ws?deviceId=<deviceId>
 5. 设备以同一 id 返回 `result`；
 6. 双方使用精确 JSON `{"type":"ping"}` / `{"type":"pong"}` 心跳。
 
-当前移动实现通过 `@tool-bridge/sdk/device@0.11.0` 注入 React Native 原生 WebSocket factory，使用其
-非 WHATWG 第三个参数把 Authorization 放在 upgrade header；长期 SK 不进入 URL。App 只在前台
-resume，后台/inactive 与 Disabled 时 suspend，因为操作系统可能暂停或终止连接。
+当前移动实现通过 `@tool-bridge/sdk/device@0.14.1` 注入 React Native 原生 WebSocket factory，使用其
+非 WHATWG 第三个参数把 Authorization 放在 upgrade header；长期 SK 不进入 URL。enabled 时不因
+AppState 短暂变化主动断线，Disabled 时 suspend；操作系统仍可在后台暂停或终止进程，
+不得因此声称后台可达。
 
 当前内测可由首页提供 `baseUrl + API key`：URL 经 canonical HTTPS origin 校验，API key 只作为
 `Authorization: Bearer ...` material 写入 SecureStore。手工配置优先于可选的
 `EXPO_PUBLIC_GATEWAY_ORIGIN` 构建预置；后者永远不能携带 secret。
 
-0.11.0 call 只含 id/path/tool/arguments/signal，没有具体 caller identity 或 gateway deadline。移动适配
-暂以 device credential `keyId` 作为 gateway principal，并从本地接收时间生成 30 秒 commit deadline；
-这不是 Agent attribution。U-3 仍应提供短期 ticket，caller/deadline 也需通过正式上游契约补齐。
+0.14.1 call 使用完整 `path` 承载 node path + command leaf，并可携带网关签发的
+caller/createdAt/expiresAt/traceId。移动 adapter 按最后一个 `/` 拆分，caller 稳定主体优先使用
+`caller.keyId`，期限取网关 `expiresAt` 与本地接收后 30 秒的较早值。context 缺失时才
+降级到 device credential principal + 本地时间；U-3 短期 ticket 仍未交付。
 
 ### 4.2 后台可达（新增）
 
@@ -390,7 +402,8 @@ WebSocket JSON 帧或网关普通 request body 转发。
 | --- | --- | --- |
 | 设备凭证/私钥 | SecureStore / Keychain / Keystore | 禁止降级到 AsyncStorage |
 | 用户偏好与控制模式 | SQLite | 非敏感但需事务 |
-| command inbox 与终态 | SQLite | 支持 crash recovery 和幂等 |
+| command intent 与终态 | SQLite | 支持 crash recovery 和幂等；不是上游 command mailbox |
+| 设备本地信箱 | SQLite | 专用 Markdown 正文域；写时硬限制 1,000 条，查询最多显示 100 条，可搜索/排序/单条或全部已读/单独清空 |
 | 本地审计摘要 | SQLite | 写时硬限制 5,000 条；页面显示最近 100 条，可单独清除且不删除 command 去重记录 |
 | 待上传媒体 | App 私有文件目录 | 加密/保护级别按平台配置，有限 TTL |
 | capability cache | 内存 + SQLite 摘要 | 事件触发重算 |

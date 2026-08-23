@@ -1,5 +1,9 @@
 # Android 控制能力扩展调研反思
 
+> 历史说明（2026-08-23）：下文关于 `CallFrame` 仍为 `path/tool` 且缺少 caller/deadline 的描述，记录的是
+> `@tool-bridge/sdk@0.11.0` 当时的事实；当前 `0.14.1` 已改为完整 call path，并提供可选 `context`。现行契约以
+> `llmdoc/reference/sdk-device-transport.md` 为准。
+
 ## 任务
 
 核实现有移动端为何显得“权限严格、功能少”，评估 Android 高覆盖控制的可行路径，并把移动端无法独立解决的

@@ -78,13 +78,17 @@ dependency audit 仍保持未完成。
 这里的 identity 是 SecureStore 中的本地 `installationId`；手工内测模式的客户端 SDK deviceId 默认由
 设备硬件标识经单向摘要派生（或由用户自定义），不是网关签发身份。credential 勾选项代表 opaque credential facade 与手工
 API key 只使用 SecureStore，当前仍无 pairing 签发凭证。前台 realtime
-勾选项证明 `@tool-bridge/sdk/device@0.11.0` 的 RN header、hello/ready/call/result、cancel 与 AppState
-suspend/resume 已接到本地 executor，并通过 fake WebSocket contract 和双端 Metro；它不证明真实 gateway、
+勾选项证明 `@tool-bridge/sdk/device@0.14.1` 的 RN header、hello/ready/call/result、完整 path/context、
+cancel 与 Disabled suspend 已接到本地 executor，并通过 fake WebSocket contract；双端 Metro 需在本次
+升级后重跑。它不证明完整真实 gateway matrix、
 短期 ticket、pairing、后台 mailbox 或撤销端到端。U-1 已解阻，U-2 至 U-6 仍未完成。证据见
 [SDK device integration 验证](verification/2026-08-19-sdk-device-integration.md)。
 手工 Gateway 配置的输入、SecureStore 与 transport 切换证据见
 [2026-08-19 手工 Gateway 配置验证](verification/2026-08-19-manual-gateway-configuration.md)；它不替代
-pairing、短期 ticket 或真实网关联合验收。
+pairing、短期 ticket 或真实网关联合验收。0.14.1 另已用 Android Preview 0.0.6
+完成单次真机 `status/get` 直连验证，证据见
+[2026-08-23 SDK device wire 兼容验证](verification/2026-08-23-sdk-device-wire-compatibility.md)；该记录不勾选
+iOS、后台、弱网、所有能力或完整 pairing 验收项。
 
 ## 3. 单项能力 DOD
 
@@ -226,7 +230,34 @@ instrumentation，也不替代 TalkBack/VoiceOver、真机 haptic、音频、位
 5 秒 probe/deadline、确认、幂等和脱敏结果 contract；只证明提交边界，不证明 Android/iOS 真机地图 App
 实际打开。双端真机项仍保持未完成。
 
-### 4.5 即时本地通知
+### 4.5 设备本地信箱
+
+- [x] `phone/inbox.deliver` 使用 strict title/Markdown body/category/format/urgency/sentAt/sourceLabel/notify
+  schema，拒绝 unknown、顶层 URL/action/data/sound/badge/channel、控制字符与 bidi override/isolate；
+- [x] caller 身份只来自 invocation context；Agent 提供的 sourceLabel/urgency/sentAt 在 UI 明确标注为
+  内容元数据，可空 sentAt 不用 receivedAt 伪造；
+- [x] SQLite v4 以 source command unique key 与确定性 message id 去重，insert 与 1,000 条硬上限裁剪在
+  同一 exclusive transaction；
+- [x] title/body/sourceLabel 只进入专用 `inbox_messages`，不进入 command outcome、普通 audit 或系统
+  notification payload；
+- [x] repository 参数化搜索全部 1,000 条保留消息，页面最多显示 100 个结果，并支持收件/发送时间升降序、
+  未读/已读优先、单条/全部已读；查询和写操作使用 revision 防止旧异步 snapshot 回写；
+- [x] Markdown 只解析为白名单原生组件；图片展开前零网络请求，点按后允许任意通过 policy 的 HTTPS URL，
+  并使用 manual redirect、credentials omit、PNG/JPEG MIME/签名、3 MiB、4096 单边与 16 MP 边界，最终只渲染
+  App 私有 `file://`；
+- [x] 清空前二次确认，且只删除 `inbox_messages`；同一 commandId replay 返回历史 outcome 但不重建消息；
+- [x] 100 个并发重复、跨 executor replay 与 crash `result_unknown` 不产生第二条消息；
+- [x] 可选本地提醒发生在消息 commit 后，使用固定正文与确定性 inbox identifier；未授权/失败/未知不
+  回滚消息，且结果不声称 delivered、presented 或 read；
+- [ ] 当前真实 gateway 对 `inbox/deliver` 的 Android/iOS device call 已完成联合验证；
+- [ ] Android/iOS 真机覆盖前后台、锁屏、权限/channel 变化和可选提醒呈现；
+- [ ] gateway U-5/U-6 离线 enqueue、push wake hint、撤销与最终状态已完成。
+
+已勾选项来自 migration/repository/controller/registry/component/local runtime contract。它们只证明在线
+call 到达本地 executor 后的存储与 UI 边界；没有 ready session 时 App 不会自行收到来信，后台服务或
+本地通知也不构成 durable mailbox/push 证据。
+
+### 4.6 即时本地通知
 
 - [x] 唯一路径是 `phone/productivity.notify`，strict schema 只接受有界 purpose/message；
 - [x] title、URL、data、action、sound、badge、schedule 与控制/bidi 字符被拒绝；
@@ -246,7 +277,7 @@ instrumentation，也不替代 TalkBack/VoiceOver、真机 haptic、音频、位
 代码存在都不能升级为用户已看见/点击的证据。当前不注册 push token、不接 mailbox，因而也不满足
 U-5/U-6 或 DOD 的 push/background 组合项。
 
-### 4.6 App 内计时器
+### 4.7 App 内计时器
 
 - [x] `timer_start` strict schema 只接受 canonical UTC firesAt 与有界安全 purpose；
 - [x] caller 提供的 duration/timezone、label/message/title、repeat、URL/data/action/sound/badge/channel
@@ -274,7 +305,7 @@ U-5/U-6 或 DOD 的 push/background 组合项。
 config verifier 支撑。绝对 DATE trigger 只是系统 best-effort 调度：没有 exact alarm 或 boot receiver，
 测试中的 pending set 也不是系统呈现证据。真机项完成前不得把 timer 写成准点闹钟或已送达提醒。
 
-### 4.7 本地活动历史
+### 4.8 本地活动历史
 
 - [x] 页面展示 occurredAt、caller subject id、path/tool、effect/risk、decision 与 outcome code；
 - [x] 页面不展示 command arguments、完整 outcome、commandId、坐标、URL、message/purpose 或凭证；
@@ -291,9 +322,9 @@ config verifier 支撑。绝对 DATE trigger 只是系统 best-effort 调度：�
 SecureStore 或服务端数据，也不撤销配对/transport，因而不能用于勾选 Release DOD 的“数据删除和撤销
 流程”。服务端安全审计与本机用户可清历史必须继续分开定义。
 
-### 4.8 Accessibility semantics 自动化基线
+### 4.9 Accessibility semantics 自动化基线
 
-- [x] 四个标签页各有唯一页面 header，所有状态卡片 title 是 header；
+- [x] 六个标签页各有唯一页面 header，所有状态卡片 title 是 header；
 - [x] label/value 状态行合并为单一可访问名称，视觉文本不会被重复朗读，并支持换行与系统字号；
 - [x] timer、pending confirmation 等重复操作使用不含敏感正文的唯一上下文名称；
 - [x] pending confirmation 使用根布局 Modal 跨标签页显示最早请求、队列数量、截止时间和单次裁决操作；

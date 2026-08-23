@@ -3,7 +3,7 @@
 ## 当前用途
 
 正式 pairing/U-2 尚未交付时，首页允许用户手工输入 Gateway HTTPS origin 与 API key，直接驱动
-`@tool-bridge/sdk/device@0.11.0` 前台连接。它是内测 fallback，不是 pairing、设备凭证签发、最小 scope、
+`@tool-bridge/sdk/device@0.14.1` 连接。它是内测 fallback，不是 pairing、设备凭证签发、最小 scope、
 rotation/revoke 或 U-3 短期 ticket。
 
 ## 输入与身份
@@ -15,7 +15,8 @@ rotation/revoke 或 U-3 短期 ticket。
   派生为 12 位十六进制短 ID，跨重装稳定；硬件标识不可用时回退 SecureStore `installation_<uuid>` 派生。
   用户可在表单自定义 deviceId，只接受 `[A-Za-z0-9._-]{1,64}`（与网关 `assertDeviceId` DO 路由约束一致）。
 - 设备在 hello 中声明 `mountPath: device/phone/<deviceId>`；expose node 去掉 `phone/` 前缀，
-  相对 call path 进入本地 executor 前补回，`phone/*` 本地规范命名空间与 SQLite 历史格式不变。
+  新 call `path` 将命令放在最后一段，adapter 拆出 node path 后再补回 `phone/`，本地规范
+  命名空间与 SQLite 历史格式不变。
 - `manual_api_key_<uuid>` 只是同一安装实例的 gateway principal/local caller bucket，不是具体 Agent 身份。
 
 ## 存储与优先级

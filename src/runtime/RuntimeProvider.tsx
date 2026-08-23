@@ -9,6 +9,8 @@ import {
 
 import type { ControlMode } from '@/commands/types'
 import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
+import type { ResolvedInboxImage } from '@/inbox/imageSource'
+import type { InboxViewOptions } from '@/inbox/types'
 
 
 const RuntimeContext = createContext<ApplicationRuntime | null>(null)
@@ -34,14 +36,19 @@ export function useRuntime(): Readonly<{
   cancelTimer(timerId: string): Promise<void>
   clearAuditHistory(): Promise<number>
   clearGatewayConfiguration(): Promise<void>
+  clearInbox(): Promise<number>
+  markAllInboxMessagesRead(): Promise<number>
+  markInboxMessageRead(messageId: string): Promise<void>
   openNotificationSettings(): Promise<void>
   pauseMediaSession(sessionId: string): Promise<void>
   rejectConfirmation(commandId: string): boolean
   requestNotificationPermission(): Promise<void>
+  resolveInboxImage(rawUrl: string, signal: AbortSignal): Promise<ResolvedInboxImage>
   setBackgroundRuntimeEnabled(enabled: boolean): Promise<void>
   resumeMediaSession(sessionId: string): Promise<void>
   saveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void>
   setControlMode(mode: ControlMode): Promise<void>
+  setInboxViewOptions(options: InboxViewOptions): Promise<void>
   snapshot: ApplicationSnapshot
   stopAttentionSession(): Promise<void>
   stopMediaSession(sessionId?: string): Promise<void>
@@ -58,14 +65,19 @@ export function useRuntime(): Readonly<{
     cancelTimer: timerId => runtime.cancelTimer(timerId),
     clearAuditHistory: () => runtime.clearAuditHistory(),
     clearGatewayConfiguration: () => runtime.clearGatewayConfiguration(),
+    clearInbox: () => runtime.clearInbox(),
+    markAllInboxMessagesRead: () => runtime.markAllInboxMessagesRead(),
+    markInboxMessageRead: messageId => runtime.markInboxMessageRead(messageId),
     openNotificationSettings: () => runtime.openNotificationSettings(),
     pauseMediaSession: sessionId => runtime.pauseMediaSession(sessionId),
     rejectConfirmation: commandId => runtime.rejectConfirmation(commandId),
     requestNotificationPermission: () => runtime.requestNotificationPermission(),
+    resolveInboxImage: (rawUrl, signal) => runtime.resolveInboxImage(rawUrl, signal),
     setBackgroundRuntimeEnabled: enabled => runtime.setBackgroundRuntimeEnabled(enabled),
     resumeMediaSession: sessionId => runtime.resumeMediaSession(sessionId),
     saveGatewayConfiguration: input => runtime.saveGatewayConfiguration(input),
     setControlMode: mode => runtime.setControlMode(mode),
+    setInboxViewOptions: options => runtime.setInboxViewOptions(options),
     snapshot,
     stopAttentionSession: () => runtime.stopAttentionSession(),
     stopMediaSession: sessionId => runtime.stopMediaSession(sessionId),

@@ -13,14 +13,35 @@
 这些层级不能互相替代。尤其不能把 fake/injected adapter 的 contract test 写成网关端到端证据，
 也不能把 generated native 配置写成后台、锁屏、DND、位置精度或音频中断已经在真机有效。
 
+## 设备信箱的四层证据
+
+1. **本地自动化**：schema/migration/repository/controller/component/local runtime contract 只能证明在线
+   call 已到达 executor 后的 v4 内容保存、全保留集搜索/六排序/已读、幂等、clear/replay、revision、
+   RN Markdown 白名单、点击前零网络、任意结构合规 HTTPS 与安全跨 hostname redirect 的注入式 resolver
+   边界；不证明 DNS 私网/rebinding 防护或最终 redirect hostname 对用户可见。
+2. **真实 Gateway path**：必须单独验证当前 gateway 的 `inbox/deliver` expose/call/result、重复 id 与
+   正文脱敏；其他 capability（包括 Android 真机 `status/get`）成功不能替代。
+3. **双端真机**：必须分别留下 Android/iOS build 与真机证据，覆盖重启持久化、Markdown 布局、长列表/
+   搜索/排序/全部已读、真实图片下载/解码/取消/清理、前后台内存与无障碍，以及权限/channel/锁屏提醒；
+   Metro、prebuild、模拟器或注入 adapter 都不能替代。
+4. **离线 mailbox/push**：必须有 U-5 enqueue/claim/cancel/expiry/result 和 U-6 token/opaque wake hint 的
+   正式契约与端到端未送达/撤销证据；本地 SQLite 信箱、`scheduled` 通知或前台长连不构成这一层。
+
 ## 当前可用措辞
 
-- 可写：`@tool-bridge/sdk/device@0.11.0 consumer wiring 已集成`、`本机 URL/API key fallback 已实现`、
-  `本地 executor 已实现持久化去重`、`Android clean debug build 已成功`。
-- 需限定：`SDK ready 时前台 online`，后接“尚无真实 gateway/真机兼容证据”；没有 origin 时可写
+- 可写：`@tool-bridge/sdk/device@0.14.1 consumer wiring 已集成`、`新 device call path/context 本地适配已实现`、
+  `本机 URL/API key fallback 已实现`、
+  `本地 executor 已实现持久化去重`、`Android clean debug build 已成功`、
+  `设备在线且 direct call 已到达本地 executor 后，本机可安全保存并查询富内容消息；图片需用户逐图点按后
+  按本地 policy 有界加载，并可 best-effort 请求固定本地提醒`。
+- 真机 `status/get` 成功后只可限定为：`0.14.1 新版直连 device wire 与当前 Railway
+  gateway 的 status/get 路径已完成 Android 真机兼容验证`；不外推到所有能力、iOS、后台、
+  弱网或完整 pairing。
+- 需限定：`SDK ready 时 online`，不把进程存活外推为后台可达；没有 origin 时可写
   `transport 为 unconfigured`。
 - 需限定：`Android/iOS 已配置某权限或 background mode`，后接“尚无双端真机行为证据”。
-- 不可写：`手工 API key 等于已配对`、`已接通 production gateway`、`支持后台 push/mailbox`、
+- 不可写：`手工 API key 等于已配对`、`已接通 production gateway`、`Agent 可随时给离线手机发信`、
+  `本地信箱已经实现后台 push/mailbox`、
   `iOS 已构建`、`已通过真机验收`、`支持 objectRef`。
 
 ## DOD 勾选规则

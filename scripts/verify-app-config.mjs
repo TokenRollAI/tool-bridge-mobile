@@ -16,9 +16,9 @@ const easProject = {
 }
 
 const releaseMetadata = {
-  androidVersionCode: 5,
-  iosBuildNumber: '5',
-  version: '0.0.5',
+  androidVersionCode: 6,
+  iosBuildNumber: '6',
+  version: '0.0.6',
 }
 
 for (const [variant, expectedIdentifier] of Object.entries(variants)) {
@@ -62,7 +62,7 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   if (config.extra?.gatewayOrigin !== 'https://gateway.example.com') {
     throw new Error(`${variant}: gateway HTTPS origin 未规范化`)
   }
-  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.11.0') {
+  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.14.1') {
     throw new Error(`${variant}: production transport 版本标记不匹配`)
   }
   // 三个环境共用同一套品牌图标：安装标识虽然隔离，视觉标识不应分叉。
@@ -102,6 +102,9 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   }
   if (JSON.stringify(config.extra?.mediaHosts) !== JSON.stringify(['cdn.example.com', 'media.example.com'])) {
     throw new Error(`${variant}: 媒体 hostname allowlist 未规范化`)
+  }
+  if (config.extra?.inboxImageHosts !== undefined) {
+    throw new Error(`${variant}: 信箱图片 URL 不应依赖构建时 hostname 配置`)
   }
   if (JSON.stringify(config.extra?.linkHosts) !== JSON.stringify(['docs.example.com', 'www.example.com'])) {
     throw new Error(`${variant}: handoff hostname allowlist 未规范化`)
@@ -240,4 +243,4 @@ if (iosEntitlements?.['aps-environment'] !== undefined) {
   throw new Error('本地通知切片不得声明 APNs aps-environment entitlement')
 }
 
-console.log('App 配置验证通过：三环境安装标识隔离并绑定同一 EAS 项目，共用同一套品牌图标，本地通知/前台位置/地图/媒体配置最小化，无 APNs/后台位置/录音/相机/Face ID。')
+console.log('App 配置验证通过：三环境安装标识隔离并绑定同一 EAS 项目，共用同一套品牌图标，本地通知/前台位置/地图/媒体配置最小化，信箱图片无需主机配置，无 APNs/后台位置/录音/相机/Face ID。')

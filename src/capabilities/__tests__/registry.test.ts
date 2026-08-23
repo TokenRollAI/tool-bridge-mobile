@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { inboxDeliveryArgumentsSchema, inboxDeliveryResultSchema } from '../../inbox/schema'
 import {
   appCanOpenResultSchema,
   appOpenResultSchema,
@@ -199,6 +200,7 @@ describe('CapabilityRegistry', () => {
     const schemas = [
       appUrlArgumentsSchema,
       currentLocationArgumentsSchema,
+      inboxDeliveryArgumentsSchema,
       localNotificationArgumentsSchema,
       mediaPlayArgumentsSchema,
       mediaSeekArgumentsSchema,
@@ -226,6 +228,7 @@ describe('CapabilityRegistry', () => {
       appCanOpenResultSchema,
       appOpenResultSchema,
       currentLocationResultSchema,
+      inboxDeliveryResultSchema,
       localNotificationResultSchema,
       mediaSessionResultSchema,
       openMapResultSchema,
