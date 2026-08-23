@@ -1,7 +1,7 @@
 {
   "name": "tool-bridge-mobile",
   "private": true,
-  "version": "0.0.7",
+  "version": "0.0.8",
   "type": "module",
   "main": "index.js",
   "packageManager": "pnpm@11.21.0",

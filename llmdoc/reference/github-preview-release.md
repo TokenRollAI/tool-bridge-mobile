@@ -11,6 +11,8 @@
 - tag：`vX.Y.Z`；
 - package version：`X.Y.Z`；
 - `app.config.ts` 的 `APP_VERSION`：`X.Y.Z`；
+- `scripts/verify-app-config.mjs` 的 `releaseMetadata`：version 为 `X.Y.Z`，Android/iOS build number 与
+  `app.config.ts` 完全一致；
 - 发布说明：`docs/releases/vX.Y.Z.md`；
 - Android `versionCode` 与 iOS `buildNumber` 显式维护，发版时不得倒退。
 
@@ -20,11 +22,13 @@ workflow 同样设置该变量。
 
 ## 发布顺序
 
-1. 在功能分支运行 frozen install、`pnpm verify`、peer check 与 dependency audit；
-2. 合并到 `main`，确认 clean-checkout verify、Android Preview APK 与 iOS simulator job 全绿；
-3. 给合并后的 `main` commit 创建 annotated `vX.Y.Z` tag 并推送；
-4. tag workflow 重跑所有门禁，双端 build 成功后才创建 GitHub Pre-release；
-5. 下载 Release 的 APK 与 `.sha256`，独立核对 digest，并记录 workflow run、tag commit 和资产 URL。
+1. fetch 最新 `main` 与远端 tag，确认目标 tag 尚不存在，并把功能提交重放到最新 main；
+2. 同步 package、App、平台 build number、配置验证脚本和发布说明后，在功能分支运行 frozen install、
+   `pnpm verify`、peer check 与 dependency audit；
+3. 合并到 `main`，确认 clean-checkout verify、Android Preview APK 与 iOS simulator job 全绿；
+4. 给合并后的 `main` commit 创建 annotated `vX.Y.Z` tag 并推送；已有 tag 即使 workflow 失败也不得移动或复用；
+5. tag workflow 重跑所有门禁，双端 build 成功后才创建 GitHub Pre-release；
+6. 下载 Release 的 APK 与 `.sha256`，独立核对 digest，并记录 workflow run、tag commit 和资产 URL。
 
 Android/iOS build job 只需 `contents: read`；只有 publish job 使用 `contents: write`。仓库不得保存 GitHub
 token、keystore、Apple certificate/profile 或 Gateway credential。
