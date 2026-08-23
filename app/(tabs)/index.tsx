@@ -1,18 +1,26 @@
 import { router, useIsFocused } from 'expo-router'
 
 import { useRuntime } from '@/runtime/RuntimeProvider'
-import { HomeScreen } from '@/ui/screens/HomeScreen'
+import { InboxScreen } from '@/ui/screens/InboxScreen'
 
-export default function HomeRoute() {
+export default function InboxRoute() {
   const focused = useIsFocused()
-  const { cancelTimer, snapshot, stopAttentionSession } = useRuntime()
+  const {
+    clearInbox,
+    markAllInboxMessagesRead,
+    setInboxViewOptions,
+    snapshot,
+  } = useRuntime()
   return (
-    <HomeScreen
+    <InboxScreen
       focused={focused}
-      onCancelTimer={timerId => { void cancelTimer(timerId) }}
-      onOpenSettings={() => { router.navigate('/settings') }}
-      onStopAttention={() => { void stopAttentionSession() }}
-      snapshot={snapshot}
+      messages={snapshot.inboxMessages}
+      onClearInbox={clearInbox}
+      onMarkAllRead={markAllInboxMessagesRead}
+      onOpenMessage={messageId => { router.navigate(`/message/${messageId}`) }}
+      onViewOptionsChange={setInboxViewOptions}
+      unreadCount={snapshot.inboxUnreadCount}
+      viewOptions={snapshot.inboxViewOptions}
     />
   )
 }

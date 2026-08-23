@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { StyleSheet, Text, TextInput, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import {
   focusAccessibilityElement,
@@ -7,44 +7,25 @@ import {
 } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
 import { Icon } from '@/ui/components/Icon'
-import { SafeMarkdown } from '@/ui/components/SafeMarkdown'
 import { Screen } from '@/ui/components/Screen'
-import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
+import {
+  URGENCY_LABEL,
+  formatRelativeTime,
+  markdownSummary,
+} from '@/ui/inboxFormat'
 import { colors, radius, spacing } from '@/ui/theme'
 
-import type { InboxImageSourceResolver, ResolvedInboxImage } from '@/inbox/imageSource'
 import type {
   InboxMessage,
-  InboxMessageCategory,
-  InboxMessageUrgency,
   InboxSort,
   InboxViewOptions,
 } from '@/inbox/types'
-import type { Pressable, Text as NativeText } from 'react-native'
-
-const HALF_HOUR_MS = 30 * 60 * 1_000
-
-const CATEGORY_LABEL: Readonly<Record<InboxMessageCategory, string>> = {
-  message: '消息',
-  news: '新闻',
-  subscription: '订阅',
-  update: '更新',
-}
-
-const URGENCY_LABEL: Readonly<Record<InboxMessageUrgency, string>> = {
-  critical: '紧急',
-  high: '高',
-  low: '低',
-  normal: '普通',
-}
+import type { Pressable as PressableType, Text as NativeText } from 'react-native'
 
 const SORT_OPTIONS: readonly Readonly<{ label: string; value: InboxSort }>[] = [
-  { label: '收件：新到旧', value: 'received_desc' },
-  { label: '收件：旧到新', value: 'received_asc' },
-  { label: '发送：新到旧', value: 'sent_desc' },
-  { label: '发送：旧到新', value: 'sent_asc' },
+  { label: '最新', value: 'received_desc' },
+  { label: '最早', value: 'received_asc' },
   { label: '未读优先', value: 'unread_first' },
-  { label: '已读优先', value: 'read_first' },
 ]
 
 type InboxScreenProps = Readonly<{
@@ -53,12 +34,72 @@ type InboxScreenProps = Readonly<{
   now?: Date
   onClearInbox(): Promise<number>
   onMarkAllRead(): Promise<number>
-  onMarkRead(messageId: string): Promise<void>
-  onResolveImage(rawUrl: string, signal: AbortSignal): Promise<ResolvedInboxImage>
+  onOpenMessage(messageId: string): void
   onViewOptionsChange(options: InboxViewOptions): Promise<void>
   unreadCount: number
   viewOptions: InboxViewOptions
 }>
+
+function MessageListItem({
+  message,
+  now,
+  onOpen,
+}: Readonly<{ message: InboxMessage; now?: Date | undefined; onOpen(): void }>) {
+  const caller = message.callerDisplayName ?? message.callerSubjectId
+  const unread = message.readAt === null
+  const relative = formatRelativeTime(message.receivedAt, now)
+  const summary = markdownSummary(message.body)
+  const showUrgency = message.urgency === 'critical' || message.urgency === 'high'
+  const accessibilityLabel = [
+    unread ? '未读' : '已读',
+    showUrgency ? URGENCY_LABEL[message.urgency] : null,
+    message.title,
+    `来自 ${caller}`,
+    relative,
+  ].filter(Boolean).join('，')
+  return (
+    <Pressable
+      accessibilityHint="打开这条本机信箱消息查看完整内容"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      onPress={onOpen}
+      style={({ pressed }) => [styles.item, pressed ? styles.itemPressed : null]}
+    >
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.itemBody}
+      >
+        <View style={styles.itemHeader}>
+          <View
+            style={[styles.unreadDot, unread ? styles.unreadDotActive : null]}
+          />
+          <Text numberOfLines={1} style={[styles.itemTitle, unread ? styles.itemTitleUnread : null]}>
+            {message.title}
+          </Text>
+          <Text style={styles.itemTime}>{relative}</Text>
+        </View>
+        <View style={styles.itemMetaLine}>
+          {showUrgency ? (
+            <Text
+              style={[
+                styles.urgencyTag,
+                message.urgency === 'critical' ? styles.urgencyCritical : styles.urgencyHigh,
+              ]}
+            >
+              {URGENCY_LABEL[message.urgency]}
+            </Text>
+          ) : null}
+          <Text numberOfLines={1} style={styles.itemCaller}>{caller}</Text>
+        </View>
+        {summary === '' ? null : (
+          <Text numberOfLines={2} style={styles.itemSummary}>{summary}</Text>
+        )}
+      </View>
+      <Icon color={colors.muted} name="chevron" size={18} />
+    </Pressable>
+  )
+}
 
 export function InboxScreen({
   focused = true,
@@ -66,33 +107,20 @@ export function InboxScreen({
   now,
   onClearInbox,
   onMarkAllRead,
-  onMarkRead,
-  onResolveImage,
+  onOpenMessage,
   onViewOptionsChange,
   unreadCount,
   viewOptions,
 }: InboxScreenProps) {
-  const [liveClockMs, setLiveClockMs] = useState(() => Date.now())
   const [confirmingClear, setConfirmingClear] = useState(false)
-  const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [isClearing, setIsClearing] = useState(false)
   const [isMarkingAll, setIsMarkingAll] = useState(false)
   const [isUpdatingView, setIsUpdatingView] = useState(false)
-  const [markingMessageId, setMarkingMessageId] = useState<string | null>(null)
   const [searchText, setSearchText] = useState(viewOptions.searchQuery)
-  const clearTriggerRef = useRef<React.ElementRef<typeof Pressable>>(null)
+  const clearTriggerRef = useRef<React.ElementRef<typeof PressableType>>(null)
   const confirmationTitleRef = useRef<NativeText>(null)
   const wasConfirming = useRef(false)
-  const imageResolver = useMemo<InboxImageSourceResolver>(() => ({
-    resolve: onResolveImage,
-  }), [onResolveImage])
-
-  useEffect(() => {
-    if (now !== undefined) return undefined
-    const interval = setInterval(() => { setLiveClockMs(Date.now()) }, 60_000)
-    return () => { clearInterval(interval) }
-  }, [now])
 
   useEffect(() => {
     if (confirmingClear && !wasConfirming.current) {
@@ -112,23 +140,6 @@ export function InboxScreen({
     feedback,
     feedback?.includes('失败') === true ? 'assertive' : 'polite',
   )
-
-  const cutoffMs = (now?.getTime() ?? liveClockMs) - HALF_HOUR_MS
-  const recentCount = messages.filter(message => Date.parse(message.receivedAt) >= cutoffMs).length
-
-  const markRead = async (messageId: string) => {
-    if (markingMessageId !== null) return
-    setMarkingMessageId(messageId)
-    setFeedback(null)
-    try {
-      await onMarkRead(messageId)
-      setFeedback('消息已标为已读。')
-    } catch {
-      setFeedback('标记已读失败；消息状态未被确认更改。')
-    } finally {
-      setMarkingMessageId(null)
-    }
-  }
 
   const markAllRead = async () => {
     if (isMarkingAll || unreadCount === 0) return
@@ -177,7 +188,6 @@ export function InboxScreen({
     try {
       const deleted = await onClearInbox()
       setConfirmingClear(false)
-      setExpandedMessageId(null)
       setFeedback(`已清空 ${deleted} 条本机信箱消息。`)
     } catch {
       setFeedback('清空失败；本机信箱消息未被确认删除。')
@@ -186,70 +196,17 @@ export function InboxScreen({
     }
   }
 
-  const renderMessage = (message: InboxMessage) => {
-    const caller = message.callerDisplayName ?? message.callerSubjectId
-    const expanded = expandedMessageId === message.messageId
-    const urgency = URGENCY_LABEL[message.urgency]
-    return (
-      <StatusCard
-        icon={message.readAt === null ? 'inboxUnread' : 'inbox'}
-        key={message.messageId}
-        title={`${message.readAt === null ? '未读 · ' : ''}${urgency} · ${message.title}`}
-        tone={message.urgency === 'critical' ? 'danger' : 'neutral'}
-      >
-        <StatusRow label="调用方" value={caller} />
-        <StatusRow label="类型" value={CATEGORY_LABEL[message.category]} />
-        <StatusRow label="紧急程度" value={urgency} />
-        {message.sourceLabel === null ? null : (
-          <StatusRow label="内容来源（Agent 提供）" value={message.sourceLabel} />
-        )}
-        {message.sentAt === null ? null : (
-          <StatusRow label="发送时间（Agent 提供）" value={message.sentAt} />
-        )}
-        <StatusRow label="收到时间" value={message.receivedAt} />
-        {!expanded ? <Text numberOfLines={3} style={styles.body}>{markdownSummary(message.body)}</Text> : (
-          <SafeMarkdown imageResolver={imageResolver} markdown={message.body} />
-        )}
-        <View style={styles.actionRow}>
-          <AccessibleAction
-            label={`${expanded ? '收起' : '查看'} ${caller} 于 ${message.receivedAt} 的信箱消息内容`}
-            onPress={() => { setExpandedMessageId(expanded ? null : message.messageId) }}
-            style={styles.flexButton}
-            variant="secondary"
-            visualLabel={expanded ? '收起内容' : '查看 Markdown'}
-          />
-          {message.readAt === null ? (
-            <AccessibleAction
-              busy={markingMessageId === message.messageId}
-              label={`将 ${caller} 于 ${message.receivedAt} 的信箱消息标为已读`}
-              onPress={() => { void markRead(message.messageId) }}
-              style={styles.flexButton}
-              variant="secondary"
-              visualLabel={markingMessageId === message.messageId ? '正在标记…' : '标为已读'}
-            />
-          ) : null}
-        </View>
-        {message.readAt === null ? null : <StatusRow label="已读时间" value={message.readAt} />}
-      </StatusCard>
-    )
-  }
+  const searching = viewOptions.searchQuery !== ''
 
   return (
     <Screen
-      description="Agent 通过当前设备直连会话投递后，Markdown 消息只保存在本机；搜索覆盖最多保留的 1,000 条，当前结果最多展示 100 条。离线队列与 push 尚未实现。"
+      description="Agent 通过当前设备直连会话投递的 Markdown 消息只保存在本机。点开任意一条即可阅读全文并自动标为已读。离线队列与 push 尚未实现。"
+      eyebrow={unreadCount === 0 ? '信箱' : `${unreadCount} 条未读`}
       focused={focused}
       title="信箱"
     >
-      <StatusCard icon="inbox" title="信箱概览">
-        <StatusRow label="当前结果" value={`${messages.length} 条`} />
-        <StatusRow label="结果中最近半小时" value={`${recentCount} 条`} />
-        <StatusRow label="全部未读" value={`${unreadCount} 条`} />
-        <Text style={styles.note}>
-          紧急程度、内容来源和发送时间由 Agent 提供，只是内容元数据；调用方与本机收到时间来自 Tool Bridge 执行上下文和本机存储。
-        </Text>
-      </StatusCard>
-
-      <StatusCard icon="search" title="搜索与排序">
+      <View style={styles.searchBar}>
+        <Icon color={colors.muted} name="search" size={18} />
         <TextInput
           accessibilityLabel="搜索本机信箱"
           autoCapitalize="none"
@@ -263,67 +220,78 @@ export function InboxScreen({
           style={styles.searchInput}
           value={searchText}
         />
-        <View style={styles.actionRow}>
-          <AccessibleAction
-            busy={isUpdatingView}
-            disabled={searchText.trim() === viewOptions.searchQuery}
-            label="执行本机信箱搜索"
-            onPress={() => { void applySearch(searchText) }}
-            style={styles.flexButton}
-            variant="secondary"
-            visualLabel="搜索"
-          />
-          {searchText === '' && viewOptions.searchQuery === '' ? null : (
-            <AccessibleAction
+        {searchText === '' ? null : (
+          <Pressable
+            accessibilityLabel="清除信箱搜索词"
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => {
+              setSearchText('')
+              void applySearch('')
+            }}
+          >
+            <Icon color={colors.muted} name="danger" size={18} />
+          </Pressable>
+        )}
+      </View>
+
+      <View accessibilityRole="radiogroup" style={styles.sortRow}>
+        {SORT_OPTIONS.map(option => {
+          const selected = option.value === viewOptions.sort
+          return (
+            <Pressable
+              accessibilityLabel={`信箱排序：${option.label}`}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
               disabled={isUpdatingView}
-              label="清除信箱搜索词"
-              onPress={() => {
-                setSearchText('')
-                void applySearch('')
-              }}
-              style={styles.flexButton}
-              variant="secondary"
-              visualLabel="清除搜索"
-            />
-          )}
-        </View>
-        <View accessibilityRole="radiogroup" style={styles.sortOptions}>
-          {SORT_OPTIONS.map(option => (
-            <AccessibleAction
-              busy={isUpdatingView && option.value === viewOptions.sort}
               key={option.value}
-              label={`信箱排序：${option.label}`}
               onPress={() => { void changeSort(option.value) }}
-              role="radio"
-              selected={option.value === viewOptions.sort}
-              style={styles.sortButton}
-              variant="secondary"
-              visualLabel={option.label}
-            />
-          ))}
-        </View>
-      </StatusCard>
+              style={[styles.sortChip, selected ? styles.sortChipSelected : null]}
+            >
+              <Text style={[styles.sortChipText, selected ? styles.sortChipTextSelected : null]}>
+                {option.label}
+              </Text>
+            </Pressable>
+          )
+        })}
+        <View style={styles.sortSpacer} />
+        {unreadCount === 0 ? null : (
+          <Pressable
+            accessibilityLabel="将本机信箱全部标为已读"
+            accessibilityRole="button"
+            accessibilityState={{ busy: isMarkingAll }}
+            disabled={isMarkingAll}
+            onPress={() => { void markAllRead() }}
+            style={styles.markAllButton}
+          >
+            <Text style={styles.markAllText}>
+              {isMarkingAll ? '标记中…' : '全部已读'}
+            </Text>
+          </Pressable>
+        )}
+      </View>
 
-      <AccessibleAction
-        busy={isMarkingAll}
-        disabled={unreadCount === 0}
-        label="将本机信箱全部标为已读"
-        onPress={() => { void markAllRead() }}
-        variant="secondary"
-        visualLabel={isMarkingAll ? '正在全部标记…' : '全部标为已读'}
-      />
-
-      <Text accessibilityRole="header" style={styles.sectionTitle}>
-        {viewOptions.searchQuery === '' ? '信箱消息' : '搜索结果'}
-      </Text>
       {messages.length === 0 ? (
         <View style={styles.emptyCard}>
           <Icon color={colors.muted} name="inbox" size={28} />
           <Text style={styles.empty}>
-            {viewOptions.searchQuery === '' ? '最近还没有 Agent 来信。' : '没有匹配的本机信箱消息。'}
+            {searching ? '没有匹配的本机信箱消息。' : '最近还没有 Agent 来信。'}
           </Text>
         </View>
-      ) : messages.map(renderMessage)}
+      ) : (
+        <View style={styles.list}>
+          {messages.map(message => (
+            <MessageListItem
+              key={message.messageId}
+              message={message}
+              now={now}
+              onOpen={() => { onOpenMessage(message.messageId) }}
+            />
+          ))}
+        </View>
+      )}
+
+      {feedback === null ? null : <Text style={styles.feedback}>{feedback}</Text>}
 
       {!confirmingClear ? (
         <AccessibleAction
@@ -335,7 +303,7 @@ export function InboxScreen({
             setConfirmingClear(true)
           }}
           ref={clearTriggerRef}
-          variant="danger"
+          variant="secondary"
         />
       ) : (
         <View style={styles.confirmation}>
@@ -346,7 +314,7 @@ export function InboxScreen({
           >
             确认清空本机信箱？
           </Text>
-          <Text style={styles.body}>
+          <Text style={styles.confirmationBody}>
             此操作不可恢复，只删除本机信箱消息。它不会删除 command 防重放记录、活动审计、设置或凭证；同一 commandId 重放也不会重建已清空的消息。
           </Text>
           <View style={styles.actionRow}>
@@ -374,24 +342,12 @@ export function InboxScreen({
           </View>
         </View>
       )}
-      {feedback === null ? null : <Text style={styles.feedback}>{feedback}</Text>}
     </Screen>
   )
 }
 
-function markdownSummary(markdown: string): string {
-  return markdown
-    .replace(/!\[[^\]]*\]\([^)]*\)/gu, '[图片]')
-    .replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1')
-    .replace(/^[#>\-*+\d.\s]+/gmu, '')
-    .replace(/[*_~`]/gu, '')
-    .replace(/\s+/gu, ' ')
-    .trim()
-}
-
 const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  body: { color: colors.text, fontSize: 15, lineHeight: 22 },
   confirmation: {
     backgroundColor: colors.panel,
     borderColor: colors.danger,
@@ -400,6 +356,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg,
   },
+  confirmationBody: { color: colors.text, fontSize: 15, lineHeight: 22 },
   confirmationTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
   empty: { color: colors.muted, fontSize: 15, textAlign: 'center' },
   emptyCard: {
@@ -425,19 +382,146 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   flexButton: { flexBasis: 140, flexGrow: 1 },
-  note: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  searchInput: {
+  item: {
+    alignItems: 'center',
+    backgroundColor: colors.panel,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    columnGap: spacing.sm,
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  itemBody: {
+    flexGrow: 1,
+    flexShrink: 1,
+    gap: spacing.xs,
+  },
+  itemCaller: {
+    color: colors.muted,
+    flexShrink: 1,
+    fontSize: 13,
+  },
+  itemHeader: {
+    alignItems: 'center',
+    columnGap: spacing.sm,
+    flexDirection: 'row',
+  },
+  itemMetaLine: {
+    alignItems: 'center',
+    columnGap: spacing.sm,
+    flexDirection: 'row',
+  },
+  itemPressed: {
+    opacity: 0.7,
+  },
+  itemSummary: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  itemTime: {
+    color: colors.muted,
+    fontSize: 12,
+  },
+  itemTitle: {
+    color: colors.text,
+    flexGrow: 1,
+    flexShrink: 1,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  itemTitleUnread: {
+    fontWeight: '800',
+  },
+  list: {
+    gap: spacing.sm,
+  },
+  markAllButton: {
+    alignItems: 'center',
+    borderRadius: radius.sm,
+    justifyContent: 'center',
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+  },
+  markAllText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  searchBar: {
+    alignItems: 'center',
     backgroundColor: colors.panelElevated,
     borderColor: colors.outline,
     borderRadius: radius.md,
     borderWidth: 1,
+    columnGap: spacing.sm,
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+  },
+  searchInput: {
     color: colors.text,
+    flexGrow: 1,
+    flexShrink: 1,
     fontSize: 16,
     minHeight: 48,
-    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  sectionTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  sortButton: { flexBasis: 132, flexGrow: 1, paddingHorizontal: spacing.sm },
-  sortOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  sortChip: {
+    alignItems: 'center',
+    borderColor: colors.outline,
+    borderRadius: 999,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+  },
+  sortChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  sortChipText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sortChipTextSelected: {
+    color: colors.background,
+  },
+  sortRow: {
+    alignItems: 'center',
+    columnGap: spacing.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: spacing.sm,
+  },
+  sortSpacer: {
+    flexGrow: 1,
+  },
+  unreadDot: {
+    backgroundColor: 'transparent',
+    borderRadius: 5,
+    height: 10,
+    width: 10,
+  },
+  unreadDotActive: {
+    backgroundColor: colors.primary,
+  },
+  urgencyCritical: {
+    backgroundColor: colors.danger,
+    color: colors.background,
+  },
+  urgencyHigh: {
+    backgroundColor: colors.warning,
+    color: colors.background,
+  },
+  urgencyTag: {
+    borderRadius: radius.sm,
+    fontSize: 11,
+    fontWeight: '800',
+    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1,
+  },
 })

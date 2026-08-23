@@ -1,9 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
 import { GatewayConfigurationCard } from '@/ui/components/GatewayConfigurationCard'
-import { Icon } from '@/ui/components/Icon'
+import { Icon, type IconName } from '@/ui/components/Icon'
 import { Screen } from '@/ui/components/Screen'
 import { SettingToggle } from '@/ui/components/SettingToggle'
 import { StatusCard } from '@/ui/components/StatusCard'
@@ -40,7 +40,10 @@ type SettingsScreenProps = Readonly<{
   onClearGatewayConfiguration(): Promise<void>
   onEmergencyDisable(): void
   onEnable(): void
+  onOpenCapabilities(): void
+  onOpenMedia(): void
   onOpenNotificationSettings(): void
+  onOpenStatus(): void
   onRequestNotificationPermission(): void
   onSaveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void>
   onSetBackgroundRuntime(enabled: boolean): void
@@ -53,7 +56,10 @@ export function SettingsScreen({
   onClearGatewayConfiguration,
   onEmergencyDisable,
   onEnable,
+  onOpenCapabilities,
+  onOpenMedia,
   onOpenNotificationSettings,
+  onOpenStatus,
   onRequestNotificationPermission,
   onSaveGatewayConfiguration,
   onSetBackgroundRuntime,
@@ -88,6 +94,30 @@ export function SettingsScreen({
       focused={focused}
       title="设置"
     >
+      <StatusCard icon="home" title="设备信息">
+        <Text style={styles.body}>
+          查看运行时状态、已探测的设备能力与媒体会话。这些页面只读，不改变裁决配置。
+        </Text>
+        <NavRow
+          hint="查看控制模式、连接、后台运行与进行中的会话"
+          icon="home"
+          label="设备状态"
+          onPress={onOpenStatus}
+        />
+        <NavRow
+          hint="查看来自实际 probe 的设备能力及其可用性"
+          icon="capabilities"
+          label="设备能力"
+          onPress={onOpenCapabilities}
+        />
+        <NavRow
+          hint="查看 App 自有的媒体播放会话"
+          icon="media"
+          label="媒体会话"
+          onPress={onOpenMedia}
+        />
+      </StatusCard>
+
       {isDisabled ? (
         <StatusCard icon="disabled" title="远程能力已停用" tone="danger">
           <Text style={styles.body}>
@@ -192,11 +222,64 @@ export function SettingsScreen({
   )
 }
 
+function NavRow({
+  hint,
+  icon,
+  label,
+  onPress,
+}: Readonly<{ hint: string; icon: IconName; label: string; onPress(): void }>) {
+  return (
+    <Pressable
+      accessibilityHint={hint}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.navRow, pressed ? styles.navRowPressed : null]}
+    >
+      <View style={styles.navRowIcon}>
+        <Icon color={colors.primary} name={icon} size={18} />
+      </View>
+      <Text style={styles.navRowLabel}>{label}</Text>
+      <Icon color={colors.muted} name="chevron" size={18} />
+    </Pressable>
+  )
+}
+
 const styles = StyleSheet.create({
   body: {
     color: colors.muted,
     fontSize: 15,
     lineHeight: 22,
+  },
+  navRow: {
+    alignItems: 'center',
+    backgroundColor: colors.panelElevated,
+    borderColor: colors.outline,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    columnGap: spacing.md,
+    flexDirection: 'row',
+    minHeight: 48,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  navRowIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.panel,
+    borderRadius: radius.sm,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  navRowLabel: {
+    color: colors.text,
+    flexGrow: 1,
+    flexShrink: 1,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  navRowPressed: {
+    opacity: 0.7,
   },
   warningNote: {
     alignItems: 'flex-start',
