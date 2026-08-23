@@ -266,7 +266,8 @@ push token 是敏感设备标识：
 
 ## 9. 审计
 
-设备本地信箱正文属于用户内容，不是普通审计元数据。`phone/inbox.deliver` 只接受有界 Markdown 与固定
+设备本地信箱正文属于用户内容，不是普通审计元数据。`phone/inbox.deliver` 只接受最多 64,000 字符的
+有界 Markdown 与固定
 元数据枚举，caller 身份来自 SDK invocation context；Agent 提供的 `sourceLabel`、`urgency` 与可选
 `sentAt` 必须与认证 caller、本机 `receivedAt` 分开展示。正文仅
 写入专用 `inbox_messages` 表，不进入 command outcome、普通 audit、自动 accessibility announcement 或

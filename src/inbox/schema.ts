@@ -4,6 +4,8 @@ const unsafeSingleLineText = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2
 const unsafeMultilineText = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/
 const canonicalUtcTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 
+export const INBOX_BODY_MAX_CHARACTERS = 64_000
+
 function safeSingleLine(maximum: number, field: string) {
   return z.string().max(maximum).transform(value => value.trim()).pipe(
     z.string().min(1).max(maximum).refine(value => !unsafeSingleLineText.test(value), {
@@ -31,7 +33,7 @@ const sentAt = z.string().regex(
 )
 
 export const inboxDeliveryArgumentsSchema = z.strictObject({
-  body: safeMultiline(4_000, 'body'),
+  body: safeMultiline(INBOX_BODY_MAX_CHARACTERS, 'body'),
   category: z.enum(['message', 'subscription', 'news', 'update']).default('message'),
   format: z.literal('markdown').default('markdown'),
   notify: z.boolean().default(false),

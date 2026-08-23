@@ -1,6 +1,7 @@
 import { CapabilityRegistry } from '@/capabilities/registry'
 import { createInboxDeliveryCapability } from '@/inbox/capability'
 import { InboxDeliveryController } from '@/inbox/controller'
+import { INBOX_BODY_MAX_CHARACTERS } from '@/inbox/schema'
 import { LocalConfirmationCoordinator } from '@/policy/localConfirmationCoordinator'
 import { PolicyEngine } from '@/policy/policyEngine'
 import { LocalCommandExecutor } from '@/runtime/localCommandExecutor'
@@ -46,10 +47,13 @@ class FakeNotificationPort implements InboxNotificationPort {
   }
 }
 
-function command(commandId: string): LocalCommand {
+function command(
+  commandId: string,
+  body = 'Sensitive subscription body',
+): LocalCommand {
   return {
     arguments: {
-      body: 'Sensitive subscription body',
+      body,
       category: 'subscription',
       notify: false,
       sourceLabel: 'Daily Brief',
@@ -129,6 +133,24 @@ describe('phone/inbox.deliver local runtime contract', () => {
     expect(JSON.stringify(fixture.commandRepository.records.get('inbox_approved')))
       .not.toContain('Sensitive')
     expect(JSON.stringify(fixture.auditRepository.records)).not.toContain('Sensitive')
+  })
+
+  test('64,000 字符正文可落到专用信箱，64,001 字符在执行前拒绝', async () => {
+    const fixture = harness({ ...context, controlMode: 'trusted_session' })
+    const maximumBody = '闻'.repeat(INBOX_BODY_MAX_CHARACTERS)
+
+    await expect(fixture.executor.execute(
+      command('inbox_maximum_body', maximumBody),
+      new AbortController().signal,
+    )).resolves.toMatchObject({ ok: true, value: { status: 'stored' } })
+    expect(fixture.inboxRepository.records.get(`inbox_${'b'.repeat(64)}`)?.body)
+      .toHaveLength(INBOX_BODY_MAX_CHARACTERS)
+
+    await expect(fixture.executor.execute(
+      command('inbox_oversized_body', `${maximumBody}闻`),
+      new AbortController().signal,
+    )).resolves.toMatchObject({ error: { code: 'invalid_argument' }, ok: false })
+    expect(fixture.inboxRepository.records.size).toBe(1)
   })
 
   test('Disabled 与过期命令 zero insert', async () => {
