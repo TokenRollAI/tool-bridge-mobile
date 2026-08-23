@@ -15,7 +15,7 @@ result cursor 或离线拉取状态机，也不注册 APNs/FCM token。设备离
 输入是 strict object：
 
 - `title`：trim 后 1–120 个单行安全显示字符；
-- `body`：把 CRLF/CR 规范为 LF 并 trim，规范化后 1–4,000 个字符，内容格式为 Markdown；
+- `body`：把 CRLF/CR 规范为 LF 并 trim，规范化后 1–64,000 个字符，内容格式为 Markdown；
 - `category`：`message | subscription | news | update`，默认 `message`；
 - `format`：当前只接受 `markdown`，默认 `markdown`；
 - `urgency`：`low | normal | high | critical`，默认 `normal`；
@@ -151,7 +151,8 @@ push token，不是 remote notification 或 U-6 wake hint。
 ## 证据分层
 
 1. **本地自动化**：schema、migration、repository、controller、registry、component 与 local runtime
-   contract 证明 strict rich schema、v4 migration、正文域、1,000 cap、全保留集参数化搜索、六种排序、
+   contract 证明 strict rich schema、64,000 字符接受/64,001 字符拒绝、Agent 可发现的
+   `maxLength: 64000`、64,000 字符 runtime 落盘、v4 migration、正文域、1,000 cap、全保留集参数化搜索、六种排序、
    单条/全部已读、确定性幂等、commit 后提醒、clear/replay、revision、RN Markdown 白名单、点击前零网络、
    任意结构合规 HTTPS、安全跨 hostname redirect、inbox hostname 配置链缺失且 media/link 配置未变；注入
    adapter/fake transport 不是系统或 gateway E2E。

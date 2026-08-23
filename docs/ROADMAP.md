@@ -161,8 +161,8 @@ channel，iOS 不声明 APNs entitlement 或 remote-notification background mode
 `scheduled/system_determined`，不声称通知已展示或用户已点击。双端真机授权、前后台呈现与点击观察，
 以及 U-5/U-6 mailbox/push 仍未完成；这些边界不因本项本地实现被勾选而改变。
 
-`phone/inbox.deliver` 已形成在线 direct-call → SQLite v4 → 信箱页的本地纵向切片：title/Markdown body/
-category/urgency/可选 sentAt/sourceLabel/notify 使用 strict schema，正文只进入 1,000 条硬上限的专用表；
+`phone/inbox.deliver` 已形成在线 direct-call → SQLite v4 → 信箱页的本地纵向切片：title/最多 64,000 字符的
+Markdown body/category/urgency/可选 sentAt/sourceLabel/notify 使用 strict schema，正文只进入 1,000 条硬上限的专用表；
 页面在全部保留消息上搜索，最多投影 100 条，支持六种排序、单条/全部已读。Markdown 图片需用户主动点按，
 正文 HTTPS URL 无需预配置 hostname，并经过逐跳复核、有界下载和内容/像素校验后才从私有 file URI 渲染；
 清空不删除 command 防重放。

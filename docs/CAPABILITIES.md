@@ -296,7 +296,7 @@ strict 入参：
 }
 ```
 
-- `title` 最多 120 字符；`body` 是最多 4,000 字符的 Markdown；`format` 只接受且默认 `markdown`；
+- `title` 最多 120 字符；`body` 是最多 64,000 字符的 Markdown；`format` 只接受且默认 `markdown`；
   `urgency` 只接受 `low | normal | high | critical` 并默认 `normal`；`sentAt` 可选，但非空时必须是
   `YYYY-MM-DDTHH:mm:ss.sssZ` 规范 UTC。`sourceLabel` 可选且最多 120 字符；
   三者拒绝其余 C0/C1 与 bidi override/isolate。`category` 只接受 `message | subscription | news | update`；

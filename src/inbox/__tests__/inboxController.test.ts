@@ -1,7 +1,12 @@
+import { z } from 'zod'
+
 import { MemoryInboxRepository } from '@/storage/inboxRepository'
 
 import { InboxDeliveryController } from '../controller'
-import { inboxDeliveryArgumentsSchema } from '../schema'
+import {
+  INBOX_BODY_MAX_CHARACTERS,
+  inboxDeliveryArgumentsSchema,
+} from '../schema'
 
 import type {
   InboxNotificationPort,
@@ -73,6 +78,23 @@ describe('device inbox controller', () => {
       .toBe(false)
     expect(inboxDeliveryArgumentsSchema.safeParse({ body: '正文', title: '新闻\u202e设置' }).success)
       .toBe(false)
+  })
+
+  test('正文接受 64,000 字符、拒绝 64,001 字符，并向 Agent 暴露相同上限', () => {
+    const maximumBody = '闻'.repeat(INBOX_BODY_MAX_CHARACTERS)
+    expect(inboxDeliveryArgumentsSchema.safeParse({
+      body: maximumBody,
+      title: '长篇新闻整理',
+    }).success).toBe(true)
+    expect(inboxDeliveryArgumentsSchema.safeParse({
+      body: `${maximumBody}闻`,
+      title: '超限新闻整理',
+    }).success).toBe(false)
+    expect(z.toJSONSchema(inboxDeliveryArgumentsSchema)).toMatchObject({
+      properties: {
+        body: { maxLength: INBOX_BODY_MAX_CHARACTERS },
+      },
+    })
   })
 
   test('先存储正文，再用固定 identifier best-effort 请求本地通知', async () => {

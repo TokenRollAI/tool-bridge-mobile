@@ -108,8 +108,8 @@ type DeviceNodeCmd = {
 移动 App 只声明 `nodes`，不声明 `shell` 或 `fs`。
 
 当前 registry 也暴露 `phone/inbox.deliver`。wire 相对路径是 `inbox/deliver`，仍完全使用正式
-`DeviceExpose` 与 call/result frame：入参正文固定为 Markdown，可附固定枚举 urgency 与可选规范 UTC
-`sentAt`；设备端把有界正文存入专用 SQLite 表，result 只返回 message id、
+`DeviceExpose` 与 call/result frame：入参正文固定为最多 64,000 字符的 Markdown，可附固定枚举 urgency
+与可选规范 UTC `sentAt`；设备端把有界正文存入专用 SQLite 表，result 只返回 message id、
 本机收到时间和可选本地通知状态。该路径没有新增 SDK frame、gateway endpoint 或 HTTP 轮询，也不能在
 没有 ready session 时接收消息；因此它不是 U-5 durable command mailbox。
 

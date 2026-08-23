@@ -217,9 +217,10 @@ queued -> delivered -> awaiting_user -> running -> succeeded
 
 - 设备本地信箱的正式路径为 `phone/inbox.deliver`；它通过已建立的设备 direct-call session 到达指定
   `device/phone/<deviceId>`，不是 gateway command mailbox；
-- strict 入参只接受有界 `title/body/category/format/urgency/sentAt/sourceLabel/notify`；`format` 当前固定为
-  `markdown`，`urgency` 为固定枚举，`sentAt` 是可选的规范 UTC Agent 元数据。`sourceLabel`、紧急程度和
-  发送时间都不能冒充网关认证 caller 或本机收件事实；不接受 action/data/sound/badge 或任意通知 channel；
+- strict 入参只接受 `title/body/category/format/urgency/sentAt/sourceLabel/notify`；单条 `body` 最多
+  64,000 字符，`format` 当前固定为 `markdown`，`urgency` 为固定枚举，`sentAt` 是可选的规范 UTC Agent
+  元数据。`sourceLabel`、紧急程度和发送时间都不能冒充网关认证 caller 或本机收件事实；不接受
+  action/data/sound/badge 或任意通知 channel；
 - App 把正文保存到专用 SQLite v4 `inbox_messages` 表，按 source `commandId` 确定性去重并在每次写入
   事务内维持 1,000 条硬上限。UI 最多展示 100 个查询结果，搜索覆盖全部保留消息，支持按收件/发送时间
   升降序、未读/已读优先排序，以及单条和全部标为已读；

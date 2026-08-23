@@ -86,7 +86,8 @@ available、permission_required 或 unavailable；high-risk 本地确认完成�
 只报告 `scheduled/system_determined` 且不保存正文；这条链路不获取 push token、不接 mailbox，也不
 把 schedule promise、notification received callback 或模拟器 UI 当作已展示/已点击证据。
 
-`phone/inbox.deliver` 是在线 direct call 到本机内容存储的独立切片：strict schema 与 executor 安全链通过后，
+`phone/inbox.deliver` 是在线 direct call 到本机内容存储的独立切片：strict schema 接受最多 64,000 字符的
+Markdown 正文；schema 与 executor 安全链通过后，
 controller 在 commit 前复检取消/期限，以 `source_command_id UNIQUE` 和确定性 message id 写入 SQLite v4
 `inbox_messages`，同一事务内裁剪到 1,000 条。正文不进入 command outcome/audit/系统提醒；repository 在
 全部保留消息上参数化搜索，并按本地枚举生成收件/发送/已读顺序，页面只投影最多 100 条。单条/全部已读、

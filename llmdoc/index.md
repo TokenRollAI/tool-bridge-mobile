@@ -91,6 +91,8 @@
   现场信号中分层排障，并把 raw close 压缩为不泄露凭证的固定诊断字段的经验。
 - `memory/reflections/2026-08-19-github-preview-release.md`：统一版本真源、隔离 branch/tag 环境变量，并把
   自动内部发布与 production 资格分层的经验。
+- `memory/reflections/2026-08-23-release-metadata-gate.md`：从 v0.0.7 版本元数据漂移导致 PR/main/tag 全部
+  红灯中，固化配置验证脚本这一额外版本真源、最新 main 验证与失败 tag 不复用的经验。
 - `memory/reflections/2026-08-20-sdk-capability-completion.md`：从 RN Web API 差异、双向 expose schema、
   全局确认 modal、principal-scoped runtime control 与本地 attention sound 得出的能力交付经验。
 - `memory/reflections/2026-08-20-android-control-expansion.md`：盘点 Android 控制能力时区分 policy、probe、
@@ -104,6 +106,8 @@
   正文域与审计域，并固化 commit 后提醒、clear/replay 和 refresh revision 的经验。
 - `memory/reflections/2026-08-23-local-device-inbox-rich-content-search.md`：扩展 Markdown/元数据、全保留集
   搜索与图片时，区分 sent/received 事实、parser/renderer 授权、点击前零网络和 view revision 的经验。
+- `memory/reflections/2026-08-23-inbox-body-capacity.md`：把信箱正文从 4,000 提升到 64,000 字符时，沿
+  Agent 发现、runtime 裁决与专用存储验证容量，并保留移动端有界资源模型的经验。
 - `memory/reflections/2026-08-23-inbox-image-https-policy-correction.md`：把信箱图片从构建时 hostname
   allowlist 修正为逐图点击 + 任意结构合规 HTTPS，并记录跨 host redirect、DNS 私网与最终 host 可见风险。
 
@@ -119,6 +123,7 @@
   额外读 `reference/local-only-notifications.md` 和对应 reflection。
 - 修改 `phone/inbox.deliver`、信箱 SQLite/search/sort/read/clear、Markdown/image resolver、固定来信提醒
   或信箱 UI 前，额外读 `reference/local-device-inbox.md`、
+  `memory/reflections/2026-08-23-inbox-body-capacity.md`、
   `memory/reflections/2026-08-23-local-device-inbox-rich-content-search.md` 和
   `memory/reflections/2026-08-23-inbox-image-https-policy-correction.md`；涉及离线投递时再读上游 blocker。
 - 修改 timer schema、SQLite migration、调度/取消、启动恢复或 emergency disable 前，额外读

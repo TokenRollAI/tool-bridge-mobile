@@ -233,7 +233,8 @@ instrumentation，也不替代 TalkBack/VoiceOver、真机 haptic、音频、位
 ### 4.5 设备本地信箱
 
 - [x] `phone/inbox.deliver` 使用 strict title/Markdown body/category/format/urgency/sentAt/sourceLabel/notify
-  schema，拒绝 unknown、顶层 URL/action/data/sound/badge/channel、控制字符与 bidi override/isolate；
+  schema，body 的 64,000 字符边界已覆盖，且拒绝 unknown、顶层 URL/action/data/sound/badge/channel、
+  控制字符与 bidi override/isolate；
 - [x] caller 身份只来自 invocation context；Agent 提供的 sourceLabel/urgency/sentAt 在 UI 明确标注为
   内容元数据，可空 sentAt 不用 receivedAt 伪造；
 - [x] SQLite v4 以 source command unique key 与确定性 message id 去重，insert 与 1,000 条硬上限裁剪在
