@@ -147,7 +147,7 @@ Device credential ---- Mobile Runtime
 - 不进入 AsyncStorage、SQLite、剪贴板、deep link、push、analytics；
 - UI 最多显示 keyId 和尾部指纹。
 
-当前 `@tool-bridge/sdk/device@0.11.0` 原生 RN 路径每次连接从 SecureStore 重新读取 envelope，要求
+当前 `@tool-bridge/sdk/device@0.14.1` 原生 RN 路径每次连接从 SecureStore 重新读取 envelope，要求
 `audienceOrigin` 与当前选中的 HTTPS gateway origin 完全一致，再把 material 仅放入 WebSocket upgrade
 Authorization header；secret 不进入 URL。deviceId/keyId 拒绝控制与双向覆盖字符，header material
 拒绝 CR/LF。网关拒绝连接后客户端 fail closed 并清除本地 envelope。
@@ -166,12 +166,14 @@ pairing 交付前的内测 fallback 允许用户在本机手工输入 URL + API 
 - 手工长期 API key 可能拥有比设备专用凭证更大权限，不能作为正式 pairing、最小 scope、rotation、
   revoke 或 U-3 短期 ticket 的发布替代品。
 
-0.11.0 call 尚未把 Agent caller identity 传到设备；当前本地审计只能把 credential `keyId` 记作 gateway
-principal。它不能证明具体 Agent，相关 UI/审计不得作更强归因。
+0.14.1 call context 由网关签发 `caller.keyId/owner/displayName?`、`createdAt`、`expiresAt` 与
+`traceId`。本地稳定主体使用 `caller.keyId`，展示值不从 arguments 接受；`expiresAt` 会收紧到
+网关期限与本地接收后 30 秒的较早值。context 缺失时只能降级为 device credential
+principal + 本地时间，不得冒充具体 Agent 或网关权威时间。
 
 ### 3.2 WebSocket ticket
 
-状态：U-3 目标，当前 0.11.0 原生 RN transport 使用既有 device credential header，不等于短期 ticket。
+状态：U-3 目标，当前 0.14.1 原生 RN transport 使用既有 device credential header，不等于短期 ticket。
 
 - 单次使用；
 - 短 TTL；
@@ -263,6 +265,25 @@ push token 是敏感设备标识：
 - debug build 也不能打印 base64、signed URL query 或精确位置。
 
 ## 9. 审计
+
+设备本地信箱正文属于用户内容，不是普通审计元数据。`phone/inbox.deliver` 只接受有界 Markdown 与固定
+元数据枚举，caller 身份来自 SDK invocation context；Agent 提供的 `sourceLabel`、`urgency` 与可选
+`sentAt` 必须与认证 caller、本机 `receivedAt` 分开展示。正文仅
+写入专用 `inbox_messages` 表，不进入 command outcome、普通 audit、自动 accessibility announcement 或
+系统通知 payload。可选通知只显示固定来信提示，且必须在 SQLite commit 后 best-effort 尝试，失败不能
+回滚或伪装消息未保存。
+
+Markdown 不启用 HTML/linkify，也不进入 WebView。图片默认不联网；用户主动点按后可以请求正文提供的任意
+HTTPS hostname，不依赖构建时 allowlist。点击因此也是对该图片地址发起出站请求的明确授权；resolver 仍
+要求标准端口、无 userinfo/fragment/IP，逐跳和最终 URL 复核，使用 `credentials: omit`、manual redirect、
+20 秒超时、3 MiB 实际字节、PNG/JPEG MIME/签名、4096 单边和 16 MP 检查。失败/取消删除 partial cache；
+React Native Image 只接收校验后的 App 私有 `file://`。当前 JavaScript policy 只拒绝 URL 中的 IP literal，
+不解析或固定 DNS 结果；hostname 若解析到内网地址仍可能被请求，这是取消 hostname allowlist 后明确接受的
+剩余出站风险，不能把该策略表述为公共网络 SSRF 防护。
+
+本机信箱每次写入都在同一事务内维持 1,000 条硬上限。用户清空只删除 `inbox_messages`，不能删除
+`commands` 防重放记录；否则旧 command 可能重新写入已清除内容。设备本地信箱不是 gateway command
+mailbox：不把正文塞进 push，也不因 Android 后台服务存在就声称离线、锁屏或进程终止后必达。
 
 记录：
 

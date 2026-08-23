@@ -3,7 +3,7 @@
 ## 目的
 
 本地安全执行边界独立于 transport：最初可由 fake dispatcher 驱动，现在也由
-`@tool-bridge/sdk/device@0.11.0` 前台 call adapter 驱动；重复投递、用户等待、崩溃和日志处理都不能因
+`@tool-bridge/sdk/device@0.14.1` call adapter 驱动；重复投递、用户等待、崩溃和日志处理都不能因
 transport 变化产生隐蔽副作用或泄漏敏感参数。
 
 ## 核心组件
@@ -11,7 +11,9 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
 - `src/runtime/applicationRuntime.ts` (`ApplicationRuntime`)：组装 registry、SQLite、策略、确认、SDK
   transport 与 UI snapshot；AppState 变化时重新 probe 并 suspend/resume realtime。
 - `src/gateway/sdkDeviceTransport.ts`：只用上游公开 `/device` 入口，把 SDK call 归一为本地 command；
-  负责 credential audience、RN header、AppState lifecycle 和 ready-only online。
+  负责按最后一个 `/` 拆分 wire node path/command、消费网关 caller 与权威时间、credential
+  audience、RN header、AppState lifecycle 和 ready-only online。context 缺失时才降级到 credential
+  principal + 本地 30 秒期限。
 - `src/gateway/manualGatewayConfigurationController.ts`：协调首页手工 Gateway URL/API key 的配置切换；
   保存和清除都先停止旧 transport，SecureStore 失败时保持断开。
 - `src/runtime/localCommandExecutor.ts` (`LocalCommandExecutor`)：唯一的本地 command 执行入口和安全顺序。
@@ -29,6 +31,14 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
   exclusive transaction 内裁剪至 5,000 条，并提供只删除 `audit_records` 的 clear。
 - `src/storage/timerRepository.ts` (`SqliteTimerRepository`)：在 SQLite schema v2 中原子 reserve caller/global
   容量、执行状态 CAS，并按 command 终态提供启动恢复视图。
+- `src/storage/inboxRepository.ts` (`SqliteInboxRepository`)：在 SQLite schema v4 的独立内容域中按 source
+  command 幂等写入、维护 1,000 条硬上限，并在全保留集上参数化搜索、固定排序、全局已读/未读与只清除
+  `inbox_messages`。
+- `src/inbox/controller.ts` (`InboxDeliveryController`)：commit 有界正文后才 best-effort 尝试固定本地提醒；
+  提醒状态不能回滚或升级消息的 `stored` 事实。
+- `src/ui/components/SafeMarkdown.tsx` 与 `src/inbox/imageSource.ts`：不可信 Markdown 的 React Native 白名单
+  投影，以及只在用户逐图点按后进入 HTTPS 结构 policy/有界下载/私有 cache 的图片路径；没有 inbox image
+  hostname config 或 runtime set。
 
 ## 执行顺序
 
@@ -58,6 +68,10 @@ Promise；SQLite 中已为 running 的命令返回 `result_unknown`，不会再�
 executor 只保留活动命令的安全元数据，不保留 arguments。`runtime.pending_commands` 排除查询命令自身，
 并把正在等待 modal 的同 principal 命令标记为 `awaiting_user`；`runtime.cancel` 只能中止同一 principal 的
 当前活动命令。这里的 principal 是 gateway credential keyId，不是具体 Agent，也不是跨进程 mailbox。
+
+handler 内若存在“主持久化 + 外部提示”两个阶段，主操作必须先形成明确 commit。设备本地信箱先写
+`inbox_messages`，再 best-effort 请求固定 local notification；commit 后的取消、到期、权限拒绝、timeout
+或 native unknown 只改变 notification 子结果，不能删除已保存内容或伪造未发生副作用。
 
 ## 控制模式与 `when_locked` 的当前边界
 
@@ -96,6 +110,25 @@ executor 只保留活动命令的安全元数据，不保留 arguments。`runtim
 - command 去重与 audit 生命周期分离：清除后 replay 同一副作用 commandId 仍读取持久化 outcome、handler
   不再执行，并新增 `decision: replayed` 的审计记录。
 
+## 信箱投影与仅内容清除
+
+- `inbox_messages` 是 Markdown 正文专用域。v4 为 v3 旧行设置 `format = markdown`、`urgency = normal`，
+  并保留 `sent_at = NULL`；receivedAt 是本机事实，sentAt 是可选 Agent 元数据，发送时间排序可以 fallback
+  到 receivedAt，但不能写回或冒充 Agent 时间。
+- repository 先在全部 1,000 条保留集上参数化搜索 title/body/sourceLabel/caller，再用六值本地枚举生成
+  收件/发送/已读排序 SQL，最后投影最多 100 条；搜索由用户明确提交，不按输入字符实时查询。mark-all 与
+  未读总数始终针对全表，不受当前搜索结果影响。
+- clear 的唯一 SQL 是 `DELETE FROM inbox_messages`；commands/audit/timers/settings/identity/credential
+  保持不变，也不撤销 gateway、删除服务端数据或取消通知。command 终态保留，因此同一 commandId replay
+  不再次执行 handler，也不会重建已清空内容。
+- mark-read 只更新仍未读的目标，mark-all 返回 SQLite 实际 changes。`ApplicationRuntime` 使用独立 inbox
+  revision；search/sort view option、clear、单条/全部 mark-read 和消息 commit 都先使旧 refresh 失效，再
+  从数据库组合刷新查询结果与全局未读数，避免迟到 snapshot 覆盖新状态。
+- 默认列表只显示三行纯文本摘要，且一次只展开一条 Markdown。展开只创建图片占位，点按前 resolver 零调用；
+  每次点按只授权该图片的一次请求与 redirect 链。resolver 允许逐跳合规的跨 hostname HTTPS redirect；
+  已解析图片在取消、失败、Image error 或组件卸载时释放私有 cache。
+- crash 遗留 running command 仍按通用规则恢复为 `result_unknown`，不能为了找回可能的正文而重放写入。
+
 ## 崩溃、保留与停用
 
 - 初始化时把中断的 running command 恢复为 `unknown_after_crash/result_unknown`，不自动重放。
@@ -117,6 +150,11 @@ executor 只保留活动命令的安全元数据，不保留 arguments。`runtim
 ## 数据边界
 
 - SQLite command 表不保存 arguments；audit 表不保存完整 arguments、坐标或 URL。
+- inbox 表是有界的显式用户内容域，可保存 title/Markdown body/sourceLabel/urgency/sentAt；这些字段不得进入
+  command outcome、普通 audit、普通日志、自动 accessibility announcement 或系统提醒 payload。
+  sourceLabel/urgency/sentAt 不能冒充 caller 或 receivedAt；Markdown 图片 URL 也不能绕过点击与 resolver。
+  结构 policy 只拒绝 URL IP literal，尚无 DNS 私网/rebinding 防护，跨 hostname redirect 的最终 host 也不会
+  再向用户确认。
 - timer 表只保存确定性 id、owner、来源 command、`firesAt` 与状态；确认用 `purpose` 不进入 DB、原生通知、
   command outcome 或普通 audit。
 - opaque credential envelope 只由 SecureStore facade 管理；其结构不是上游 credential wire 契约。手工
@@ -134,5 +172,6 @@ executor 只保留活动命令的安全元数据，不保留 arguments。`runtim
 - `llmdoc/reference/command-retention.md`
 - `llmdoc/reference/local-activity-history.md`
 - `llmdoc/reference/manual-gateway-configuration.md`
+- `llmdoc/reference/local-device-inbox.md`
 - `llmdoc/reference/sdk-device-transport.md`
 - `llmdoc/reference/upstream-and-platform-blockers.md`

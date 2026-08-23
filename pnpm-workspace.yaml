@@ -18,8 +18,8 @@ audit:
 
 strictPeerDependencies: true
 
-# 0.11.0 是本仓库等待的官方 React Native device 入口；已核对 registry tarball、上游源码/测试、
-# 精确 integrity、MIT license、双端 Metro 与本地 consumer contract，因此允许在默认 release-age
-# 等待期内使用这一精确版本。升级版本不会继承此例外。
+# 0.14.1 修复了当前 Gateway 使用的完整 path device call wire，并提供网关签发的
+# invocation context；已核对 registry tarball/integrity、MIT license、/device export 与上游实现。
+# 因为该版本于 2026-08-23 发布，在 consumer/Metro/真实 Gateway 门禁完成前只允许此精确版本。
 minimumReleaseAgeExclude:
-  - '@tool-bridge/sdk@0.11.0'
+  - '@tool-bridge/sdk@0.14.1'

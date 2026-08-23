@@ -1,5 +1,6 @@
 const SENSITIVE_KEY = /(?:authorization|credential|key|password|secret|signed.?url|ticket|token)/i
 const PRECISE_LOCATION_KEY = /^(?:lat|latitude|lng|longitude|coordinate|coordinates)$/i
+const USER_CONTENT_KEY = /^(?:body|message|purpose|sourceLabel|title)$/i
 
 export function redactForLog(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactForLog)
@@ -7,7 +8,11 @@ export function redactForLog(value: unknown): unknown {
 
   const redacted: Record<string, unknown> = {}
   for (const [key, child] of Object.entries(value)) {
-    if (SENSITIVE_KEY.test(key) || PRECISE_LOCATION_KEY.test(key)) {
+    if (
+      SENSITIVE_KEY.test(key)
+      || PRECISE_LOCATION_KEY.test(key)
+      || USER_CONTENT_KEY.test(key)
+    ) {
       redacted[key] = '[REDACTED]'
     } else {
       redacted[key] = redactForLog(child)

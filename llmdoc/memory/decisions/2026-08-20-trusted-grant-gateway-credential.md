@@ -7,8 +7,8 @@
 ## 背景
 
 当前 `trusted_session` 只是 SQLite `settings` 中的全局 control mode 字符串，没有生产 UI、TTL、
-capability scope 或 credential-instance binding。当前 SDK call 也没有具体 Agent identity，移动端只把
-credential `keyId` 投影为 gateway principal。
+capability scope 或 credential-instance binding。0.14.1 SDK call 已提供网关签发的 caller 与权威期限，
+移动端以 `caller.keyId` 作为稳定调用主体；该字段仍不是当前 device credential identity/generation。
 
 产品方向已经明确：用户信任的是与设备建立认证关系的 Gateway Credential，而不是经该 Gateway 发起调用的
 某个具体 Agent。Agent provenance 的缺失会降低审计归因精度，但不应迫使本地授权变成 per-Agent grant。
@@ -48,7 +48,8 @@ expiresAt/deadline。动态 capability profile、mailbox/push 和 `objectRef` �
 - credential 生命周期成为本地授权生命周期的一部分，clear/replace/rotate/revoke 必须与 grant invalidation
   形成 fail-closed 顺序并留下可验证测试。
 - Agent identity 可以改善 Activity attribution，但缺失时本地仍可基于 Gateway Credential 正确授权。
-- 当前代码和上游 `@tool-bridge/sdk/device@0.11.0` 尚未实现该决策；不能声称 trusted grant 已可用。
+- 当前代码和上游 `@tool-bridge/sdk/device@0.14.1` 仍未实现 credential-instance binding 与
+  trusted grant；不能因 caller/deadline context 已交付就声称 trusted grant 已可用。
 
 ## 相关文档
 

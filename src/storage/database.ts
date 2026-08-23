@@ -2,9 +2,14 @@ import * as SQLite from 'expo-sqlite'
 
 import { INITIAL_SCHEMA_SQL, INITIAL_SCHEMA_VERSION } from './migrations/0001_initial'
 import { TIMER_SCHEMA_SQL, TIMER_SCHEMA_VERSION } from './migrations/0002_timers'
+import { INBOX_SCHEMA_SQL, INBOX_SCHEMA_VERSION } from './migrations/0003_inbox'
+import {
+  INBOX_METADATA_SCHEMA_SQL,
+  INBOX_METADATA_SCHEMA_VERSION,
+} from './migrations/0004_inbox_metadata'
 
 const DATABASE_NAME = 'tool-bridge-mobile.db'
-const LATEST_SCHEMA_VERSION = TIMER_SCHEMA_VERSION
+const LATEST_SCHEMA_VERSION = INBOX_METADATA_SCHEMA_VERSION
 
 const MIGRATIONS = [{
   sql: INITIAL_SCHEMA_SQL,
@@ -12,6 +17,12 @@ const MIGRATIONS = [{
 }, {
   sql: TIMER_SCHEMA_SQL,
   version: TIMER_SCHEMA_VERSION,
+}, {
+  sql: INBOX_SCHEMA_SQL,
+  version: INBOX_SCHEMA_VERSION,
+}, {
+  sql: INBOX_METADATA_SCHEMA_SQL,
+  version: INBOX_METADATA_SCHEMA_VERSION,
 }] as const
 
 export class MobileDatabase {

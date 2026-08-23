@@ -3,16 +3,19 @@
 Tool Bridge Mobile 的产品闭环需要 HTBP 和 `TokenRollAI/tool-bridge` 同步提供若干通用能力。
 本文件是依赖清单，不代表对应上游已经实现。
 
-## 0. 2026-08-19 复核结果
+## 0. 2026-08-23 复核结果
 
-- npm 已发布 `@tool-bridge/sdk@0.11.0`，其独立 `/device` export 提供
+- npm 已发布 `@tool-bridge/sdk@0.14.1`，其独立 `/device` export 提供
   `connectDevice` 与 `createReactNativeWebSocketFactory`；本仓库已精确锁定并接入；
 - U-1 以 `@tool-bridge/sdk/device` 而不是单独的 `@tool-bridge/device-client` 包名交付；Android/iOS
   Metro export 与移动 adapter contract 已通过；
 - 原生 React Native 可以通过 WebSocket 第三个参数把既有 device SK 放在 Authorization header，
   因此“已有凭证 + 前台”的实时 transport 已不再受 Node runtime 阻塞；
+- 0.14.1 的 call 已把 command leaf 并入 `path`，并提供网关签发的
+  caller/createdAt/expiresAt/traceId context；它不含 device credential identity/generation binding；
+- Android Preview 0.0.6 已用当前 Railway Gateway 完成单次真机 `status/get` 读调用；这只
+  是该路径的直连兼容证据，不是完整 gateway compatibility matrix；
 - U-2 至 U-7 所需 pairing、短期 ticket、dynamic profile、mailbox、push 与 object upload 仍未交付；
-  0.11.0 call 也没有具体 caller identity 或 gateway deadline；
 - 移动 App 已提供手工 Gateway HTTPS origin + API key 内测 fallback；SDK deviceId 默认由设备硬件标识
   经单向摘要派生（可自定义），secret 只进 SecureStore。它不完成 U-2/U-3，也不冒充真实 gateway、
   pairing、最小权限
@@ -48,15 +51,17 @@ Authorization header 建连。此 fallback 不新增 gateway endpoint 或 wire s
 
 交付事实：
 
-- 包名/入口定为 `@tool-bridge/sdk/device@0.11.0`；
+- 包名/入口定为 `@tool-bridge/sdk/device@0.14.1`；
 - 导出 frames/schema/types、`connectDevice`、credential provider、可注入 WebSocket factory 与连接
   lifecycle；
 - React Native 子入口不导入 Node `ws` 或 `process.env`，包根仍是 Node 入口；
-- 上游已有 fake transport 的 hello/ready/call/result、restart、suspend/resume、认证拒绝和 RN header
+- 上游已有 fake transport 的 hello/ready/call/result、完整 path/context、restart、suspend/resume、
+  认证拒绝和 RN header
   测试；移动仓库已有 consumer contract 与双端 Metro 证据。
 
-当前缺口不再记入 U-1：mailbox 属于 U-5；具体 caller/deadline 字段需单独扩展 device call contract；
-真实 gateway compatibility matrix 仍是联合验收项。详细边界见 [SDK](SDK.md)。
+当前缺口不再记入 U-1：mailbox 属于 U-5；caller/权威期限 wire 已交付，但与当前
+device credential identity/generation 的绑定仍是未完成的 control-plane 需求；完整真实 gateway
+compatibility matrix 仍是联合验收项。详细边界见 [SDK](SDK.md)。
 
 ### U-2：设备配对
 
@@ -103,6 +108,10 @@ Authorization header 建连。此 fallback 不新增 gateway endpoint 或 wire s
 
 所属：gateway
 
+移动端现已实现 `phone/inbox.deliver` 设备本地内容信箱：它只在现有 SDK direct-call session 把到达的
+消息保存到本机 SQLite。这个“信箱”没有 enqueue/pull/claim/lease/cancel/result/cursor 状态机；设备
+离线或进程被系统终止时不会接收，因此不构成 U-5 的部分交付。
+
 需要：
 
 - enqueue；
@@ -131,6 +140,10 @@ Authorization header 建连。此 fallback 不新增 gateway endpoint 或 wire s
 当前移动端的 `phone/productivity.notify` 只是前台即时 local schedule：不获取或上传 APNs/FCM token，
 不接 gateway/mailbox，也不把 `scheduled` 当作 provider delivery。仓库安装 `expo-notifications` 与本地
 能力通过测试，均不能作为 U-6 已交付的证据。
+
+`phone/inbox.deliver` 的可选提醒也只在消息已通过 direct call 到达并写入 SQLite 后，使用固定无敏感正文
+做一次 local schedule；不获取 token、不发送 remote notification，失败也不改变消息存储结果，因而同样
+不是 U-6 push registration/dispatch。
 
 同理，`phone/productivity.timer_*` 只是 SQLite + 系统本地 DATE trigger：它不提供 gateway 定时任务、
 mailbox 唤醒、provider delivery 或跨设备 timer。Android reboot 后不会由本 App 的 boot receiver 恢复，
@@ -209,7 +222,7 @@ P2 实时媒体需要会话信令、短期凭证、TURN 配置和显式终止；
 
 ## 6. 推荐交付顺序
 
-1. ~~U-1 公共 device client + 现有实时协议适配~~（0.11.0 已交付并由移动端消费）；
+1. ~~U-1 公共 device client + 当前实时协议适配~~（0.14.1 已交付并由移动端消费）；
 2. U-2 pairing + credential issuance/rotation/revoke，再完成 U-3 短期 WebSocket ticket；
 3. Android 前台 `status` + `attention.ring` golden slice；
 4. U-5 mailbox + U-6 push；

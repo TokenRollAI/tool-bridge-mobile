@@ -70,6 +70,21 @@ import { SdkDeviceTransport } from '@/gateway/sdkDeviceTransport'
 import { SecureDeviceCredentialStore } from '@/identity/deviceCredentialStore'
 import { resolveDefaultDeviceId } from '@/identity/deviceIdentity'
 import { SecureInstallationIdentityStore } from '@/identity/installationIdentityStore'
+import { createInboxDeliveryCapability } from '@/inbox/capability'
+import { InboxDeliveryController } from '@/inbox/controller'
+import { ExpoInboxImageCacheStore } from '@/inbox/expoInboxImageCacheStore'
+import {
+  BoundedInboxImageSourceResolver,
+  type InboxImageSourceResolver,
+  type ResolvedInboxImage,
+} from '@/inbox/imageSource'
+import {
+  DEFAULT_INBOX_VIEW_OPTIONS,
+  LOCAL_INBOX_DISPLAY_LIMIT,
+  normalizeInboxViewOptions,
+  type InboxMessage,
+  type InboxViewOptions,
+} from '@/inbox/types'
 import { LocalConfirmationCoordinator } from '@/policy/localConfirmationCoordinator'
 import { PolicyEngine } from '@/policy/policyEngine'
 import { SqliteAuditRepository } from '@/storage/auditRepository'
@@ -77,6 +92,7 @@ import { SqliteBackgroundRuntimeRepository } from '@/storage/backgroundRuntimeRe
 import { SqliteCommandRepository } from '@/storage/commandRepository'
 import { SqliteControlModeRepository } from '@/storage/controlModeRepository'
 import { MobileDatabase } from '@/storage/database'
+import { SqliteInboxRepository } from '@/storage/inboxRepository'
 import { SqliteTimerRepository } from '@/storage/timerRepository'
 
 import { LocalCommandExecutor } from './localCommandExecutor'
@@ -120,6 +136,9 @@ export type ApplicationSnapshot = Readonly<{
   error: string | null
   gatewayOrigin: string | null
   installationId: string | null
+  inboxMessages: readonly InboxMessage[]
+  inboxUnreadCount: number
+  inboxViewOptions: InboxViewOptions
   mediaSession: MediaSessionSnapshot | null
   mountPath: string | null
   pendingConfirmations: readonly PendingConfirmationSnapshot[]
@@ -143,6 +162,9 @@ const INITIAL_SNAPSHOT: ApplicationSnapshot = {
   error: null,
   gatewayOrigin: null,
   installationId: null,
+  inboxMessages: [],
+  inboxUnreadCount: 0,
+  inboxViewOptions: DEFAULT_INBOX_VIEW_OPTIONS,
   mediaSession: null,
   mountPath: null,
   pendingConfirmations: [],
@@ -171,6 +193,10 @@ export class ApplicationRuntime {
   #gatewayConfigurationController: ManualGatewayConfigurationController | null = null
   #initialization: Promise<void> | null = null
   #installationId: string | null = null
+  #inboxImageResolver: InboxImageSourceResolver | null = null
+  #inboxRepository: SqliteInboxRepository | null = null
+  #inboxRevision = 0
+  #inboxViewOptions = DEFAULT_INBOX_VIEW_OPTIONS
   #localCommandExecutor: LocalCommandExecutor | null = null
   #mediaController: MediaSessionController | null = null
   #notificationController: LocalNotificationController | null = null
@@ -288,6 +314,46 @@ export class ApplicationRuntime {
     return deleted
   }
 
+  async clearInbox(): Promise<number> {
+    if (this.#inboxRepository === null) throw new Error('运行时尚未初始化')
+    // 先使已开始的 refresh 失效，避免清空后重新发布删除前的信箱列表。
+    this.#inboxRevision += 1
+    const deleted = await this.#inboxRepository.clear()
+    await this.refresh()
+    return deleted
+  }
+
+  async markInboxMessageRead(messageId: string): Promise<void> {
+    if (this.#inboxRepository === null) throw new Error('运行时尚未初始化')
+    this.#inboxRevision += 1
+    await this.#inboxRepository.markRead(messageId, new Date().toISOString())
+    await this.refresh()
+  }
+
+  async markAllInboxMessagesRead(): Promise<number> {
+    if (this.#inboxRepository === null) throw new Error('运行时尚未初始化')
+    this.#inboxRevision += 1
+    const changed = await this.#inboxRepository.markAllRead(new Date().toISOString())
+    await this.refresh()
+    return changed
+  }
+
+  async setInboxViewOptions(options: InboxViewOptions): Promise<void> {
+    const normalized = normalizeInboxViewOptions(options)
+    if (
+      normalized.searchQuery === this.#inboxViewOptions.searchQuery
+      && normalized.sort === this.#inboxViewOptions.sort
+    ) return
+    this.#inboxViewOptions = normalized
+    this.#inboxRevision += 1
+    await this.refresh()
+  }
+
+  resolveInboxImage(rawUrl: string, signal: AbortSignal): Promise<ResolvedInboxImage> {
+    if (this.#inboxImageResolver === null) throw new Error('运行时尚未初始化')
+    return this.#inboxImageResolver.resolve(rawUrl, signal)
+  }
+
   async saveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void> {
     if (
       this.#gatewayConfigurationController === null
@@ -385,12 +451,14 @@ export class ApplicationRuntime {
     if (
       this.#auditRepository === null
       || this.#controlModeRepository === null
+      || this.#inboxRepository === null
       || this.#installationId === null
       || this.#registry === null
     ) return
 
     const auditRevision = this.#auditRevision
     const confirmationRevision = this.#confirmationRevision
+    const inboxRevision = this.#inboxRevision
     const transportRevision = this.#transportRevision
     const controlMode = await this.#controlModeRepository.get()
     const context = this.#context(controlMode)
@@ -402,15 +470,25 @@ export class ApplicationRuntime {
       mountPath: null,
       state: 'unconfigured' as const,
     }
-    const [capabilities, auditRecords, timers, backgroundRuntimeEnabled] = await Promise.all([
+    const [
+      capabilities,
+      auditRecords,
+      timers,
+      backgroundRuntimeEnabled,
+      inboxMessages,
+      inboxUnreadCount,
+    ] = await Promise.all([
       this.#registry.snapshot(context),
       this.#auditRepository.listRecent(ACTIVITY_HISTORY_DISPLAY_LIMIT),
       this.#timerController?.getVisibleTimers() ?? Promise.resolve([]),
       this.#backgroundRuntimeRepository?.get() ?? Promise.resolve(false),
+      this.#inboxRepository.list(this.#inboxViewOptions, LOCAL_INBOX_DISPLAY_LIMIT),
+      this.#inboxRepository.countUnread(),
     ])
     if (
       auditRevision !== this.#auditRevision
       || confirmationRevision !== this.#confirmationRevision
+      || inboxRevision !== this.#inboxRevision
       || transportRevision !== this.#transportRevision
     ) return
     this.#publish({
@@ -425,6 +503,9 @@ export class ApplicationRuntime {
       error: null,
       gatewayOrigin: transport.gatewayOrigin,
       installationId: this.#installationId,
+      inboxMessages,
+      inboxUnreadCount,
+      inboxViewOptions: this.#inboxViewOptions,
       mediaSession: this.#mediaController?.getSession() ?? null,
       mountPath: transport.mountPath,
       pendingConfirmations: this.#confirmationCoordinator?.getPending() ?? [],
@@ -446,6 +527,12 @@ export class ApplicationRuntime {
       this.#auditRepository = new SqliteAuditRepository(database)
       this.#commandRepository = new SqliteCommandRepository(database)
       this.#controlModeRepository = new SqliteControlModeRepository(database)
+      const inboxRepository = new SqliteInboxRepository(database)
+      this.#inboxRepository = inboxRepository
+      this.#inboxImageResolver = new BoundedInboxImageSourceResolver(
+        (url, init) => expoFetch(url, init),
+        new ExpoInboxImageCacheStore(),
+      )
       await this.#commandRepository.recoverInterrupted(new Date().toISOString())
       await this.#auditRepository.prune(LOCAL_AUDIT_RETENTION_LIMIT)
 
@@ -476,6 +563,15 @@ export class ApplicationRuntime {
       this.#notificationController = new LocalNotificationController(notificationAdapter)
       await this.#notificationController.initialize()
       this.#registry.register(createLocalNotificationCapability(this.#notificationController))
+      this.#registry.register(createInboxDeliveryCapability(new InboxDeliveryController(
+        inboxRepository,
+        notificationAdapter,
+        () => new Date(),
+        () => {
+          this.#inboxRevision += 1
+          void this.refresh()
+        },
+      )))
       const timerRepository = new SqliteTimerRepository(database)
       this.#timerController = new LocalTimerController(timerRepository, notificationAdapter)
       const initialControlMode = await this.#controlModeRepository.get()

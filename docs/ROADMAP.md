@@ -13,7 +13,7 @@
 - [x] 配置 Android applicationId、iOS bundle id 和三环境；
 - [x] 建立严格 TypeScript、lint、test、CI；
 - [x] 建立 app/service/storage/native module 目录；
-- [x] 接入上游公共 `@tool-bridge/sdk/device@0.11.0`；
+- [x] 接入上游公共 `@tool-bridge/sdk/device@0.14.1`；
 - [x] 本机 Gateway HTTPS URL + API key 内测入口（非 pairing）；
 - [ ] pairing UI + SecureStore；
 - [x] SQLite command/audit schema 和 migration；
@@ -39,13 +39,13 @@
   终态硬上限；running、当前完成项与活动 timer source 不会被该事务误删；
 - API 36 Android emulator smoke 已覆盖干净安装、最小权限、动态能力页、紧急停用与进程重启持久化；
   这不是 Android/iOS 真机行为证据；
-- U-1 已由 `@tool-bridge/sdk/device@0.11.0` 交付并接入：官方 supervisor、RN Authorization header、
-  AppState suspend/resume、registry expose 与 SDK call adapter 已有 contract 和双端 Metro 证据；只有
+- U-1 已由 `@tool-bridge/sdk/device@0.14.1` 交付并接入：官方 supervisor、RN Authorization header、
+  完整 path call/context、registry expose 与 SDK call adapter 已有 contract 证据；只有
   `ready` 才显示 online；
 - 首页已提供手工 URL + API key fallback，secret 只进入 SecureStore，保存/清除前先停止旧 transport；
   它使用客户端派生 deviceId，不满足 pairing、最小权限 credential、rotation/revoke 或短期 ticket；
-- U-2 至 U-6 仍未交付。短期 ticket、真实 gateway fixture、具体 caller/deadline attribution、mailbox 与
-  push 均未完成。
+- U-2 至 U-6 仍未交付。短期 ticket、完整真实 gateway matrix、调用与 device credential
+  generation 的绑定、mailbox 与 push 均未完成。
 
 ### 出口
 
@@ -138,6 +138,7 @@ Agent 能播放一段允许的媒体并控制本 App 会话；第三方 App 只�
 
 - [x] `location.current`；
 - [x] `productivity.notify`；
+- [x] `inbox.deliver` 设备本地内容信箱；
 - [x] App 内 timer；
 - [ ] 动态 capability change 上报；
 - [x] 完整活动/审计页（FR-10 近期本地元数据 + 仅审计历史清除）；
@@ -160,6 +161,15 @@ channel，iOS 不声明 APNs entitlement 或 remote-notification background mode
 `scheduled/system_determined`，不声称通知已展示或用户已点击。双端真机授权、前后台呈现与点击观察，
 以及 U-5/U-6 mailbox/push 仍未完成；这些边界不因本项本地实现被勾选而改变。
 
+`phone/inbox.deliver` 已形成在线 direct-call → SQLite v4 → 信箱页的本地纵向切片：title/Markdown body/
+category/urgency/可选 sentAt/sourceLabel/notify 使用 strict schema，正文只进入 1,000 条硬上限的专用表；
+页面在全部保留消息上搜索，最多投影 100 条，支持六种排序、单条/全部已读。Markdown 图片需用户主动点按，
+正文 HTTPS URL 无需预配置 hostname，并经过逐跳复核、有界下载和内容/像素校验后才从私有 file URI 渲染；
+清空不删除 command 防重放。
+可选提醒仍使用固定 payload，失败不回滚消息。
+该勾选不表示 U-5/U-6 已完成；离线 enqueue、push 唤醒、真实 gateway call、后台/锁屏与双端真机仍需
+独立证据。
+
 App 内 timer 已实现为 `timer_start/timer_cancel/timer_status`：SQLite v2 保存非敏感状态并原子限制活动
 容量，Expo 绝对 DATE trigger 只作为 best-effort 提示；purpose 只进入本地确认。crash orphan、迟到
 native promise、caller 隔离、前台 reconciliation、设备本地取消和 emergency disable 均有自动化契约。
@@ -168,7 +178,8 @@ native promise、caller 隔离、前台 reconciliation、设备本地取消和 e
 
 accessibility semantics 基线已覆盖页面/卡片标题、关联后的状态行、唯一且有上下文的操作名称、
 disabled/busy 状态、48dp 最小触控区、离散状态公告去重、焦点往返，以及文本/交互边界对比度 gate。
-API 36 emulator 在 200% 系统字号下走过四个标签页与活动历史确认操作。该勾选只代表 common RN
+API 36 emulator smoke 脚本现覆盖六个标签页的唯一语义，并在 200% 系统字号下走过关键页面与活动历史
+确认操作。该勾选只代表 common RN
 自动化与 Android 语义树 smoke；TalkBack/VoiceOver 实际朗读、手势顺序、Switch Access、iOS Dynamic
 Type 和双端真机人工验收仍是独立未完成项。
 

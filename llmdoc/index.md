@@ -33,6 +33,9 @@
 - `reference/bounded-media-source.md`：受控 HTTPS 媒体的重定向、内容校验、字节上限与缓存生命周期。
 - `reference/bounded-linking-handoffs.md`：`open_map` 与通用 App handoff 的结构化目标、bounded probe、
   commit 复检及结果脱敏。
+- `reference/local-device-inbox.md`：`phone/inbox.deliver` 的 rich schema、SQLite v4/1,000 cap、全保留集
+  搜索/六排序/已读、RN Markdown、逐图点击后的任意合规 HTTPS 有界图片、固定提醒、clear/replay/revision，
+  以及与 U-5 的边界。
 - `reference/local-only-notifications.md`：`phone/productivity.notify` 的权限、固定系统内容、确定性标识、
   local-only 原生配置与结果语义。
 - `reference/local-timers.md`：App 内 timer 的输入边界、SQLite 状态机、确定性调度、恢复/撤销竞态与
@@ -94,6 +97,15 @@
   reachability 与 platform privilege，并追踪 caller/deadline、后台投递和受保护对象的上游缺口。
 - `memory/reflections/2026-08-19-stable-device-identity.md`：区分“生成逻辑不稳定”与“持久化根基被清空”，
   用硬件派生稳定 deviceId 并在 wire 边界做挂载路径双向转换的经验。
+- `memory/reflections/2026-08-23-sdk-device-wire-compatibility.md`：从“心跳/ready 在线但新 call
+  frame 被旧 SDK 忽略”中拆分 transport 健康与协议兼容，并固化 0.14.1 path/context、
+  单次真机读调用和 Expo 依赖漂移的验证经验。
+- `memory/reflections/2026-08-23-local-device-inbox.md`：分离设备本地内容信箱与 U-5 command mailbox、
+  正文域与审计域，并固化 commit 后提醒、clear/replay 和 refresh revision 的经验。
+- `memory/reflections/2026-08-23-local-device-inbox-rich-content-search.md`：扩展 Markdown/元数据、全保留集
+  搜索与图片时，区分 sent/received 事实、parser/renderer 授权、点击前零网络和 view revision 的经验。
+- `memory/reflections/2026-08-23-inbox-image-https-policy-correction.md`：把信箱图片从构建时 hostname
+  allowlist 修正为逐图点击 + 任意结构合规 HTTPS，并记录跨 host redirect、DNS 私网与最终 host 可见风险。
 
 ## 路由规则
 
@@ -105,6 +117,10 @@
   `reference/bounded-linking-handoffs.md` 和对应 reflection。
 - 修改通知 capability、权限 UI、notification channel、Expo Notifications config 或原生 manifest 前，
   额外读 `reference/local-only-notifications.md` 和对应 reflection。
+- 修改 `phone/inbox.deliver`、信箱 SQLite/search/sort/read/clear、Markdown/image resolver、固定来信提醒
+  或信箱 UI 前，额外读 `reference/local-device-inbox.md`、
+  `memory/reflections/2026-08-23-local-device-inbox-rich-content-search.md` 和
+  `memory/reflections/2026-08-23-inbox-image-https-policy-correction.md`；涉及离线投递时再读上游 blocker。
 - 修改 timer schema、SQLite migration、调度/取消、启动恢复或 emergency disable 前，额外读
   `reference/local-timers.md` 和对应 reflection。
 - 修改 Activity 页面、audit repository、retention、历史清除或 runtime refresh 前，额外读

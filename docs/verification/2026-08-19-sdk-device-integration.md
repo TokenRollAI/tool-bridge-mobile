@@ -1,5 +1,9 @@
 # 2026-08-19 SDK device integration 验证
 
+> 历史验证记录：本文只描述 `@tool-bridge/sdk@0.11.0` 当时的 consumer contract，其中 wire
+> `path/tool` 形状已被 `0.14.1` 的完整 call path 与可选 `context` 取代。当前兼容证据见
+> `docs/verification/2026-08-23-sdk-device-wire-compatibility.md`。
+
 ## 范围
 
 验证 `@tool-bridge/sdk@0.11.0` 的 React Native `/device` 子入口、移动 consumer wiring、依赖边界与

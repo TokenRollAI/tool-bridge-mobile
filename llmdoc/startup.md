@@ -16,6 +16,8 @@
   `llmdoc/reference/upstream-and-platform-blockers.md`。
 - 修改首页 Gateway URL/API key、credential audience 或 transport 配置切换：再读
   `llmdoc/reference/manual-gateway-configuration.md`。
+- 修改设备本地信箱、Markdown/图片、搜索/排序、已读/清空或可选来信提醒：读
+  `llmdoc/reference/local-device-inbox.md`；涉及离线收件或 push 时同时读上游 blocker。
 
 已有相关 guide 或 reflection 时，在规划和编辑前主动阅读；事实冲突时回到代码、HTBP 正式规范、
 Tool Bridge 已发布 API 和可复现验证记录。

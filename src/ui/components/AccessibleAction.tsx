@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Icon, type IconName } from '@/ui/components/Icon'
 import { colors, radius, spacing } from '@/ui/theme'
 
-import type { StyleProp, TextStyle, ViewStyle } from 'react-native'
+import type { AccessibilityRole, StyleProp, TextStyle, ViewStyle } from 'react-native'
 
 export const MINIMUM_ACCESSIBLE_TARGET_SIZE = 48
 
@@ -17,6 +17,8 @@ type AccessibleActionProps = Readonly<{
   icon?: IconName
   label: string
   onPress(): void
+  role?: AccessibilityRole
+  selected?: boolean
   style?: StyleProp<ViewStyle>
   textStyle?: StyleProp<TextStyle>
   variant?: ActionVariant
@@ -38,6 +40,8 @@ export const AccessibleAction = forwardRef<React.ElementRef<typeof Pressable>, A
   icon,
   label,
   onPress,
+  role = 'button',
+  selected,
   style,
   textStyle,
   variant = 'primary',
@@ -49,8 +53,12 @@ export const AccessibleAction = forwardRef<React.ElementRef<typeof Pressable>, A
     <Pressable
       accessibilityHint={accessibilityHint}
       accessibilityLabel={label}
-      accessibilityRole="button"
-      accessibilityState={{ busy, disabled: unavailable }}
+      accessibilityRole={role}
+      accessibilityState={{
+        busy,
+        disabled: unavailable,
+        ...(selected === undefined ? {} : { selected }),
+      }}
       disabled={unavailable}
       onPress={onPress}
       ref={ref}
@@ -58,6 +66,7 @@ export const AccessibleAction = forwardRef<React.ElementRef<typeof Pressable>, A
         styles.action,
         variantStyles[variant],
         unavailable ? styles.unavailable : null,
+        selected === true ? styles.selected : null,
         pressed && !unavailable ? styles.pressed : null,
         style,
       ]}
@@ -95,6 +104,10 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.82,
+  },
+  selected: {
+    borderColor: colors.primary,
+    borderWidth: 2,
   },
   unavailable: {
     opacity: 0.5,

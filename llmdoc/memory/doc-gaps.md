@@ -2,9 +2,10 @@
 
 以下是需要外部证据后补强的知识入口，不代表已承诺的时间表：
 
-- 上游 pairing、ticket、caller/deadline、profile、mailbox、push、objectRef 发布后，需要把正式版本、
-  schema/fixture 入口和兼容矩阵提升到 reference；device client 0.11.0 与 pairing 前手工 URL/API key
-  fallback 已分别记录在 SDK transport 和 manual gateway reference。
+- 上游 pairing、ticket、credential identity/generation binding、profile、mailbox、push、objectRef 发布后，
+  需要把正式版本、schema/fixture 入口和兼容矩阵提升到 reference；device client 0.14.1
+  path/context 与 pairing 前手工 URL/API key fallback 已分别记录在 SDK transport 和 manual gateway
+  reference。
 - 获得真实 Gateway HTTPS origin/API key 后，需要补 hello/expose/call/cancel/result、权限拒绝、弱网重连
   与 secret 服务端兼容证据；当前 fake WebSocket 不能替代该矩阵。
 - iOS simulator clean build 已有 macOS CI 记录；仍需 iOS 真机、签名 archive 与 generated

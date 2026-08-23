@@ -5,6 +5,7 @@ describe('redactForLog', () => {
     expect(redactForLog({
       authorization: 'Bearer secret',
       nested: {
+        body: 'subscription body',
         latitude: 31.2,
         longitude: 121.4,
         signedUrl: 'https://object.example/?signature=secret',
@@ -14,6 +15,7 @@ describe('redactForLog', () => {
     })).toEqual({
       authorization: '[REDACTED]',
       nested: {
+        body: '[REDACTED]',
         latitude: '[REDACTED]',
         longitude: '[REDACTED]',
         signedUrl: '[REDACTED]',

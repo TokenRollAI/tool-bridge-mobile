@@ -1,11 +1,12 @@
 # SDK 使用与集成边界
 
-状态：`@tool-bridge/sdk/device@0.11.0` 已接入移动端；首页 URL + API key 内测入口已实现，pairing、短期
-ticket、mailbox 与动态 profile 仍未实现。
+状态：`@tool-bridge/sdk/device@0.14.1` 已接入移动端；首页 URL + API key 内测入口和在线 direct-call
+设备本地信箱已实现，pairing、短期 ticket、gateway command mailbox 与动态 profile 仍未实现。
 
 ## 1. 当前结论
 
-自 `@tool-bridge/sdk@0.11.0` 起，上游通过独立子入口提供 React Native / Hermes-safe 设备客户端：
+上游自 `@tool-bridge/sdk@0.11.0` 起通过独立子入口提供 React Native / Hermes-safe 设备客户端；
+本仓库当前精确锁定 0.14.1：
 
 ```ts
 import {
@@ -14,11 +15,12 @@ import {
 } from '@tool-bridge/sdk/device'
 ```
 
-本仓库已经精确锁定并使用该版本。当前移动适配层：
+当前移动适配层：
 
 - 使用官方 `DeviceExpose`、hello / ready / call / result、ping / pong、cancel 与重连状态机；
 - 通过 React Native WebSocket 第三个参数注入 `Authorization` header，长期 SK 不进入 URL；
-- App 前台恢复连接，后台、inactive 与本地 Disabled 模式暂停连接；
+- enabled 时不因 AppState 的短暂变化主动断线，Disabled/紧急停用时 suspend；系统仍可在
+  后台暂停或终止进程，不因连接暂存就声称后台可达；
 - call 继续经过 SQLite command 去重、动态 probe、policy、本地确认、结果上限与脱敏审计；
 - 网关拒绝凭证后清除 SecureStore envelope，凭证缺失或 audience 不匹配时 fail closed；
 - 首页允许用户手工保存/清除 Gateway HTTPS origin 与 API key，保存或清除前先停止旧 transport；
@@ -63,8 +65,8 @@ const connection = connectDevice({
   同一表单自定义 deviceId（`[A-Za-z0-9._-]{1,64}`，与网关 DO 路由约束一致）。仅供本地归因
   的 keyId 仍为 `manual_api_key_<uuid>`；它们不是网关签发身份或具体 Agent caller；
 - 设备在 hello 中声明 `mountPath: device/phone/<deviceId>`；expose node 使用去掉 `phone/` 前缀的相对
-  路径，网关下发的相对 call path 在进入本地 executor 前补回前缀，本地 `phone/*` 规范命名空间与
-  SQLite 历史格式不变；
+  路径；网关下发的 call `path` 包含命令叶子，adapter 按最后一个 `/` 拆分后对
+  node path 补回前缀，本地 `phone/*` 规范命名空间与 SQLite 历史格式不变；
 - `audienceOrigin`、派生标识和 API key material 一起保存为 SecureStore `DeviceCredentialEnvelope`；API key
   保存后从表单清空，界面不回显；
 - 保存顺序为“停止旧 transport -> 写 SecureStore -> 连接新 audience”，写入失败时保持关闭；清除顺序为
@@ -105,31 +107,52 @@ type DeviceNodeCmd = {
 
 移动 App 只声明 `nodes`，不声明 `shell` 或 `fs`。
 
-## 4. Call 适配与当前协议缺口
+当前 registry 也暴露 `phone/inbox.deliver`。wire 相对路径是 `inbox/deliver`，仍完全使用正式
+`DeviceExpose` 与 call/result frame：入参正文固定为 Markdown，可附固定枚举 urgency 与可选规范 UTC
+`sentAt`；设备端把有界正文存入专用 SQLite 表，result 只返回 message id、
+本机收到时间和可选本地通知状态。该路径没有新增 SDK frame、gateway endpoint 或 HTTP 轮询，也不能在
+没有 ready session 时接收消息；因此它不是 U-5 durable command mailbox。
 
-0.11.0 的 `DeviceCallHandler` 当前提供：
+Markdown 图片 URL 仍只是正文数据：不会进入 result/普通 audit/通知，也不会在收件或展开正文时自动请求。
+用户必须主动点击；URL 可以使用任意通过本地 policy 的 HTTPS hostname，无需构建时配置。移动端逐跳复核
+URL，完成有界下载和内容校验后，只把 App 私有 `file://` 交给 React Native Image。
+
+## 4. Call 适配与兼容降级
+
+0.14.1 的 `DeviceCallHandler` 提供：
 
 ```ts
 type DeviceCallHandler = (call: {
   id: string
   path: string
-  tool: string
   arguments: Record<string, unknown>
   signal: AbortSignal
+  context?: {
+    caller: { keyId: string; owner: string; displayName?: string }
+    createdAt: string
+    expiresAt: string
+    traceId: string
+  }
 }) => Promise<unknown> | unknown
 ```
 
-它没有端到端 caller identity、createdAt 或 expiresAt。为了不绕开已有本地安全执行器，当前适配层：
+`path` 相对 mount path 且已包含命令叶子，例如 `status/get`；不再有单独 `tool`。当前适配层：
 
 - 保留 SDK call `id` 作为本地 `commandId`，SQLite 是副作用防重放真源；
-- 把已认证 device credential 的非秘密 `keyId` 记录为当前 gateway principal；
-- `displayName` 固定为“Tool Bridge 网关”，不伪装成具体 Agent；
-- 以本机收到 call 的时间作为 `createdAt`，生成 30 秒本地 commit deadline；
+- 按最后一个 `/` 拆分 node path 与 command：`status/get` → `phone/status` + `get`，
+  `runtime/commands/list` → `phone/runtime/commands` + `list`；无 owner/命令叶子、空段或
+  尾随斜杠均返回 `invalid_argument`；
+- context 存在时，caller 稳定 `subjectId` 使用网关签发的 `caller.keyId`，展示名只来自
+  `caller.displayName/owner`；`createdAt` 使用网关值，`expiresAt` 取网关期限与本地接收后
+  30 秒的较早值；
+- context 缺失时保留旧网关降级：caller 是 device credential 的非秘密 `keyId`，
+  `displayName` 固定为“Tool Bridge 网关”，时间改用本地接收时刻和 30 秒上限；这条
+  降级不冒充具体 Agent 或网关权威时间；
+- `arguments` 不能覆盖 caller/context/deadline；
 - SDK cancel 的 `AbortSignal` 直接传播给本地 executor。
 
-因此当前 Activity 的 source 只能证明“经哪个 device credential/gateway 信任域到达”，不能证明具体
-Agent、用户或上游 SK。真实 caller attribution、gateway deadline 与跨重连时间语义仍需上游扩展正式
-call contract；在此之前不能把 `keyId` 描述为 Agent 身份。
+context `caller.keyId` 是本次调用所用 SK id，适合稳定限流、timer ownership 与 Activity
+subject；但它不是 device credential generation，不能单独完成未来的 credential-bound trusted grant。
 
 本地 `CommandOutcome` 的成功值直接成为 SDK result；失败按 Tool Bridge 规范错误归一为
 `invalid_argument | not_found | permission_denied | rate_limited | unavailable | internal`，不会把原生堆栈、
@@ -153,7 +176,8 @@ U-6 push registration/dispatch，也不会把 local notification/timer 当成后
 
 ## 6. WebSocket 鉴权
 
-0.11.0 官方 RN adapter 支持原生 React Native WebSocket 的非 WHATWG 第三个参数，因此 Android/iOS 原生
+0.14.1 继续保留官方 RN adapter 对原生 React Native WebSocket 非 WHATWG 第三个参数的支持，
+因此 Android/iOS 原生
 环境可以把设备 SK 放在 upgrade `Authorization` header。这个能力不适用于浏览器或 RN Web。
 
 当前 header 方案解除了“原生 RN 无法接入现有 device WS”的 U-1 阻塞，但没有完成 U-2 pairing 或 U-3
@@ -191,20 +215,23 @@ SDK 的进程内 cache 不能替代 SQLite tombstone；WebSocket 重连也不能
 
 当前仓库已有：
 
-- 官方 SDK supervisor 的 fake WebSocket contract：Authorization header、hello/ready/call/result 与
-  AppState suspend；
+- 官方 SDK supervisor 的 fake WebSocket contract：Authorization header、hello/ready/call/result、
+  commandId cache、cancel 与 Disabled suspend；
 - 手工 URL/API key 的 strict 输入、派生标识、SecureStore 保存/清除顺序、失败保持关闭与 UI secret
   不回显 component test；
-- caller/deadline 适配、标准错误映射、缺凭证和 audience mismatch fail-closed 测试；
+- 新 call path 拆分、context caller/权威时间、30 秒期限收紧、旧网关降级、标准错误映射、
+  缺凭证和 audience mismatch fail-closed 测试；
 - registry → DeviceExpose JSON Schema 投影测试；
 - `scripts/verify-sdk-device-entry.mjs`：精确版本、package exports 与无 Node `ws/process.env` 泄漏；
 - Android 和 iOS production Metro export 成功。
+- Android Preview 0.0.6 覆盖安装后，当前 Railway Gateway 的单次真机
+  `device/phone/9daf921003a4/status/get` 读调用返回并通过 live output schema，调用前后
+  UI 均为 `online/active` 且无 `protocol_error`。
 
 尚未证明：
 
-- 对真实 gateway 的兼容矩阵、弱网/重连和服务器拒绝；
+- 除上述单一 `status/get` 路径外的真实 gateway 兼容矩阵、弱网/重连和服务器拒绝；
 - 手工 API key 对真实 gateway 的认证兼容，以及 pairing、credential issuance/rotation/revoke 端到端；
-- gateway caller/deadline attribution；
 - iOS/Android 真机前后台连接和长期稳定性；
 - mailbox、push 与后台可达。
 
@@ -214,4 +241,6 @@ SDK 的进程内 cache 不能替代 SQLite tombstone；WebSocket 重连也不能
 本次 consumer 验证命令、结果与未覆盖项见
 [2026-08-19 SDK device integration 验证](verification/2026-08-19-sdk-device-integration.md)；手工 URL/API key
 配置的专项证据见
-[2026-08-19 手工 Gateway 配置验证](verification/2026-08-19-manual-gateway-configuration.md)。
+[2026-08-19 手工 Gateway 配置验证](verification/2026-08-19-manual-gateway-configuration.md)。0.14.1 升级、
+Android Preview 与单次真机 `status/get` 证据见
+[2026-08-23 SDK device wire 兼容验证](verification/2026-08-23-sdk-device-wire-compatibility.md)。

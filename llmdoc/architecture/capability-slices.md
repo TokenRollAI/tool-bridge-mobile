@@ -84,9 +84,43 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 
 完整输入、执行与证据边界见 `llmdoc/reference/bounded-linking-handoffs.md`。
 
+### `phone/inbox.deliver`
+
+- 设备本地内容信箱只处理已通过在线 SDK direct-call session 到达 executor 的消息；`queuePolicy` 是
+  `reject_offline`，它不是 U-5 gateway command mailbox，也没有离线 enqueue 或 push 唤醒。
+- strict schema 接受 `title/Markdown body/category/format/urgency/sentAt/sourceLabel/notify`；format 固定
+  `markdown`，urgency 是四值枚举，可选 sentAt 必须为 canonical UTC。sourceLabel/urgency/sentAt 只是 Agent
+  内容元数据，不能冒充 invocation caller 或本机 receivedAt。
+- SQLite v4 专用 `inbox_messages` 以 source command unique key 和 `inbox_ + SHA-256(commandId)` 去重；
+  insert/回读/裁剪在同一 exclusive transaction，写时维持 1,000 条硬上限。v3 旧行迁移为 markdown/normal，
+  sentAt 保持 NULL。
+- repository 在用户明确提交搜索后，对全部保留集参数化查询 title/body/sourceLabel/caller，按六值本地枚举
+  排序后最多投影 100 条；支持单条/全表 mark-read。sentAt 缺值时只为排序 fallback 到 receivedAt，不补造
+  显示字段。
+- Markdown 由 `markdown-it/browser` 产出 token，再经 React Native 白名单 renderer；不用 WebView/HTML/
+  JavaScript，不自动导航链接，限制 nesting、600 tokens 和每条 4 张图片，默认三行摘要且一次只展开一条。
+- 图片展开和点击前零网络；每次点按只授权该图片的一次请求和有界 redirect 链。任意 hostname 只要逐跳/
+  最终满足标准端口 HTTPS、无 userinfo/fragment/IP literal 即可；安全的跨 hostname redirect 允许继续。
+  resolver 使用 `credentials: omit` + manual redirect，并限制 3 次 redirect、20 秒、PNG/JPEG、3 MiB、
+  4096 单边和 16 MP。只把校验后的私有 `file://` 交给 React Native Image，并在失败/取消/卸载时清理。
+- 没有 `EXPO_PUBLIC_INBOX_IMAGE_HOSTS`、Expo extra 或 runtime host set；media/link allowlist 不变。当前未做
+  DNS private-network/rebinding 防护，且最终 redirect hostname 不会再次展示/确认，不能声称所有 HTTPS
+  图片都安全。
+- 正文/元数据不进入 command outcome、普通 audit、自动 accessibility announcement 或 native notification payload。
+  `notify: true` 只在消息 commit 后读取现有授权，再 best-effort 调度固定 `Tool Bridge 信箱` 来信提示；
+  identifier 是 `tb_local_inbox_ + SHA-256(commandId)`，失败或未知不回滚消息。
+- clear 只删除 `inbox_messages`，保留 command 防重放；因此清空后同一 commandId replay 返回原终态但不
+  重建消息。独立 inbox revision 隔离 view option、clear、单条/全部 mark-read、commit 与 refresh 竞态。
+- result 固定为 `stored` 加 message id/收到时间，以及 `not_requested | not_attempted |
+  permission_required | unavailable | status_unknown | scheduled` 提醒子状态；`scheduled` 不表示系统已
+  呈现、送达、点击或用户已读。
+
+完整 schema、存储、提醒、clear/replay/revision 和证据分层见
+`llmdoc/reference/local-device-inbox.md`。
+
 ### `phone/productivity.notify`
 
-- 使用 `expo-notifications 57.0.12` 调度即时 local notification，不注册 push token，也不实现 remote
+- 使用 `expo-notifications 57.0.13` 调度即时 local notification，不注册 push token，也不实现 remote
   notification。strict schema 只接受 trim 后非空的 purpose（最多 120）和 message（最多 240），拒绝
   control/bidi 字符及 title、data、action、scheduleAt 等未知字段。
 - 系统内容固定为 title `Tool Bridge` 和正文前缀 `Agent 通知：`；Android 固定 channel
@@ -138,10 +172,16 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 - 变量解析与 Expo 原生配置：`app.config.ts`
 - capability 装配：`src/runtime/applicationRuntime.ts`
 - local-only notification final config：`app.config.ts` + `plugins/withLocalOnlyNotifications.cjs`
+- local device inbox：`src/inbox/` + `src/storage/migrations/0003_inbox.ts` +
+  `src/storage/migrations/0004_inbox_metadata.ts` +
+  `src/storage/inboxRepository.ts`
+- inbox image hostname：没有配置入口；media 与 App handoff 仍分别使用 `EXPO_PUBLIC_MEDIA_HOSTS` 和
+  `EXPO_PUBLIC_LINK_HOSTS`，其 allowlist 语义没有因信箱图片 policy 放宽而改变
 - local timer persistence：`src/storage/migrations/0002_timers.ts` + `src/storage/timerRepository.ts`
 
 ## 证据上限
 
 unit/component/local contract 证明的是本地边界。registry 将单项 probe 异常隔离为
 `unavailable: probe_failed`。Android clean debug build 证明原生依赖与配置能编译；
-两者都不证明 production gateway、iOS build 或真机前台/后台/锁屏行为。
+两者都不证明 production gateway、iOS build 或真机前台/后台/锁屏行为。信箱还必须把本地自动化、真实
+Gateway `inbox/deliver`、双端真机与 U-5/U-6 离线 mailbox/push 分为四层，不得互相替代。

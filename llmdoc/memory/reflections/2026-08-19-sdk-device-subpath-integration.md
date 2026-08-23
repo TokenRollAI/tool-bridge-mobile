@@ -1,5 +1,8 @@
 # React Native SDK 子入口接入反思
 
+> 历史说明（2026-08-23）：本文记录的是 `@tool-bridge/sdk@0.11.0` 接入时的契约。当前 `0.14.1` 已使用完整
+> call path，并提供可选 `context`；现行事实以 `llmdoc/reference/sdk-device-transport.md` 为准。
+
 ## 任务
 
 在上游发布 `@tool-bridge/sdk@0.11.0` 后，复核其 React Native 契约并把官方 device transport 接入现有

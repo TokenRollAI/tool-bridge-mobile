@@ -1,10 +1,14 @@
 import * as Notifications from 'expo-notifications'
 
+import { LOCAL_INBOX_NOTIFICATION_IDENTIFIER_PREFIX } from '@/inbox/identifiers'
+
 import {
+  buildExpoInboxNotificationRequest,
   buildExpoNotificationRequest,
   buildExpoTimerNotificationRequest,
   deriveLocalTimerIdentifiers,
   isLocalCapabilityNotificationIdentifier,
+  isLocalInboxNotificationIdentifier,
   isLocalTimerNotificationIdentifier,
   LOCAL_NOTIFICATION_CHANNEL,
   LOCAL_NOTIFICATION_CHANNEL_ID,
@@ -42,6 +46,31 @@ describe('local notification native boundary', () => {
     expect(isLocalCapabilityNotificationIdentifier(timerNotificationId)).toBe(true)
     expect(isLocalTimerNotificationIdentifier(timerNotificationId)).toBe(true)
     expect(isLocalTimerNotificationIdentifier(`${LOCAL_TIMER_IDENTIFIER_PREFIX}remote`)).toBe(false)
+    const inboxNotificationId = `${LOCAL_INBOX_NOTIFICATION_IDENTIFIER_PREFIX}${'a'.repeat(64)}`
+    expect(isLocalCapabilityNotificationIdentifier(inboxNotificationId)).toBe(true)
+    expect(isLocalInboxNotificationIdentifier(inboxNotificationId)).toBe(true)
+    expect(isLocalInboxNotificationIdentifier(`${LOCAL_INBOX_NOTIFICATION_IDENTIFIER_PREFIX}remote`))
+      .toBe(false)
+  })
+
+  test('信箱提醒使用固定内容，不把远端标题、正文或来源放入系统 payload', () => {
+    const inboxNotificationId = `${LOCAL_INBOX_NOTIFICATION_IDENTIFIER_PREFIX}${'a'.repeat(64)}`
+    const nativeRequest = buildExpoInboxNotificationRequest({
+      notificationId: inboxNotificationId,
+    }, 'android')
+    expect(nativeRequest).toEqual({
+      content: {
+        autoDismiss: true,
+        body: '收到一条 Agent 来信，请在 App 内查看。',
+        sound: false,
+        sticky: false,
+        title: 'Tool Bridge 信箱',
+      },
+      identifier: inboxNotificationId,
+      trigger: { channelId: LOCAL_NOTIFICATION_CHANNEL_ID },
+    })
+    expect(JSON.stringify(nativeRequest)).not.toContain('Daily Brief')
+    expect(JSON.stringify(nativeRequest)).not.toContain('正文')
   })
 
   test('timer 使用绝对 DATE trigger 和固定无敏感正文 payload', () => {

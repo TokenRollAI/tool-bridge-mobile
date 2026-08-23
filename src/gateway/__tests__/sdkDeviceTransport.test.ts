@@ -8,6 +8,7 @@ import { CapabilityRegistry } from '@/capabilities/registry'
 import {
   createSdkDeviceCallHandler,
   LOCAL_REALTIME_COMMAND_TTL_MS,
+  parseDeviceCallPath,
   SdkDeviceTransport,
 } from '@/gateway/sdkDeviceTransport'
 
@@ -150,24 +151,47 @@ async function eventually(assertion: () => void): Promise<void> {
 }
 
 describe('@tool-bridge/sdk/device mobile adapter', () => {
+  test('按最后一个斜杠拆分多层 device call path，并拒绝空路径段', () => {
+    expect(parseDeviceCallPath('status/get')).toEqual({
+      command: 'get',
+      nodePath: 'status',
+    })
+    expect(parseDeviceCallPath('runtime/commands/list')).toEqual({
+      command: 'list',
+      nodePath: 'runtime/commands',
+    })
+
+    for (const path of ['status', '/get', 'status/', 'status//get', 'status/get/']) {
+      try {
+        parseDeviceCallPath(path)
+        throw new Error(`未拒绝非法 path: ${path}`)
+      } catch (error) {
+        expect(error).toMatchObject({ code: 'invalid_argument' })
+      }
+    }
+  })
+
   test('把官方 call 映射到有本地期限的 executor command，并把本地错误归一为 TBError', async () => {
     const commands: LocalCommand[] = []
+    const signals: AbortSignal[] = []
     const handler = createSdkDeviceCallHandler({
       callerSubjectId: 'device_key_01',
       clock: () => new Date('2026-08-19T10:00:00.000Z'),
-      executeCommand: async command => {
+      executeCommand: async (command, signal) => {
         commands.push(command)
+        signals.push(signal)
         return { ok: true, value: { observed: true } }
       },
     })
 
+    const signal = new AbortController().signal
     await expect(handler({
       arguments: {},
       id: 'call_01',
-      path: 'fixture',
-      signal: new AbortController().signal,
-      tool: 'get',
+      path: 'fixture/get',
+      signal,
     })).resolves.toEqual({ observed: true })
+    expect(signals).toEqual([signal])
     expect(commands).toEqual([expect.objectContaining({
       caller: { displayName: 'Tool Bridge 网关', subjectId: 'device_key_01' },
       commandId: 'call_01',
@@ -183,11 +207,10 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     await handler({
       arguments: {},
       id: 'call_01b',
-      path: 'phone/fixture',
+      path: 'phone/fixture/get',
       signal: new AbortController().signal,
-      tool: 'get',
     })
-    expect(commands[1]).toMatchObject({ path: 'phone/fixture' })
+    expect(commands[1]).toMatchObject({ path: 'phone/fixture', tool: 'get' })
 
     const deniedHandler = createSdkDeviceCallHandler({
       callerSubjectId: 'device_key_01',
@@ -199,21 +222,107 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     await expect(deniedHandler({
       arguments: {},
       id: 'call_02',
-      path: 'fixture',
+      path: 'fixture/get',
       signal: new AbortController().signal,
-      tool: 'get',
     })).rejects.toMatchObject({ code: 'permission_denied', retryable: false })
+  })
+
+  test('优先消费网关 context，收紧期限，缺失时才降级为 credential principal', async () => {
+    const commands: LocalCommand[] = []
+    const handler = createSdkDeviceCallHandler({
+      callerSubjectId: 'credential_principal_01',
+      clock: () => new Date('2026-08-19T10:00:00.000Z'),
+      executeCommand: async command => {
+        commands.push(command)
+        return { ok: true, value: null }
+      },
+    })
+
+    await handler({
+      arguments: {
+        caller: { keyId: 'argument_must_not_override' },
+        context: { createdAt: '2099-01-01T00:00:00.000Z' },
+        deadline: '2099-01-01T00:00:00.000Z',
+      },
+      context: {
+        caller: {
+          displayName: 'Research Agent',
+          keyId: 'gateway_caller_key_01',
+          owner: 'agent:researcher',
+        },
+        createdAt: '2026-08-19T09:59:58.000Z',
+        expiresAt: '2026-08-19T10:00:20.000Z',
+        traceId: 'trace_01',
+      },
+      id: 'context_01',
+      path: 'status/get',
+      signal: new AbortController().signal,
+    })
+    expect(commands[0]).toMatchObject({
+      arguments: {
+        caller: { keyId: 'argument_must_not_override' },
+        context: { createdAt: '2099-01-01T00:00:00.000Z' },
+        deadline: '2099-01-01T00:00:00.000Z',
+      },
+      caller: { displayName: 'Research Agent', subjectId: 'gateway_caller_key_01' },
+      createdAt: '2026-08-19T09:59:58.000Z',
+      expiresAt: '2026-08-19T10:00:20.000Z',
+      path: 'phone/status',
+      tool: 'get',
+    })
+
+    await handler({
+      arguments: {},
+      context: {
+        caller: { keyId: 'gateway_caller_key_02', owner: 'agent:planner' },
+        createdAt: '2026-08-19T09:59:59.000Z',
+        expiresAt: '2026-08-19T10:05:00.000Z',
+        traceId: 'trace_02',
+      },
+      id: 'context_02',
+      path: 'runtime/commands/list',
+      signal: new AbortController().signal,
+    })
+    expect(commands[1]).toMatchObject({
+      caller: { displayName: 'agent:planner', subjectId: 'gateway_caller_key_02' },
+      createdAt: '2026-08-19T09:59:59.000Z',
+      expiresAt: '2026-08-19T10:00:30.000Z',
+      path: 'phone/runtime/commands',
+      tool: 'list',
+    })
+
+    await handler({
+      arguments: {},
+      id: 'context_fallback',
+      path: 'status/get',
+      signal: new AbortController().signal,
+    })
+    expect(commands[2]).toMatchObject({
+      caller: { displayName: 'Tool Bridge 网关', subjectId: 'credential_principal_01' },
+      createdAt: '2026-08-19T10:00:00.000Z',
+      expiresAt: '2026-08-19T10:00:30.000Z',
+    })
   })
 
   test('真实 SDK supervisor 使用 RN header、hello/ready/call/result，仅在 Disabled 时 suspend', async () => {
     const harness = createWebSocketHarness()
     const commands: LocalCommand[] = []
+    let cancelledSignal: AbortSignal | null = null
     const transport = new SdkDeviceTransport({
       baseUrl: 'https://gateway.example.com',
       clock: () => new Date('2026-08-19T10:00:00.000Z'),
       credentialStore: new MemoryCredentialStore(credential),
-      executeCommand: async command => {
+      executeCommand: async (command, signal) => {
         commands.push(command)
+        if (command.commandId === 'call_cancel') {
+          cancelledSignal = signal
+          return await new Promise(resolve => {
+            signal.addEventListener('abort', () => resolve({
+              error: { code: 'cancelled', message: '调用已取消', retryable: true },
+              ok: false,
+            }), { once: true })
+          })
+        }
         return { ok: true, value: { status: 'ok' } }
       },
       registry: createRegistry(),
@@ -252,13 +361,19 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       state: 'ready',
     }))
     socket.sent.length = 0
-    socket.receive({
+    const callFrame: DeviceFrame = {
       arguments: {},
+      context: {
+        caller: { keyId: 'gateway_caller_key_03', owner: 'agent:device-check' },
+        createdAt: '2026-08-19T10:00:00.000Z',
+        expiresAt: '2026-08-19T10:00:20.000Z',
+        traceId: 'trace_03',
+      },
       id: 'call_03',
-      path: 'fixture',
-      tool: 'get',
+      path: 'fixture/get',
       type: 'call',
-    })
+    }
+    socket.receive(callFrame)
     await eventually(() => expect(socket.sent).toHaveLength(1))
     expect(decodeDeviceFrame(socket.sent[0] ?? '')).toEqual({
       id: 'call_03',
@@ -267,6 +382,43 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       value: { status: 'ok' },
     })
     expect(commands).toHaveLength(1)
+    expect(commands[0]).toMatchObject({
+      caller: { displayName: 'agent:device-check', subjectId: 'gateway_caller_key_03' },
+      path: 'phone/fixture',
+      tool: 'get',
+    })
+    expect(transport.getSnapshot().issue).toBeNull()
+
+    // 同一 commandId 的重放由 SDK 内存 cache 直接返回，不再进入 executor；
+    // SQLite command repository 仍是跨进程的防重放真相。
+    socket.sent.length = 0
+    socket.receive(callFrame)
+    await eventually(() => expect(socket.sent).toHaveLength(1))
+    expect(commands).toHaveLength(1)
+    expect(decodeDeviceFrame(socket.sent[0] ?? '')).toMatchObject({
+      id: 'call_03',
+      ok: true,
+      type: 'result',
+    })
+
+    socket.sent.length = 0
+    socket.receive({
+      arguments: {},
+      id: 'call_cancel',
+      path: 'fixture/get',
+      type: 'call',
+    })
+    await eventually(() => expect(cancelledSignal).not.toBeNull())
+    socket.receive({ id: 'call_cancel', type: 'cancel' })
+    await eventually(() => expect(cancelledSignal?.aborted).toBe(true))
+    await eventually(() => expect(socket.sent).toHaveLength(1))
+    expect(decodeDeviceFrame(socket.sent[0] ?? '')).toMatchObject({
+      error: { code: 'unavailable', retryable: true },
+      id: 'call_cancel',
+      ok: false,
+      type: 'result',
+    })
+    expect(transport.getSnapshot().issue).toBeNull()
 
     // 后台不再断线：App 退到 background 时连接保持，命令仍可到达。
     await transport.updateLifecycle('background', true)

@@ -45,6 +45,26 @@ export function toLocalCapabilityPath(path: string): string {
     : `${LOCAL_CAPABILITY_NAMESPACE}${path}`
 }
 
+export type ParsedDeviceCallPath = Readonly<{
+  command: string
+  nodePath: string
+}>
+
+// 新 device wire 把命令叶子并入 path；节点路径可以是多层，因此只能以最后一个 `/`
+// 为边界。这里只做 wire 形状归一化，capability 名称与 schema 仍由本地 executor 裁决。
+export function parseDeviceCallPath(path: string): ParsedDeviceCallPath {
+  const separator = path.lastIndexOf('/')
+  if (separator <= 0 || separator === path.length - 1) {
+    throw new TBError('invalid_argument', 'device call path 必须包含非空节点路径和命令叶子')
+  }
+  const nodePath = path.slice(0, separator)
+  const command = path.slice(separator + 1)
+  if (nodePath.split('/').some(segment => segment.length === 0) || command.length === 0) {
+    throw new TBError('invalid_argument', 'device call path 不能包含空路径段')
+  }
+  return { command, nodePath }
+}
+
 export type DeviceTransportState =
   | DeviceConnectionState
   | 'credentials_required'
@@ -143,17 +163,42 @@ export function createSdkDeviceCallHandler(options: Readonly<{
   const clock = options.clock ?? (() => new Date())
   return async call => {
     const receivedAt = clock()
-    const outcome = await options.executeCommand({
-      arguments: call.arguments,
-      caller: {
+    const localExpiresAtMs = receivedAt.getTime() + LOCAL_REALTIME_COMMAND_TTL_MS
+    const { command, nodePath } = parseDeviceCallPath(call.path)
+    let caller: LocalCommand['caller']
+    let createdAt: string
+    let expiresAt: string
+    if (call.context === undefined) {
+      // 旧网关兼容降级：credential principal 只代表网关凭证，不冒充具体 Agent；
+      // 本地时间也不冒充网关权威时间。
+      caller = {
         displayName: 'Tool Bridge 网关',
         subjectId: options.callerSubjectId,
-      },
+      }
+      createdAt = receivedAt.toISOString()
+      expiresAt = new Date(localExpiresAtMs).toISOString()
+    } else {
+      const gatewayCreatedAtMs = Date.parse(call.context.createdAt)
+      const gatewayExpiresAtMs = Date.parse(call.context.expiresAt)
+      if (!Number.isFinite(gatewayCreatedAtMs) || !Number.isFinite(gatewayExpiresAtMs)) {
+        throw new TBError('invalid_argument', 'device call context 包含无效时间戳')
+      }
+      caller = {
+        displayName: call.context.caller.displayName ?? call.context.caller.owner,
+        // keyId 是网关签发的稳定调用主体；owner/displayName 只用于展示。
+        subjectId: call.context.caller.keyId,
+      }
+      createdAt = call.context.createdAt
+      expiresAt = new Date(Math.min(gatewayExpiresAtMs, localExpiresAtMs)).toISOString()
+    }
+    const outcome = await options.executeCommand({
+      arguments: call.arguments,
+      caller,
       commandId: call.id,
-      createdAt: receivedAt.toISOString(),
-      expiresAt: new Date(receivedAt.getTime() + LOCAL_REALTIME_COMMAND_TTL_MS).toISOString(),
-      path: toLocalCapabilityPath(call.path),
-      tool: call.tool,
+      createdAt,
+      expiresAt,
+      path: toLocalCapabilityPath(nodePath),
+      tool: command,
     }, call.signal)
     if (!outcome.ok) throw sdkErrorFor(outcome)
     return outcome.value

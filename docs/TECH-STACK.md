@@ -22,8 +22,8 @@
 
 交付策略：**Android 首个端到端切片，iOS 从第一天保持可构建和协议对等。**
 
-当前精确基线：Node `22.23.1`、pnpm `11.21.0`、Expo `57.0.14`、React Native `0.86.2`、
-React `19.2.3`、TypeScript `6.0.3`、`@tool-bridge/sdk 0.11.0`。Android min/compile/target 为
+当前精确基线：Node `22.23.1`、pnpm `11.21.0`、Expo `57.0.15`、React Native `0.86.2`、
+React `19.2.3`、TypeScript `6.0.3`、`@tool-bridge/sdk 0.14.1`。Android min/compile/target 为
 `24/36/36`，iOS deployment
 target 为 `16.4`。`package.json`、`.node-version`、`pnpm-lock.yaml` 和 App config 是版本事实真源。
 
@@ -81,6 +81,7 @@ src/
   commands/                command lifecycle / idempotency
   gateway/                 pairing、HTTP、realtime、mailbox adapters
   identity/                device id 与 credential facade
+  inbox/                   设备本地信箱 schema、controller 与确定性标识
   policy/                  本地裁决与确认
   storage/                 SQLite repositories
   audit/                   脱敏审计
@@ -109,26 +110,28 @@ e2e/
 
 | 需求 | 选择 | 说明 |
 | --- | --- | --- |
-| 前台 device transport | `@tool-bridge/sdk/device` `0.11.0` | 官方 hello/ready/call/result、心跳、重连、cancel 与 RN WebSocket header adapter |
+| device transport | `@tool-bridge/sdk/device` `0.14.1` | 官方 hello/ready/call/result、新 path/context wire、心跳、重连、cancel 与 RN WebSocket header adapter |
 | 路由/深链 | `expo-router`、`expo-linking` | 配对、通知 action、确认页 |
-| 本地通知与 timer 提示 | `expo-notifications` `57.0.12` | 当前：双端权限/channel probe、固定内容、即时/绝对 DATE local schedule |
+| 本地通知、信箱可选提醒与 timer 提示 | `expo-notifications` `57.0.13` | 当前：双端权限/channel probe、固定 inbox 提示、即时/绝对 DATE local schedule |
 | push | `expo-notifications` + gateway APNs/FCM | 目标：token、mailbox 提示与点击观察；U-5/U-6 未实现 |
 | 凭证 | `expo-secure-store` | SK/refresh material；必要时下沉更强 key API |
-| command / audit | `expo-sqlite` | 事务、幂等、crash recovery |
+| command / audit / 设备本地信箱 | `expo-sqlite` | 事务、幂等、crash recovery、专用内容表与有界保留 |
 | 相机 | `expo-camera` | 可见预览和用户确认拍摄 |
-| 音频 | `expo-audio` `57.0.3` | App 自有媒体播放、原生状态与系统媒体控制；显式关闭录音权限 |
-| 媒体资源 | `expo-asset` `57.0.12` | `expo-audio` 要求的直接 peer；提供 player 原生资源解析 |
-| 位置 | `expo-location` `57.0.11` | P1 一次性 foreground 位置；P2 单独评审后台能力 |
-| 本地文件 | `expo-file-system` `57.0.4` | 受控媒体流式写入、实际字节上限和 App 私有 cache 清理 |
+| 音频 | `expo-audio` `57.0.4` | App 自有媒体播放、原生状态与系统媒体控制；显式关闭录音权限 |
+| 媒体资源 | `expo-asset` `57.0.13` | `expo-audio` 要求的直接 peer；提供 player 原生资源解析 |
+| 位置 | `expo-location` `57.0.12` | P1 一次性 foreground 位置；P2 单独评审后台能力 |
+| 本地文件 | `expo-file-system` `57.0.5` | 受控媒体/信箱图片流式写入、实际字节上限和 App 私有 cache 清理 |
 | 加密摘要 | `expo-crypto` | sha256、随机数据辅助 |
 | 设备状态 | `expo-device`、`expo-battery`、`expo-network` | capability/status 的最小状态 |
 | 后台回调 | `expo-task-manager` | push/background callback 编排 |
 | schema | `zod` | 与 Tool Bridge 现有技术栈一致 |
+| 信箱 Markdown | `markdown-it` `15.0.0` | 纯 JS CommonMark token parser；关闭 HTML/linkify，由本地 RN 白名单 renderer 消费，不使用 WebView |
 | attention haptic / flash | 本地 Expo Module `tool-bridge-attention` | Expo/RN 公共 API 无硬件 probe；仅封装 hasVibrator/CoreHaptics 与单次 pulse，以及 torch 探测与开关 |
 | 界面图标 | `@expo/vector-icons` `15.1.1` | 经 `src/ui/components/Icon.tsx` 语义层集中映射 Ionicons glyph |
 | 图标字体加载 | `expo-font` `57.0.1` | `@expo/vector-icons` 声明的原生 peer，必须由 App 直接安装 |
 
-`@tool-bridge/sdk` 由 Tool Bridge 上游同仓维护，0.11.0 首次提供正式 `/device` export；已有依赖没有
+`@tool-bridge/sdk` 由 Tool Bridge 上游同仓维护，0.11.0 首次提供正式 `/device` export，0.14.1 提供
+当前 Gateway 使用的完整 path call 与 invocation context；已有依赖没有
 官方 device frame/session 状态机，移动仓库也不得复制 `@tool-bridge/core` 私有源码。包根仍有 Node
 依赖并声明 Node `>=22`，所以生产代码只导入 `/device`；仓库脚本锁定 export 和产物外部 import，
 Android/iOS Metro 也必须实际 bundle。package 级 Node engine 由本仓库已锁定的 Node 22 构建环境满足，
@@ -159,12 +162,12 @@ handle。媒体 resolver 的生产代码直接 import 它，因此即使它曾�
 可取消位置订阅；已有依赖无法提供这些原生 API。当前配置显式关闭 Android/iOS 后台位置、Android
 location foreground service 与 motion activity，只生成 Android coarse/fine 和 iOS When In Use 权限。
 
-`open_map` 复用已锁定的 `expo-linking 57.0.6`，不新增地图 SDK 或系统权限：业务层只接受结构化目标，
+`open_map` 复用已锁定的 `expo-linking 57.0.7`，不新增地图 SDK 或系统权限：业务层只接受结构化目标，
 平台 builder 生成固定 map target，Linking 仅负责实际 probe/handoff。Android 11+ 的 package visibility
 由本地 config plugin 只加入 `geo` + `ACTION_VIEW` query；不查询具体地图 package。现有 linking 已满足
 这一系统交接需求，引入完整地图 SDK 会增加原生体积、位置数据面和维护成本。
 
-`expo-notifications 57.0.12` 是 Expo 官方维护、与本仓库 SDK 57 本地
+`expo-notifications 57.0.13` 是 Expo 官方维护、与本仓库 SDK 57 本地
 `bundledNativeModules.json` 一致的 Android/iOS 模块；已有依赖不提供通知授权、Android channel 或
 双端 local schedule API。当前仅使用即时通知与 24 小时内单次 timer 的绝对 DATE trigger：Android 显式
 声明 `POST_NOTIFICATIONS` 并阻止

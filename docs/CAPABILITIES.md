@@ -1,6 +1,6 @@
 # 移动端能力目录
 
-状态：产品提案 + P0 本地运行时，以及已明确标记的 attention、media、apps、location 与 productivity
+状态：产品提案 + P0 本地运行时，以及已明确标记的 attention、media、apps、location、inbox 与 productivity
 本地切片；除明确标记的本地实现或“当前协议可表达”外，均不代表已经实现。
 
 ## 1. 命名与返回约定
@@ -54,7 +54,7 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 字节数执行 inline 上限；同一 `commandId` 的 replay 不重复计数。当前 admission 为进程内防护，App
 重启后窗口重置，不能替代上游账户/设备配额。
 
-| capability | caller / global（每 60 秒） | inline 结果上限 |
+| capability | caller / global（窗口；未标注时为 60 秒） | inline 结果上限 |
 | --- | ---: | ---: |
 | `phone/status.get` | 60 / 120 | 16 KiB |
 | `phone/attention.ring` | 3 / 6 | 8 KiB |
@@ -65,6 +65,7 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 | `phone/apps.open_url` | 10 / 20 | 4 KiB |
 | `phone/location.current` | 6 / 12 | 4 KiB |
 | `phone/location.open_map` | 10 / 20 | 4 KiB |
+| `phone/inbox.deliver` | 30 / 60（3,600 秒） | 2 KiB |
 | `phone/productivity.notify` | 5 / 10 | 2 KiB |
 | `phone/productivity.timer_start` | 5 / 10 | 2 KiB |
 | `phone/productivity.timer_cancel/timer_status` | 60 / 120 | 2 KiB |
@@ -136,9 +137,10 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 | `pending_commands` | 返回仍在等待确认/执行的安全命令元数据 | low | 本地已实现 |
 | `cancel` | 请求取消尚未完成且可中断的本地命令 | low | 本地已实现 |
 
-这三个工具只使用 `@tool-bridge/sdk/device@0.11.0` 已有的自定义 command、result 与 cancel signal 能力，
-没有增加 wire 字段。当前 SDK call 不携带具体 Agent identity，因此查询和取消严格按 device credential
-的非秘密 `keyId`（结果中标为 `gateway_credential_principal`）隔离，不能描述为具体 Agent ownership。
+这三个工具只使用 `@tool-bridge/sdk/device@0.14.1` 已有的自定义 command、result、context 与
+cancel signal，没有增加私有 wire 字段。context 存在时查询和取消按网关签发的 `caller.keyId`
+隔离；context 缺失时降级到 device credential 的非秘密 `keyId`（结果中仍标为
+`gateway_credential_principal`），不冒充具体 Agent ownership。
 `pending_commands` 不返回 arguments、confirmation detail 或结果正文；`cancel` 只报告
 `cancellation_requested`，不虚报目标已经完成取消。它们不等于尚未交付的 mailbox/claim 状态机。
 
@@ -250,6 +252,10 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 `EXPO_PUBLIC_LINK_HOSTS` 为空时 App handoff 同理。这样 Agent 不会发现一个在当前构建中注定
 unavailable 的静态工具。
 
+信箱 Markdown 图片不依赖构建时 hostname 配置。Agent 可以在正文中提供任意通过 URL policy 的 HTTPS
+图片地址；只有用户点按具体占位后才会进入有界下载和内容校验。媒体与 App handoff 的 allowlist 不影响
+信箱图片。
+
 目标 `source` 是以下联合类型；当前 strict schema 仅接受第一种，第二种等待上游正式契约：
 
 ```ts
@@ -267,6 +273,59 @@ type MediaSource =
 
 ## 5. P1：本地辅助
 
+### `phone/inbox`
+
+#### `deliver`
+
+`phone/inbox.deliver` 是设备本地内容信箱，不是 U-5 gateway command mailbox。Agent 通过现有
+`device/phone/<deviceId>` 在线 direct-call session 投递；设备离线或进程被系统终止时没有本地 enqueue
+或 push 唤醒，descriptor 因而保持 `queuePolicy: reject_offline`。
+
+strict 入参：
+
+```json
+{
+  "title": "今日订阅摘要",
+  "body": "# 今日重点\n\n三条值得阅读的更新……\n\n![趋势图](https://img.example.com/chart.png)",
+  "category": "subscription",
+  "format": "markdown",
+  "urgency": "high",
+  "sentAt": "2026-08-23T09:59:00.000Z",
+  "sourceLabel": "Daily Brief",
+  "notify": true
+}
+```
+
+- `title` 最多 120 字符；`body` 是最多 4,000 字符的 Markdown；`format` 只接受且默认 `markdown`；
+  `urgency` 只接受 `low | normal | high | critical` 并默认 `normal`；`sentAt` 可选，但非空时必须是
+  `YYYY-MM-DDTHH:mm:ss.sssZ` 规范 UTC。`sourceLabel` 可选且最多 120 字符；
+  三者拒绝其余 C0/C1 与 bidi override/isolate。`category` 只接受 `message | subscription | news | update`；
+  `notify` 默认 false；unknown field 一律拒绝；
+- caller 不能提供顶层 URL/action、data、sound、badge、channel 或认证身份；Markdown 中的图片 URL 只是
+  受限内容引用，不会自动加载或成为系统 action。`sourceLabel` 在 UI 明标为“Agent 提供”，认证调用方
+  只来自 SDK invocation context；
+- `effect: write`、`risk: medium`、`confirmation: never`。Ask every time 仍因 write effect 逐次确认；
+  trusted/direct 模式可按本地总 policy 直接执行；admission 为每 caller 30、设备全局 60 次/小时；
+- SQLite v4 `inbox_messages` 以 `source_command_id UNIQUE` 与 `inbox_ + SHA-256(commandId)` 双重约束
+  幂等；正文只进入专用表。每次 insert 与裁剪在同一 exclusive transaction 中完成，保留最新 1,000 条；
+- UI 搜索 title/body/sourceLabel/caller 的全部 1,000 条保留消息，每次最多展示 100 个结果；排序支持收件时间、
+  Agent 发送时间升降序和未读/已读优先，没有 sentAt 时仅为排序回退到 receivedAt，UI 不伪造 Agent 时间。
+  支持单条和全部标为已读；清空只删除 `inbox_messages`，不删除 command 防重放、audit、timer、设置、
+  identity 或 credential；清空后 replay 不会重建消息；
+- Markdown 使用 `markdown-it` 解析为白名单 React Native 组件，不启用 HTML/linkify 或 WebView。图片默认只
+  显示 alt/hostname 占位；用户点按后才从正文提供的合法 HTTPS URL 以
+  `credentials: omit`、manual redirect 下载 PNG/JPEG。逐跳与最终 URL 复核，限制 3 次 redirect、3 MiB、
+  4096 单边、16 MP 和每条最多 4 张，校验 MIME/签名后写 App 私有 cache 并只渲染 `file://`；
+- `notify: true` 时先完成 SQLite commit，再 best-effort 读取现有授权并调度
+  `tb_local_inbox_ + SHA-256(commandId)`。系统 payload 只有固定 `Tool Bridge 信箱` 标题和固定来信提示，
+  不含 title/body/source/caller；远程命令不会请求权限，通知失败或未知不会回滚消息；
+- result 只返回 `{ messageId, receivedAt, status: 'stored', notification }`。notification 只可能是
+  `not_requested | not_attempted | permission_required | unavailable | status_unknown | scheduled`；即使
+  scheduled 也不表示 presented、delivered 或 read。
+
+本地 schema/repository/controller/contract/UI 测试证明上述数据与幂等边界；尚无真实 gateway
+`inbox/deliver`、Android/iOS 原生构建或双端真机通知/后台证据。
+
 ### `phone/productivity`
 
 | 工具 | 能力 | 默认确认 | 平台备注 |
@@ -278,7 +337,7 @@ type MediaSource =
 
 #### `notify`
 
-当前已实现的唯一通知能力路径是 `phone/productivity.notify`；不存在行为不同的
+当前直接接受远端正文并创建即时通知的唯一能力路径是 `phone/productivity.notify`；不存在行为不同的
 `phone/attention.notify`。它是 App 前台触发的即时本地通知，不是 gateway push 或 mailbox 唤醒。
 
 strict 入参：
@@ -302,8 +361,8 @@ strict 入参：
   被关闭时，首页只提供打开系统设置入口；
 - OS 标题固定为 `Tool Bridge`，正文固定带 `Agent 通知：` 前缀；caller、purpose、URL、动作或其他
   data 不写入 OS 通知；固定 channel 关闭声音、振动、灯、badge 与 DND bypass；
-- native identifier 为 `tb_local_notify_` 加 `commandId` 的 SHA-256；前台 handler 只允许这一精确
-  形式，其余本地/远程 notification identifier 默认不展示；
+- native identifier 为 `tb_local_notify_` 加 `commandId` 的 SHA-256；前台 handler 只允许 notify、timer
+  与 inbox 三类精确的本地确定性标识，其余本地/远程 notification identifier 默认不展示；
 - 成功 result 只包含 `{ notificationId, status: 'scheduled', scheduledAt,
   presentation: 'system_determined' }`。`scheduled` 只表示原生调度 promise 已返回，不表示系统已展示、
   用户已看见或点击；当前未实现 delivered/clicked observation；
@@ -340,7 +399,7 @@ delivery tracker。`timer_start` strict 入参：
   在权限撤销后仍可读取/清理；Ask every time 模式下 write cancel 仍由总 policy 要求确认，设备本地取消
   入口直接执行保护性清理；
 - `timerId = timer_ + SHA-256(source commandId)`，native identifier 使用同一 digest 的
-  `tb_local_timer_` 前缀；前台 handler 只允许精确的 notify/timer 两类本地标识，其他 local/remote
+  `tb_local_timer_` 前缀；前台 handler 只允许精确的 notify/timer/inbox 三类本地标识，其他 local/remote
   identifier 默认抑制；
 - SQLite v2 保存 owner、目标时间、确定性标识和 `preparing/scheduled/cancelling/cancelled/
   deadline_elapsed/status_unknown`，不保存 purpose 或任意正文。source command 的活动 timer 不被 command
