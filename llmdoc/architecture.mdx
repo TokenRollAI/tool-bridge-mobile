@@ -43,7 +43,7 @@ development build 面向 Android 和 iOS。它让 Agent 在用户明确授权、
 本仓库拥有移动 App、移动端运行时、本地策略与确认、安全存储、SQLite 持久化、UI 和必要的 Kotlin/Swift
 原生模块。主要区域是：
 
-- `app/`、`src/ui/`：Expo Router 页面、全局确认、媒体控制、本地信箱、Activity 和设置界面；
+- `app/`、`src/ui/`：Expo Router 页面、全局确认、前台相机、媒体控制、本地信箱、Activity 和设置界面；
 - `src/runtime/`、`src/policy/`：应用生命周期、唯一命令执行入口、本地撤销、确认和裁决；
 - `src/gateway/`、`src/identity/`：官方 device SDK transport、Gateway 配置和 SecureStore 身份/凭证；
 - `src/storage/`、`src/inbox/`：command/audit/timer/inbox 数据域、幂等、保留和内容处理；
@@ -74,15 +74,18 @@ deadline/cancel、逐次确认和 emergency disable 始终高于远程命令或 
 
 ## 现状
 
-- P0 本地安全运行时、官方 `@tool-bridge/sdk/device@0.14.1` 前台 consumer wiring、手工 Gateway
+- P0 本地安全运行时、官方 `@tool-bridge/sdk/device@0.15.0` 前台 consumer wiring、手工 Gateway
   HTTPS origin/API key 内测入口和若干能力纵向切片已经实现。
+- `phone/camera.capture_photo` 已形成仅前台的本地纵向切片：非 Direct 模式由用户拍摄并复核，Direct call
+  仍展示可见预览但在相机就绪后自动拍摄；处理后的 JPEG 通过 SDK 0.15 context object upload 写入固定
+  `camera/photos`，成功结果只返回稳定 `node://` URI 与脱敏元数据。
 - 只有 SDK `ready` 可投影为 online；手工长期 API key 不等于 pairing credential，也不证明真实 Gateway
   的完整兼容矩阵。
 - 设备本地信箱只保存已经在线到达 executor 的 direct call；它不是上游 U-5 command mailbox，也没有
   离线 enqueue、push 唤醒或最终送达语义。
 - Android 单次 `status/get` 有限真机兼容证据不能外推到全部能力、iOS、后台、弱网、长期稳定性或 pairing。
-- 当前仍未达到 MVP；pairing、credential 生命周期 binding、动态 profile、mailbox/push、受保护
-  `objectRef`、完整双端构建/真机矩阵与 production 发布证据仍未完成。
+- 当前仍未达到 MVP；pairing、credential 生命周期 binding、动态 profile、mailbox/push、通用受保护对象
+  读取与完整 U-7、真实 Gateway/storage 联合验收、完整双端构建/真机矩阵与 production 发布证据仍未完成。
 
 ## 已决定
 
@@ -103,7 +106,7 @@ deadline/cancel、逐次确认和 emergency disable 始终高于远程命令或 
 ## 主题路由
 
 - `runtime/`：本地命令执行、策略、持久化、清除、恢复、安全和 accessibility；
-- `capabilities/`：当前能力总览，以及 media、Linking、inbox、notification、timer 的稳定契约；
+- `capabilities/`：当前能力总览，以及 camera、media、Linking、inbox、notification、timer 的稳定契约；
 - `integration/`：SDK transport、手工 Gateway、trusted grant 决策和上游/平台缺口；
 - `delivery/`：证据语言、验证、EAS 项目绑定和 GitHub Preview 发布。
 

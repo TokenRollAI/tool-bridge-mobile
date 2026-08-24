@@ -4,7 +4,7 @@
 
 目标版本：MVP / P1
 
-更新时间：2026-08-19
+更新时间：2026-08-25
 
 ## 1. 产品定义
 
@@ -59,7 +59,7 @@ Agent 可以发现这台设备当下真实可用的能力，并在权限、确�
 ### JTBD-3：把手机当作 Agent 的眼睛
 
 当我需要远程排障或识别身边物体时，我希望 Agent 能请求一张照片；我确认并对准目标后，照片作为
-短期对象引用返回给 Agent。
+受保护的稳定对象引用返回给 Agent；实际读取继续使用短期授权。
 
 ### JTBD-4：让任务在合适的设备发生
 
@@ -102,7 +102,7 @@ Agent 可以发现这台设备当下真实可用的能力，并在权限、确�
 | 本地通知 | `phone/productivity.notify` | 通知标识和系统调度状态（不等于展示或点击） |
 | 设备本地信箱 | `phone/inbox.deliver` | 本机持久消息与可选固定提醒（不等于离线 mailbox/push） |
 | App 内计时器 | `phone/productivity.timer_start/timer_cancel/timer_status` | SQLite 状态和系统 pending 观察（不等于准时展示） |
-| 相机协作 | `phone/camera.capture_photo` | 经本地确认后的短期对象引用 |
+| 相机协作 | `phone/camera.capture_photo` | 仅前台、可见预览中的受保护对象引用 |
 | 单次位置 | `phone/location.current` | 经授权的坐标、精度和时间 |
 
 ### 6.3 Android 优先
@@ -197,12 +197,15 @@ queued -> delivered -> awaiting_user -> running -> succeeded
 
 ### FR-7：相机
 
-- 首次调用前解释目的并申请系统相机权限；
-- 每次远程拍摄默认需要用户在前台确认；
-- 相机预览可见，用户主动按下拍摄/确认；
-- 结果上传对象存储，只返回 `objectRef`、MIME、尺寸、校验和和过期时间；
+- 首次使用时在前台解释用途并申请系统相机权限；远程命令不能在 UI 之外申请权限；
+- Ask every time / Trusted session 默认先显示通用本地确认；随后用户在可见预览中主动按下快门，
+  并复核是否上传；
+- 用户主动选择 Direct call 后，不再为单次命令要求确认或快门：App 仅在前台打开不可隐藏的可见预览，
+  预览就绪后自动拍摄并上传；系统相机指示与取消入口仍必须可见；
+- 结果上传对象存储，只返回受保护的稳定 `node://` `objectRef`、MIME、字节数、尺寸和校验和；
+  读取时由 Gateway 另行签发短期引用，不能伪造 SDK 未提供的对象过期时间；
 - 用户取消、权限拒绝、后台状态和锁屏状态分别返回不同错误；
-- 临时文件上传成功或过期后按策略删除。
+- App 离开前台时立即取消拍摄、处理或上传；临时文件在成功、失败、取消或重拍后 best-effort 删除。
 
 ### FR-8：位置
 
@@ -287,10 +290,12 @@ Android emulator 200% 字号 smoke；TalkBack/VoiceOver/Switch Access 和 iOS Dy
 | Disabled | 不连接、不接收 push、不执行命令 |
 | Ask every time | 所有有副作用工具都在设备上确认 |
 | Trusted session | 指定时限内允许一组已授权低/中风险工具 |
+| Direct call | 用户在本机明确允许直接调用；相机仍只在前台显示可见预览，并在预览就绪后自动拍摄 |
 | Policy managed | 依据本地签名策略执行；MVP 只预留，不启用 |
 
-首次配对后默认 `Ask every time`。任何模式都不能覆盖系统权限与平台限制。相机、麦克风和高精度
-持续定位不得因 trusted session 静默执行。
+首次配对后默认 `Ask every time`。任何模式都不能覆盖系统权限与平台限制。Trusted session 不能让
+相机、麦克风和高精度持续定位静默执行；相机只有在用户主动选择 Direct call、App 处于前台且预览
+与系统指示可见时，才可省略逐次确认和用户快门。
 
 ## 10. 成功指标
 
@@ -309,7 +314,7 @@ MVP 发布前以质量指标为主，不以调用量驱动扩大权限：
 
 | 风险 | 处理 |
 | --- | --- |
-| 用户把它理解成隐形遥控/监控 | UI 明示、能力分级、相机本地确认、非目标写入商店描述 |
+| 用户把它理解成隐形遥控/监控 | UI 明示、能力分级、Direct call 常驻警示、相机仅前台可见预览、非目标写入商店描述 |
 | iOS 后台唤醒不可靠 | 命令邮箱 + push 提示，不承诺实时；展示 last delivery |
 | Android 后台敏感权限限制 | 通过可见 Activity/通知交互进入前台后再执行 |
 | 音乐“播放”语义过宽 | MVP 只承诺 App 自有播放器；第三方仅深链交接 |

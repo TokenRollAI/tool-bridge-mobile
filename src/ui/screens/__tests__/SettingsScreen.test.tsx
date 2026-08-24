@@ -25,6 +25,7 @@ const snapshot: ApplicationSnapshot = {
   attentionSession: null,
   auditRecords: [],
   backgroundRuntimeEnabled: false,
+  cameraCaptureRequest: null,
   capabilities: [],
   controlMode: 'ask_every_time',
   defaultDeviceId: null,
@@ -50,10 +51,12 @@ const baseHandlers = {
   onEmergencyDisable: jest.fn(),
   onEnable: jest.fn(),
   onOpenCapabilities: jest.fn(),
+  onOpenCameraSettings: jest.fn(),
   onOpenMedia: jest.fn(),
   onOpenNotificationSettings: jest.fn(),
   onOpenStatus: jest.fn(),
   onRequestNotificationPermission: jest.fn(),
+  onRequestCameraPermission: jest.fn(),
   onSetBackgroundRuntime: jest.fn(),
   onSetControlMode: jest.fn(),
 }
@@ -91,6 +94,7 @@ describe('SettingsScreen', () => {
       snapshot: { ...snapshot, controlMode: 'direct_call' },
     })
     rendered.getByText(/高特权工具（shell、剪贴板、任意 URL\/Intent）/)
+    rendered.getByText(/前台相机也会在可见预览就绪后自动拍摄并上传/)
   })
 
   test('后台运行开关切换并传出新值', async () => {
@@ -152,5 +156,35 @@ describe('SettingsScreen', () => {
     })
     await fireEvent.press(rendered.getByRole('button', { name: '启用本地通知' }))
     expect(onRequestNotificationPermission).toHaveBeenCalledTimes(1)
+  })
+
+  test('相机权限可请求时只能由本地 UI 启用', async () => {
+    const onRequestCameraPermission = jest.fn()
+    const rendered = await renderSettings({
+      ...baseHandlers,
+      onRequestCameraPermission,
+      snapshot: {
+        ...snapshot,
+        capabilities: [{
+          availability: {
+            permission: 'camera',
+            reason: 'camera_permission_required',
+            status: 'permission_required',
+          },
+          descriptor: {
+            confirmation: 'always',
+            description: '拍摄照片',
+            effect: 'write',
+            limits: { maxResultBytes: 4_096, rate: { maxGlobal: 4, maxPerCaller: 2, windowSeconds: 60 } },
+            path: 'phone/camera',
+            queuePolicy: 'reject_offline',
+            risk: 'high',
+            tool: 'capture_photo',
+          },
+        }],
+      },
+    })
+    await fireEvent.press(rendered.getByRole('button', { name: '启用前台相机' }))
+    expect(onRequestCameraPermission).toHaveBeenCalledTimes(1)
   })
 })

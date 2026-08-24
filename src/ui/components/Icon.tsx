@@ -14,6 +14,7 @@ const ICONS = {
   alert: 'alert-circle',
   back: 'arrow-back',
   background: 'moon',
+  camera: 'camera-outline',
   capabilities: 'apps-outline',
   capabilitiesActive: 'apps',
   chevron: 'chevron-forward',

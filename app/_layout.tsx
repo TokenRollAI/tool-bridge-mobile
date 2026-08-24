@@ -2,6 +2,7 @@ import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 
 import { RuntimeProvider, useRuntime } from '@/runtime/RuntimeProvider'
+import { CameraCaptureModal } from '@/ui/components/CameraCaptureModal'
 import { PendingConfirmationModal } from '@/ui/components/PendingConfirmationModal'
 import { colors } from '@/ui/theme'
 
@@ -14,7 +15,13 @@ export default function RootLayout() {
 }
 
 function RootContent() {
-  const { approveConfirmation, rejectConfirmation, snapshot } = useRuntime()
+  const {
+    approveConfirmation,
+    failCameraCapture,
+    rejectConfirmation,
+    snapshot,
+    submitCameraCapture,
+  } = useRuntime()
   return (
     <>
       <StatusBar style="light" />
@@ -23,6 +30,12 @@ function RootContent() {
         confirmations={snapshot.pendingConfirmations}
         onApprove={approveConfirmation}
         onReject={rejectConfirmation}
+      />
+      <CameraCaptureModal
+        key={snapshot.cameraCaptureRequest?.commandId ?? 'camera:none'}
+        onFail={failCameraCapture}
+        onSubmit={submitCameraCapture}
+        request={snapshot.cameraCaptureRequest}
       />
     </>
   )

@@ -22,8 +22,8 @@
 
 交付策略：**Android 首个端到端切片，iOS 从第一天保持可构建和协议对等。**
 
-当前精确基线：Node `22.23.1`、pnpm `11.21.0`、Expo `57.0.15`、React Native `0.86.2`、
-React `19.2.3`、TypeScript `6.0.3`、`@tool-bridge/sdk 0.14.1`。Android min/compile/target 为
+当前精确基线：Node `22.23.1`、pnpm `11.21.0`、Expo `57.0.16`、React Native `0.86.2`、
+React `19.2.3`、TypeScript `6.0.3`、`@tool-bridge/sdk 0.15.0`。Android min/compile/target 为
 `24/36/36`，iOS deployment
 target 为 `16.4`。`package.json`、`.node-version`、`pnpm-lock.yaml` 和 App config 是版本事实真源。
 
@@ -110,16 +110,17 @@ e2e/
 
 | 需求 | 选择 | 说明 |
 | --- | --- | --- |
-| device transport | `@tool-bridge/sdk/device` `0.14.1` | 官方 hello/ready/call/result、新 path/context wire、心跳、重连、cancel 与 RN WebSocket header adapter |
+| device transport / object upload | `@tool-bridge/sdk/device` `0.15.0` | 官方 hello/ready/call/result、新 path/context wire、心跳、重连、cancel、RN WebSocket header adapter 与 context object upload |
 | 路由/深链 | `expo-router`、`expo-linking` | 配对、通知 action、确认页 |
-| 本地通知、信箱可选提醒与 timer 提示 | `expo-notifications` `57.0.13` | 当前：双端权限/channel probe、固定 inbox 提示、即时/绝对 DATE local schedule |
+| 本地通知、信箱可选提醒与 timer 提示 | `expo-notifications` `57.0.14` | 当前：双端权限/channel probe、固定 inbox 提示、即时/绝对 DATE local schedule |
 | push | `expo-notifications` + gateway APNs/FCM | 目标：token、mailbox 提示与点击观察；U-5/U-6 未实现 |
 | 凭证 | `expo-secure-store` | SK/refresh material；必要时下沉更强 key API |
 | command / audit / 设备本地信箱 | `expo-sqlite` | 事务、幂等、crash recovery、专用内容表与有界保留 |
-| 相机 | `expo-camera` | 可见预览和用户确认拍摄 |
+| 相机 | `expo-camera` `57.0.4` | 双端权限/hardware probe、可见预览、手动或 Direct call 自动拍摄；关闭麦克风/录音/barcode |
+| 照片重编码 | `expo-image-manipulator` `57.0.13` | 移除输入 EXIF、按最长边缩放并输出有界 JPEG；不接触图库 |
 | 音频 | `expo-audio` `57.0.4` | App 自有媒体播放、原生状态与系统媒体控制；显式关闭录音权限 |
-| 媒体资源 | `expo-asset` `57.0.13` | `expo-audio` 要求的直接 peer；提供 player 原生资源解析 |
-| 位置 | `expo-location` `57.0.12` | P1 一次性 foreground 位置；P2 单独评审后台能力 |
+| 媒体资源 | `expo-asset` `57.0.14` | `expo-audio` 要求的直接 peer；提供 player 原生资源解析 |
+| 位置 | `expo-location` `57.0.13` | P1 一次性 foreground 位置；P2 单独评审后台能力 |
 | 本地文件 | `expo-file-system` `57.0.5` | 受控媒体/信箱图片流式写入、实际字节上限和 App 私有 cache 清理 |
 | 加密摘要 | `expo-crypto` | sha256、随机数据辅助 |
 | 设备状态 | `expo-device`、`expo-battery`、`expo-network` | capability/status 的最小状态 |
@@ -131,7 +132,7 @@ e2e/
 | 图标字体加载 | `expo-font` `57.0.1` | `@expo/vector-icons` 声明的原生 peer，必须由 App 直接安装 |
 
 `@tool-bridge/sdk` 由 Tool Bridge 上游同仓维护，0.11.0 首次提供正式 `/device` export，0.14.1 提供
-当前 Gateway 使用的完整 path call 与 invocation context；已有依赖没有
+当前 Gateway 使用的完整 path call 与 invocation context，0.15.0 增加 context object upload；已有依赖没有
 官方 device frame/session 状态机，移动仓库也不得复制 `@tool-bridge/core` 私有源码。包根仍有 Node
 依赖并声明 Node `>=22`，所以生产代码只导入 `/device`；仓库脚本锁定 export 和产物外部 import，
 Android/iOS Metro 也必须实际 bundle。package 级 Node engine 由本仓库已锁定的 Node 22 构建环境满足，
@@ -145,7 +146,8 @@ Android/iOS Metro 也必须实际 bundle。package 级 Node engine 由本仓库�
 事件或系统媒体控制。配置显式关闭 Android/iOS 录音，只启用可见后台播放。它本身不验证远端 MIME
 或体积，因此 App 在创建 player 前用 `expo/fetch` 手动处理 redirect，并以 MIME header + 文件签名、
 声明/实际 25 MiB 上限约束内容；player 在 `play()` 前另以 10 秒 metadata timeout 拒绝直播、无效时长
-和超过 2 小时的媒体。不使用 URL 后缀猜测类型。对象 TTL 仍等待上游 `objectRef` 契约。
+和超过 2 小时的媒体。不使用 URL 后缀猜测类型。相机已能产出稳定 `node://` object URI，但媒体
+player 尚未消费 object source；对象保留由 Gateway context 配置决定，SDK 不提供 per-object TTL。
 `expo-asset` 是 `expo-audio` 声明的 native peer，必须由 App 直接安装，不能依赖 pnpm 的传递安装；
 版本按 Expo SDK 57 的 `bundledNativeModules.json` 精确锁定。
 
@@ -167,7 +169,13 @@ location foreground service 与 motion activity，只生成 Android coarse/fine 
 由本地 config plugin 只加入 `geo` + `ACTION_VIEW` query；不查询具体地图 package。现有 linking 已满足
 这一系统交接需求，引入完整地图 SDK 会增加原生体积、位置数据面和维护成本。
 
-`expo-notifications 57.0.13` 是 Expo 官方维护、与本仓库 SDK 57 本地
+`expo-camera 57.0.4` 与 `expo-image-manipulator 57.0.13` 均由 Expo 维护并与 SDK 57 的原生模块表一致，
+覆盖 Android/iOS；前者是可见预览、系统 Camera 权限和单张拍摄的成熟模块，后者提供原生缩放/JPEG
+重编码，现有依赖不能替代。App config 明确关闭相机麦克风/录音和 barcode，业务层固定 `exif: false`，
+不请求图库。Direct call 只省略逐次确认与用户快门，仍要求 App 前台、可见预览、系统指示与取消入口。
+原始/输出照片分别以 30/10 MiB 为硬上限，所有已知临时文件在成功/失败/取消后 best-effort 清理。
+
+`expo-notifications 57.0.14` 是 Expo 官方维护、与本仓库 SDK 57 本地
 `bundledNativeModules.json` 一致的 Android/iOS 模块；已有依赖不提供通知授权、Android channel 或
 双端 local schedule API。当前仅使用即时通知与 24 小时内单次 timer 的绝对 DATE trigger：Android 显式
 声明 `POST_NOTIFICATIONS` 并阻止

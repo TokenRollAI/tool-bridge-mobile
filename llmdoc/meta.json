@@ -17,6 +17,9 @@
     "capabilities/bounded-media-source.mdx": {
       "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
+    "capabilities/foreground-camera-capture.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
     "capabilities/local-device-inbox.mdx": {
       "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },

@@ -6,6 +6,7 @@ relations:
     - runtime/architecture.mdx
     - runtime/safety-boundaries.mdx
   related:
+    - capabilities/foreground-camera-capture.mdx
     - capabilities/bounded-linking-handoffs.mdx
     - capabilities/bounded-media-source.mdx
     - capabilities/local-device-inbox.mdx
@@ -36,7 +37,8 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
   Expo API、App 内状态机或系统 handoff 提供。
 - 当前没有 AccessibilityService、MediaProjection、notification-listener 或 DevicePolicyManager/device-owner
   控制实现，也没有对应 service/config；因此不能跨 App 操作任意 UI、捕获屏幕或管理专用设备。
-- 当前原生权限面仍按已实现切片最小化：未声明相机、麦克风或后台位置权限。Android 更高权限控制路线尚未
+- 当前原生权限面仍按已实现切片最小化：相机切片通过 `expo-camera` 声明 Android CAMERA 与 iOS
+  `NSCameraUsageDescription`；未声明麦克风、录音、图库或后台位置权限。Android 更高权限控制路线尚未
   决定，也未实现，不能从现有 capability 或构建配置推断其可用。
 
 ## 当前实现
@@ -58,6 +60,24 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
   独立 probe/enable/disable，与 sound、haptic 一样纳入会话 TTL/取消/停止的共同释放；只在探测到闪光灯
   硬件时点亮，不声明 Camera 权限、不打开采集流，torch 被占用或系统拒绝时返回 `flash_unavailable`。
 - DND/静音、后台/锁屏、真实音频与闪光物理输出（含 torch 被其他 App 抢占）待双端真机证据。
+
+### `phone/camera.capture_photo`
+
+- descriptor 是 high-risk write、`confirmation: always`、foreground-only、`reject_offline`；Direct call
+  由本机全局策略跳过逐次确认，但仍进入全屏可见预览，预览就绪后自动拍摄且没有用户快门/拍后复核。
+  Ask every time / Trusted session 则在通用确认后由用户按快门，并允许重拍或确认上传。
+- strict 输入只有安全 `purpose`、前/后摄像头和 low/medium/high 质量；probe 同时检查前台、真实相机硬件
+  和权限。等待预览、重编码或上传期间离开 `active` 都立即取消，不允许后台或锁屏完成。
+- 原图最大 30 MiB；本地移除 EXIF 并按质量重编码为最长边 1280/1920/2560 的 JPEG，输出最大 10 MiB，
+  复核 JPEG 边界并计算 SHA-256。临时文件在已知成功/失败/取消/重拍路径 best-effort 清理。
+- 处理后对象固定上传到 `camera/photos/<deviceId>/<sha256(commandId)>.jpg`，禁止覆盖并严格核对 SDK 返回
+  的稳定 `node://` URI；inline result 只含 URI、MIME、大小、尺寸与 SHA-256，不含照片、signed URL、
+  私有文件 URI或虚构的对象过期时间。
+- 本地自动化、双端 clean prebuild 与 production Metro 已通过；Android/iOS 原生 build、双端真机相机
+  行为、真实 Gateway/storage、系统指示/快门声与 crash 后孤儿文件清理均未验收。
+
+完整 schema、UI 状态、处理、上传、部署前置与证据上限见
+`llmdoc/capabilities/foreground-camera-capture.mdx`。
 
 ### `phone/media.play|pause|resume|seek|stop|status`
 
@@ -142,7 +162,7 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 
 ### `phone/productivity.notify`
 
-- 使用 `expo-notifications 57.0.13` 调度即时 local notification，不注册 push token，也不实现 remote
+- 使用 `expo-notifications 57.0.14` 调度即时 local notification，不注册 push token，也不实现 remote
   notification。strict schema 只接受 trim 后非空的 purpose（最多 120）和 message（最多 240），拒绝
   control/bidi 字符及 title、data、action、scheduleAt 等未知字段。
 - 系统内容固定为 title `Tool Bridge` 和正文前缀 `Agent 通知：`；Android 固定 channel
@@ -200,10 +220,13 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 - inbox image hostname：没有配置入口；media 与 App handoff 仍分别使用 `EXPO_PUBLIC_MEDIA_HOSTS` 和
   `EXPO_PUBLIC_LINK_HOSTS`，其 allowlist 语义没有因信箱图片 policy 放宽而改变
 - local timer persistence：`src/storage/migrations/0002_timers.ts` + `src/storage/timerRepository.ts`
+- camera upload context：固定 `camera/photos`，由 Gateway 部署预挂载可写 R2/S3 context 并授予设备凭证
+  写 scope，不提供构建时可改的 context path
 
 ## 证据上限
 
 unit/component/local contract 证明的是本地边界。registry 将单项 probe 异常隔离为
-`unavailable: probe_failed`。Android clean debug build 证明原生依赖与配置能编译；
-两者都不证明 production gateway、iOS build 或真机前台/后台/锁屏行为。信箱还必须把本地自动化、真实
+`unavailable: probe_failed`。历史 Android clean debug build 只证明对应历史工作树的原生依赖与配置能编译；
+本轮相机只有双端 clean prebuild 与 Metro，不可写成 Android/iOS 原生 build。它们都不证明 production
+gateway、storage 或真机前台/后台/锁屏行为。信箱还必须把本地自动化、真实
 Gateway `inbox/deliver`、双端真机与 U-5/U-6 离线 mailbox/push 分为四层，不得互相替代。

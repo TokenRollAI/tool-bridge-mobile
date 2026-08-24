@@ -22,13 +22,17 @@ code:
 
 ## 现状：上游
 
-U-1 已解阻：`@tool-bridge/sdk/device@0.14.1` 是正式 React Native / Hermes device client 入口，移动仓库
+U-1 已解阻：`@tool-bridge/sdk/device@0.15.0` 是正式 React Native / Hermes device client 入口，移动仓库
 已消费官方 supervisor、frame/TBError、RN WebSocket header adapter 与 AppState lifecycle。精确用法与
 证据边界见 `llmdoc/integration/sdk-device-transport.mdx` 和 `docs/SDK.md`。
 
-0.14.1 已交付命令叶子并入 `path` 的新 device call frame，以及网关签发的
+自 0.14.1 起已交付命令叶子并入 `path` 的新 device call frame，以及网关签发的
 `caller/createdAt/expiresAt/traceId` context。移动 adapter 已消费该 context 并对缺失情况明确降级；
 该 context 不包含 device credential generation，不能单独完成未来的 credential-bound trusted grant。
+
+0.15.0 已交付 context-scoped `uploadContextObject` 公共 API。移动端相机 consumer 已用它实现固定
+`camera/photos` create-upload + signed URL PUT，并只返回精确核对过的稳定 `node://` URI；这解除的是 SDK
+直传入口缺口，不是完整 U-7 或真实 Gateway/storage 兼容证明。
 
 仍未交付或未联合验收：
 
@@ -38,7 +42,8 @@ U-1 已解阻：`@tool-bridge/sdk/device@0.14.1` 是正式 React Native / Hermes
 - U-4 动态 capability profile/version/change report；
 - U-5 异步 command mailbox/claim/cancel/expiry/awaiting_user/result；
 - U-6 APNs/FCM token registration 与不含敏感参数的 wake hint；
-- U-7 绑定 device/command/MIME/大小/TTL 的 object upload 与受保护 `objectRef`；
+- U-7 剩余服务端 grant 对 device/command/MIME/大小/TTL/checksum/single-use 的强绑定、受保护对象读取、
+  生命周期与真实 Gateway/storage 联合验收；
 - 真实 gateway compatibility matrix、CLI/管理入口与端到端 revoke。
 
 因此可以声称“官方 SDK 前台 consumer wiring 已集成”，不能声称“已配对”“真实 gateway 已兼容”或
@@ -58,7 +63,7 @@ origin 无 credential 为 `credentials_required`；只有收到真实 SDK ready 
   统一跟踪 mobile-grade device control plane。
 - issue 中 invocation caller/权威期限的 wire 部分已由 0.14.1 交付；仍待上游交付的是
   Gateway Credential 实例/generation 绑定、versioned dynamic capability profile、durable mailbox +
-  opaque push wake hint 与 command-bound protected `objectRef`。
+  opaque push wake hint 与完整 command-bound protected object 生命周期。
 - A 组剩余最低需求是让调用可验证地绑定当前 Gateway Credential 实例/generation；
   0.14.1 `caller.keyId` 是本次调用所用 SK id，不是这一 binding 的替代。
 - issue 的创建只代表需求已进入上游跟踪，不代表任一契约已发布或已通过移动端联合验收；本仓库仍须按
@@ -68,9 +73,10 @@ origin 无 credential 为 `credentials_required`；只有收到真实 SDK ready 
 
 - Android Preview 0.0.6 已 clean build，保数据覆盖安装到物理设备，并完成当前 Railway
   Gateway 的单次 `status/get` 真机直连读调用；该证据只覆盖 Android/当前路径。
-- 0.14.1 的 Android release Hermes bundle 与 iOS production Metro/Hermes export 均已重跑成功；
-  iOS export 仍不是 iOS 原生 build 或真机连接证据。
-- 本机缺完整 Xcode，iOS simulator build 未运行；不能因 prebuild/autolink/Metro 成功而勾选 iOS 构建。
+- 本轮 0.15.0 相机工作树的 Android/iOS clean prebuild 与 production Metro/Hermes export 成功；
+  prebuild/export 仍不是原生 build 或真机连接证据。
+- Android `assembleDebug` 因当前网络访问 Maven Central 返回 HTTP 403 而未通过/未完成；iOS native build
+  因本机缺 CocoaPods/完整 Xcode 未运行。两者都不能因 prebuild/autolink/Metro 成功而勾选。
 - 除 Android 前台 `status/get` 外，SDK transport 的其他真机能力、iOS、前后台转换、弱网、
   重连、系统挂起和长期稳定性尚未验收。
 - 音频、位置、深链、权限、后台与锁屏按项目 DOD 需要双端真机；当前均未满足。
@@ -78,6 +84,9 @@ origin 无 credential 为 `credentials_required`；只有收到真实 SDK ready 
 - local inbox/notification/timer 不实现 mailbox、push 或后台可达；timer 也没有 boot/exact 入口。
 - `phone/inbox.deliver` 目前只有本地自动化边界；尚无真实 Gateway path、Android/iOS 对应原生构建与
   双端真机前后台/锁屏/通知证据。Android `status/get` 真机结果不能替代它。
+- `phone/camera.capture_photo` 目前只有本地自动化、SDK 0.15 consumer contract、双端 prebuild/Metro；
+  尚无 Android/iOS 原生 build、双端真机预览/系统指示/快门声/权限/前后台行为或真实
+  `camera/photos` Gateway/storage 上传、读取与保留证据。
 - release 签名、商店合规、可追溯 artifact、SBOM/审计与 rollout 尚未完成。
 
 ## 解阻后的验证顺序
@@ -85,11 +94,13 @@ origin 无 credential 为 `credentials_required`；只有收到真实 SDK ready 
 1. 先以用户提供的真实 gateway HTTPS origin/API key 验证当前 fallback 的
    hello/expose/call/cancel/result、重复 id、拒绝和弱网重连；
 2. U-2 pairing 产生真实、最小 scope credential，并验证 audience/rotation/revoke，替换手工长期 key；
-3. 用 0.14.1 正式 invocation context 验证 caller attribution 与权威 expiry，再等待 Gateway
+3. 用 0.15.0 正式 invocation context 验证 caller attribution 与权威 expiry，再等待 Gateway
    Credential 实例/generation 绑定后验证 credential-bound grant；
 4. 完成 Android/iOS clean build与双端真机前台连接；
 5. 单独验证当前 Gateway 的 `inbox/deliver` 和双端真机本地保存/固定提醒，不从 `status/get` 外推；
-6. 再接 U-5/U-6 mailbox/push 并验收离线、后台、锁屏、未送达和撤销。
+6. 为 Gateway 挂载可写 `camera/photos`，单独验证相机 create-upload/PUT/稳定 URI、拒绝覆盖、权限和保留，
+   再补齐服务端 command/size/TTL/single-use 强绑定与媒体/其他 consumer 的受保护对象读取；
+7. 再接 U-5/U-6 mailbox/push 并验收离线、后台、锁屏、未送达和撤销。
 
 任一步未完成都要保留对应层级限定语。
 
@@ -97,7 +108,7 @@ origin 无 credential 为 `credentials_required`；只有收到真实 SDK ready 
 
 以下是需要外部证据后补强的知识入口，不代表已承诺的时间表：
 
-- 上游 pairing、ticket、credential identity/generation binding、profile、mailbox、push 与 `objectRef`
+- 上游 pairing、ticket、credential identity/generation binding、profile、mailbox、push 与完整 U-7
   发布后，补充正式版本、schema/fixture 入口和兼容矩阵；
 - 取得真实 Gateway HTTPS origin/API key 后，补 hello/expose/call/cancel/result、权限拒绝、弱网重连与
   secret 服务端兼容证据，不能用 fake WebSocket 替代；

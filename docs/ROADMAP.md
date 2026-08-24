@@ -13,7 +13,7 @@
 - [x] 配置 Android applicationId、iOS bundle id 和三环境；
 - [x] 建立严格 TypeScript、lint、test、CI；
 - [x] 建立 app/service/storage/native module 目录；
-- [x] 接入上游公共 `@tool-bridge/sdk/device@0.14.1`；
+- [x] 接入上游公共 `@tool-bridge/sdk/device@0.15.0`（含 context object upload）；
 - [x] 本机 Gateway HTTPS URL + API key 内测入口（非 pairing）；
 - [ ] pairing UI + SecureStore；
 - [x] SQLite command/audit schema 和 migration；
@@ -39,12 +39,13 @@
   终态硬上限；running、当前完成项与活动 timer source 不会被该事务误删；
 - API 36 Android emulator smoke 已覆盖干净安装、最小权限、动态能力页、紧急停用与进程重启持久化；
   这不是 Android/iOS 真机行为证据；
-- U-1 已由 `@tool-bridge/sdk/device@0.14.1` 交付并接入：官方 supervisor、RN Authorization header、
+- U-1 已由 `@tool-bridge/sdk/device@0.15.0` 交付并接入：官方 supervisor、RN Authorization header、
   完整 path call/context、registry expose 与 SDK call adapter 已有 contract 证据；只有
   `ready` 才显示 online；
 - 首页已提供手工 URL + API key fallback，secret 只进入 SecureStore，保存/清除前先停止旧 transport；
   它使用客户端派生 deviceId，不满足 pairing、最小权限 credential、rotation/revoke 或短期 ticket；
-- U-2 至 U-6 仍未交付。短期 ticket、完整真实 gateway matrix、调用与 device credential
+- U-2 至 U-6 仍未交付。U-7 的 context object upload API 已由 0.15.0 提供，但更强的服务端
+  commandId/max bytes/TTL 一次性绑定仍未完成。短期 ticket、完整真实 gateway matrix、调用与 device credential
   generation 的绑定、mailbox 与 push 均未完成。
 
 ### 出口
@@ -117,18 +118,26 @@ Agent 能播放一段允许的媒体并控制本 App 会话；第三方 App 只�
 
 ### 工作项
 
-- [ ] object upload 上游能力；
-- [ ] 相机权限教育与请求；
-- [ ] 可见预览、purpose 和本地确认；
-- [ ] 拍照、压缩、EXIF 策略；
-- [ ] sha256 和单次上传；
-- [ ] objectRef result；
-- [ ] 取消、过期、上传失败和 crash cleanup；
+- [x] SDK context object upload 上游能力（U-7 强服务端绑定仍为部分交付）；
+- [x] 相机权限教育、前台请求与设置入口；
+- [x] 可见预览、caller/purpose、Ask/Trusted 用户快门与 Direct call 自动拍摄分流；
+- [x] 拍照、三档重编码、JPEG/字节边界与 EXIF 清除策略；
+- [x] sha256、确定性 command path 与禁止覆盖上传；
+- [x] `node://` objectRef result 与有界元数据；
+- [x] 取消、过期、前台丢失、上传失败与已知临时文件清理；
+- [ ] crash 后孤儿文件恢复清理专项；
 - [ ] 前后台/锁屏/权限撤销真机测试。
+
+当前代码仅在 App `active` 时接收相机调用。Ask every time / Trusted session 先走通用本地确认，再让用户
+在可见预览中拍摄并复核；Direct call 是用户在本机主动选择的直接模式，可见预览 ready 后自动拍摄，
+无需用户再按快门。照片重编码后最大 10 MiB，通过 SDK 上传到 `camera/photos`，result 不含照片、signed
+URL 或虚构的对象 TTL。自动化 contract 已覆盖上述分流、后台拒绝、前台丢失取消与 upload helper；
+真实 Gateway/R2 和双端真机证据尚未完成。
 
 ### 出口
 
-远程请求绝不会在后台静默拍照；用户确认后 Agent 获得有限期 objectRef；媒体不进入协议日志。
+远程请求绝不会在后台静默拍照；Agent 只获得受保护的稳定 objectRef 与元数据；对象读取仍受 Tool Bridge
+权限与短期读取引用约束，媒体不进入协议日志。
 
 ## P1-D：位置与本地辅助
 

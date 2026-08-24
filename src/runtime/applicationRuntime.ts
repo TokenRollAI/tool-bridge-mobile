@@ -21,6 +21,14 @@ import { AttentionSessionController } from '@/capabilities/attention/controller'
 import { NativeAttentionFlashAdapter } from '@/capabilities/attention/flashAdapter'
 import { NativeAttentionHapticsAdapter } from '@/capabilities/attention/hapticsAdapter'
 import { ExpoAttentionSoundAdapter } from '@/capabilities/attention/soundAdapter'
+import {
+  ExpoCameraPhotoProcessor,
+  ExpoCameraPlatformAdapter,
+} from '@/capabilities/camera/cameraAdapter'
+import { createCameraCaptureCapability } from '@/capabilities/camera/cameraCapability'
+import { CameraCaptureCoordinator } from '@/capabilities/camera/captureCoordinator'
+import { CameraCaptureController } from '@/capabilities/camera/controller'
+import { SdkCameraObjectUploader } from '@/capabilities/camera/objectUploader'
 import { CurrentLocationController } from '@/capabilities/location/controller'
 import { ExpoCurrentLocationAdapter } from '@/capabilities/location/locationAdapter'
 import { createCurrentLocationCapability } from '@/capabilities/location/locationCapability'
@@ -98,6 +106,11 @@ import { SqliteTimerRepository } from '@/storage/timerRepository'
 import { LocalCommandExecutor } from './localCommandExecutor'
 
 import type { AttentionSessionSnapshot } from '@/capabilities/attention/controller'
+import type {
+  CameraCaptureFailure,
+  CameraCaptureRequestSnapshot,
+  CapturedCameraPhoto,
+} from '@/capabilities/camera/captureCoordinator'
 import type { MediaSessionSnapshot } from '@/capabilities/media/controller'
 import type { TimerSnapshot } from '@/capabilities/productivity/timerController'
 import type {
@@ -129,6 +142,7 @@ export type ApplicationSnapshot = Readonly<{
   attentionSession: AttentionSessionSnapshot | null
   auditRecords: readonly AuditRecord[]
   backgroundRuntimeEnabled: boolean
+  cameraCaptureRequest: CameraCaptureRequestSnapshot | null
   capabilities: readonly CapabilitySnapshot[]
   controlMode: ControlMode
   defaultDeviceId: string | null
@@ -155,6 +169,7 @@ const INITIAL_SNAPSHOT: ApplicationSnapshot = {
   attentionSession: null,
   auditRecords: [],
   backgroundRuntimeEnabled: false,
+  cameraCaptureRequest: null,
   capabilities: [],
   controlMode: 'ask_every_time',
   defaultDeviceId: null,
@@ -182,6 +197,8 @@ export class ApplicationRuntime {
   #auditRevision = 0
   #auditRepository: SqliteAuditRepository | null = null
   #backgroundRuntimeRepository: SqliteBackgroundRuntimeRepository | null = null
+  #cameraController: CameraCaptureController | null = null
+  #cameraRevision = 0
   #systemAdapter: SystemAdapter | null = null
   #commandRepository: SqliteCommandRepository | null = null
   #confirmationRevision = 0
@@ -244,6 +261,14 @@ export class ApplicationRuntime {
     return this.#confirmationCoordinator?.reject(commandId) ?? false
   }
 
+  failCameraCapture(commandId: string, failure: CameraCaptureFailure): boolean {
+    return this.#cameraController?.coordinator.fail(commandId, failure) ?? false
+  }
+
+  submitCameraCapture(commandId: string, photo: CapturedCameraPhoto): boolean {
+    return this.#cameraController?.coordinator.submit(commandId, photo) ?? false
+  }
+
   async stopAttentionSession(): Promise<void> {
     if (this.#attentionController === null) throw new Error('运行时尚未初始化')
     await this.#attentionController.stop()
@@ -281,6 +306,19 @@ export class ApplicationRuntime {
     }
   }
 
+  async requestCameraPermission(): Promise<void> {
+    if (this.#cameraController === null) throw new Error('运行时尚未初始化')
+    try {
+      await this.#cameraController.requestPermission()
+      await this.refresh()
+    } catch {
+      this.#publish({
+        ...this.#snapshot,
+        error: '无法完成相机权限请求。请稍后重试或在系统设置中调整。',
+      })
+    }
+  }
+
   async openNotificationSettings(): Promise<void> {
     try {
       await Linking.openSettings()
@@ -288,6 +326,17 @@ export class ApplicationRuntime {
       this.#publish({
         ...this.#snapshot,
         error: '无法打开系统设置。请手动打开 App 的通知设置。',
+      })
+    }
+  }
+
+  async openCameraSettings(): Promise<void> {
+    try {
+      await Linking.openSettings()
+    } catch {
+      this.#publish({
+        ...this.#snapshot,
+        error: '无法打开系统设置。请手动打开 App 的相机设置。',
       })
     }
   }
@@ -381,6 +430,7 @@ export class ApplicationRuntime {
   }
 
   handleAppStateChange(appState: string): Promise<void> {
+    if (appState !== 'active') this.#cameraController?.cancelForForegroundLoss()
     this.#timerReconciliation = this.#timerReconciliation.then(async () => {
       await this.initialize()
       const disabled = (await this.#controlModeRepository?.get()) === 'disabled'
@@ -457,6 +507,7 @@ export class ApplicationRuntime {
     ) return
 
     const auditRevision = this.#auditRevision
+    const cameraRevision = this.#cameraRevision
     const confirmationRevision = this.#confirmationRevision
     const inboxRevision = this.#inboxRevision
     const transportRevision = this.#transportRevision
@@ -487,6 +538,7 @@ export class ApplicationRuntime {
     ])
     if (
       auditRevision !== this.#auditRevision
+      || cameraRevision !== this.#cameraRevision
       || confirmationRevision !== this.#confirmationRevision
       || inboxRevision !== this.#inboxRevision
       || transportRevision !== this.#transportRevision
@@ -496,6 +548,7 @@ export class ApplicationRuntime {
       attentionSession: this.#attentionController?.getActiveSession() ?? null,
       auditRecords,
       backgroundRuntimeEnabled,
+      cameraCaptureRequest: this.#cameraController?.coordinator.getRequest() ?? null,
       capabilities,
       controlMode,
       defaultDeviceId: this.#defaultDeviceId,
@@ -645,6 +698,18 @@ export class ApplicationRuntime {
         },
         registry: this.#registry,
       })
+      const cameraCoordinator = new CameraCaptureCoordinator()
+      this.#cameraController = new CameraCaptureController(
+        cameraCoordinator,
+        new ExpoCameraPlatformAdapter(),
+        new ExpoCameraPhotoProcessor(),
+        new SdkCameraObjectUploader(this.#deviceTransport),
+      )
+      cameraCoordinator.subscribe(() => {
+        this.#cameraRevision += 1
+        void this.refresh()
+      })
+      this.#registry.register(createCameraCaptureCapability(this.#cameraController))
       this.#gatewayConfigurationController = new ManualGatewayConfigurationController({
         buildGatewayOrigin: ExpoConfigHosts.gatewayOrigin(),
         credentialStore: this.#deviceCredentialStore,

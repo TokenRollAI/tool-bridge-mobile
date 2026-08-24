@@ -3,19 +3,21 @@
 Tool Bridge Mobile 的产品闭环需要 HTBP 和 `TokenRollAI/tool-bridge` 同步提供若干通用能力。
 本文件是依赖清单，不代表对应上游已经实现。
 
-## 0. 2026-08-23 复核结果
+## 0. 2026-08-25 复核结果
 
-- npm 已发布 `@tool-bridge/sdk@0.14.1`，其独立 `/device` export 提供
-  `connectDevice` 与 `createReactNativeWebSocketFactory`；本仓库已精确锁定并接入；
+- npm 已发布 `@tool-bridge/sdk@0.15.0`，其独立 `/device` export 提供
+  `connectDevice`、`createReactNativeWebSocketFactory` 与 `uploadContextObject`；本仓库已精确锁定并接入；
 - U-1 以 `@tool-bridge/sdk/device` 而不是单独的 `@tool-bridge/device-client` 包名交付；Android/iOS
   Metro export 与移动 adapter contract 已通过；
 - 原生 React Native 可以通过 WebSocket 第三个参数把既有 device SK 放在 Authorization header，
   因此“已有凭证 + 前台”的实时 transport 已不再受 Node runtime 阻塞；
-- 0.14.1 的 call 已把 command leaf 并入 `path`，并提供网关签发的
+- 0.15.0 保留把 command leaf 并入 `path` 的 call，并提供网关签发的
   caller/createdAt/expiresAt/traceId context；它不含 device credential identity/generation binding；
 - Android Preview 0.0.6 已用当前 Railway Gateway 完成单次真机 `status/get` 读调用；这只
   是该路径的直连兼容证据，不是完整 gateway compatibility matrix；
-- U-2 至 U-7 所需 pairing、短期 ticket、dynamic profile、mailbox、push 与 object upload 仍未交付；
+- U-2 至 U-6 所需 pairing、短期 ticket、dynamic profile、mailbox 与 push 仍未交付；U-7 的 context-scoped
+  create-upload/direct PUT/稳定 `node://` URI 已交付，但 server-side commandId/max bytes/TTL 一次性绑定、
+  通用读取/删除与生命周期联合验收仍未完成；
 - 移动 App 已提供手工 Gateway HTTPS origin + API key 内测 fallback；SDK deviceId 默认由设备硬件标识
   经单向摘要派生（可自定义），secret 只进 SecureStore。它不完成 U-2/U-3，也不冒充真实 gateway、
   pairing、最小权限
@@ -51,7 +53,7 @@ Authorization header 建连。此 fallback 不新增 gateway endpoint 或 wire s
 
 交付事实：
 
-- 包名/入口定为 `@tool-bridge/sdk/device@0.14.1`；
+- 包名/入口当前为 `@tool-bridge/sdk/device@0.15.0`；
 - 导出 frames/schema/types、`connectDevice`、credential provider、可注入 WebSocket factory 与连接
   lifecycle；
 - React Native 子入口不导入 Node `ws` 或 `process.env`，包根仍是 Node 入口；
@@ -160,20 +162,30 @@ mailbox 唤醒、provider delivery 或跨设备 timer。Android reboot 后不会
 - sandbox/production APNs 环境区分；
 - capability kill switch。
 
-### U-7：对象上传与读取
+### U-7：对象上传与读取（部分交付）
 
 所属：gateway/object store
 
-需要：
+0.15.0 已交付并由移动端消费：
 
-- 设备申请单次上传；
-- 绑定 commandId/deviceId/MIME/max bytes/TTL；
-- 直传对象存储；
-- checksum/complete；
-- 返回受保护 objectRef；
+- `uploadContextObject` 请求 `<context>/create_upload`；
+- 设备通过短期 signed URL 直接 PUT Blob；
+- 请求携带 context path、entry path 与 content type，默认禁止覆盖；
+- 返回受保护、稳定的 `node://<context>/<entry>` URI；
+- HTTP credential provider 允许 React Native 把 Authorization 放入 header，signed URL 不进入 result。
+
+当前相机固定使用可写 `camera/photos` context 与
+`<deviceId>/<sha256(commandId)>.jpg` entry path，并在本地执行 JPEG/10 MiB/幂等边界。这说明原来的
+“完全没有 object upload”阻塞已经解除，但以下 production contract 仍需要上游补齐或正式确认：
+
+- 上传 grant 显式绑定 commandId/deviceId/MIME/max bytes/TTL，并保证单次消费；
+- checksum/complete 的服务端校验与可观察状态；
 - Agent 读取继续经过 Tool Bridge 权限；
 - 删除与生命周期；
 - CLI 能查看 metadata/删除，不默认打印二进制。
+
+稳定 node URI 本身没有 SDK 返回的 `expiresAt`；对象保留由 context 配置决定，读取产生的短期 signed
+reference 不能当 objectRef 持久化。移动端不得为了满足旧设计示例虚构 per-object TTL。
 
 ## 3. P1 上游依赖
 
@@ -222,13 +234,13 @@ P2 实时媒体需要会话信令、短期凭证、TURN 配置和显式终止；
 
 ## 6. 推荐交付顺序
 
-1. ~~U-1 公共 device client + 当前实时协议适配~~（0.14.1 已交付并由移动端消费）；
+1. ~~U-1 公共 device client + 当前实时协议适配~~（0.15.0 已交付并由移动端消费）；
 2. U-2 pairing + credential issuance/rotation/revoke，再完成 U-3 短期 WebSocket ticket；
 3. Android 前台 `status` + `attention.ring` golden slice；
 4. U-5 mailbox + U-6 push；
 5. iOS 同场景与平台降级；
-6. U-7 object upload；
-7. 相机 golden slice；
+6. U-7 object upload 基础已交付；继续补齐强绑定与读取/删除生命周期；
+7. 相机 golden slice（移动端本地实现已完成，待真实 Gateway/R2 与双端真机联合验收）；
 8. profile/events 与更多能力。
 
 这个顺序先验证身份、调用和用户控制，再加入后台和媒体，避免先做漂亮功能、后补安全根基。

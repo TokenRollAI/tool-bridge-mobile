@@ -9,7 +9,9 @@ iOS 新增 `audio` background mode。一次性位置只声明 Android coarse/fin
 service、Always location 或 motion 权限。即时本地通知在 Android 声明 `POST_NOTIFICATIONS`，但显式
 排除 boot 恢复、exact alarm、C2DM 与厂商 badge 权限，并从最终 manifest 移除 FCM
 service/receiver/provider 与 Firebase transport 初始化入口；iOS 不保留 `aps-environment` entitlement，也不启用
-`remote-notification` background mode。未声明相机、麦克风、Face ID 或后台录音权限。
+`remote-notification` background mode。相机只声明 Android `CAMERA` 与 iOS
+`NSCameraUsageDescription`，`expo-camera` 明确关闭麦克风/录音与 barcode；未声明麦克风、Face ID、
+图库或后台录音权限。
 haptic capability 仍需 native hardware probe、本地 policy 和 session TTL；媒体执行还需 HTTPS
 hostname allowlist、受控下载、单会话控制与系统可见媒体控制。权限/entitlement 存在本身不构成
 执行授权。
@@ -38,7 +40,8 @@ deadline 会截断 attention session 和 location wait，emergency disable 会 a
 attention 内置提示音是 App 本地生成的固定短 WAV，只写 App 私有 cache，不接受 URL/objectRef 或远端
 音频字节。播放请求明确不启用 silent-mode bypass，也不声称越过 DND；flash 使用系统 torch API
 （Android `CameraManager.setTorchMode`、iOS `AVCaptureDevice.torchMode`），只在存在闪光灯硬件时点亮，
-不声明 Camera 权限、不打开相机采集流；无硬件、被占用或系统拒绝时诚实返回 unavailable。真机物理输出
+attention 路径不请求 Camera 权限、不开启相机采集流；App 的独立拍照能力虽声明 Camera 权限，仍不能让
+闪灯命令借此采集图像。无硬件、被占用或系统拒绝时诚实返回 unavailable。真机物理输出
 （含亮度、被其他 App 抢占 torch）仍待双端验收。
 
 command 防重放记录不能只在 App 启动时清理：每次从 running 写入终态都与 retention prune 共用同一
@@ -147,7 +150,8 @@ Device credential ---- Mobile Runtime
 - 不进入 AsyncStorage、SQLite、剪贴板、deep link、push、analytics；
 - UI 最多显示 keyId 和尾部指纹。
 
-当前 `@tool-bridge/sdk/device@0.14.1` 原生 RN 路径每次连接从 SecureStore 重新读取 envelope，要求
+当前 `@tool-bridge/sdk/device@0.15.0` 原生 RN 路径每次连接或相机 create-upload 前从 SecureStore
+重新读取 envelope，要求
 `audienceOrigin` 与当前选中的 HTTPS gateway origin 完全一致，再把 material 仅放入 WebSocket upgrade
 Authorization header；secret 不进入 URL。deviceId/keyId 拒绝控制与双向覆盖字符，header material
 拒绝 CR/LF。网关拒绝连接后客户端 fail closed 并清除本地 envelope。
@@ -166,14 +170,14 @@ pairing 交付前的内测 fallback 允许用户在本机手工输入 URL + API 
 - 手工长期 API key 可能拥有比设备专用凭证更大权限，不能作为正式 pairing、最小 scope、rotation、
   revoke 或 U-3 短期 ticket 的发布替代品。
 
-0.14.1 call context 由网关签发 `caller.keyId/owner/displayName?`、`createdAt`、`expiresAt` 与
+0.15.0 call context 由网关签发 `caller.keyId/owner/displayName?`、`createdAt`、`expiresAt` 与
 `traceId`。本地稳定主体使用 `caller.keyId`，展示值不从 arguments 接受；`expiresAt` 会收紧到
-网关期限与本地接收后 30 秒的较早值。context 缺失时只能降级为 device credential
+网关期限与本地能力上限的较早值（普通实时命令 30 秒，相机 120 秒）。context 缺失时只能降级为 device credential
 principal + 本地时间，不得冒充具体 Agent 或网关权威时间。
 
 ### 3.2 WebSocket ticket
 
-状态：U-3 目标，当前 0.14.1 原生 RN transport 使用既有 device credential header，不等于短期 ticket。
+状态：U-3 目标，当前 0.15.0 原生 RN transport 使用既有 device credential header，不等于短期 ticket。
 
 - 单次使用；
 - 短 TTL；
@@ -214,23 +218,26 @@ push token 是敏感设备标识：
 | --- | --- | --- |
 | Low | 读取 App/连接状态、媒体状态 | 配对后可调用 |
 | Medium | 本地通知、计时器、响铃、打开普通 HTTPS | Ask every time；trusted session 可配置 |
-| High | 位置、相机、麦克风、通信深链 | 每次确认或前台明确交互 |
+| High | 位置、相机、麦克风、通信深链 | 默认每次确认；仅用户主动选择 Direct call 后允许能力定义的前台可见直接流程 |
 | Prohibited | 隐藏拍摄、任意 shell、绕锁屏、静默发送/拨号 | 不实现 |
 
 `effect: read/write/destructive` 与风险等级是不同维度。读取精确位置虽然不写状态，仍是 high。
 
 ## 6. 用户确认
 
-确认页至少展示：
+当能力进入逐次确认时，确认页至少展示：
 
 - 谁在请求（调用方可验证名称/标识）；
 - 请求哪项能力；
 - 用途 `purpose`；
 - 将收集/影响什么；
 - 数据会发送到哪个网关；
-- 结果有效期；
+- 适用时的结果有效期；
 - 允许一次 / 拒绝；
 - 对允许进入 trusted session 的能力，单独提供限时授权入口。
+
+Direct call 不显示逐次确认页，但设置页必须明确警示其含义；相机仍用全屏可见流程展示 caller、purpose、
+自动拍摄提示与取消入口。Direct call 是本机全局控制选择，不是远程 arguments 可以开启的字段。
 
 禁止：
 
@@ -342,7 +349,16 @@ Apple 明确说明后台通知是低优先级、可能被节流且不保证送�
 
 - 系统要求用户明确授权并提供 usage description；
 - App 进入后台时应释放相机等共享资源；
-- 远程拍摄必须把用户带到可见前台流程；
+- 远程拍摄必须发生在可见前台流程：Ask every time / Trusted session 由用户按快门并复核，Direct call
+  在可见预览就绪后自动拍摄，不能隐藏 caller、purpose、自动拍摄提示或取消入口；
+- 权限未授予时只能在前台显示系统权限请求；用户拒绝或永久禁用后不得反复请求；
+- AppState 离开 `active` 必须同时取消等待快门、处理和对象上传，不得在后台完成拍摄；
+- 相机照片以 `exif: false` 捕获后重编码为 JPEG；原始文件最大 30 MiB、输出最大 10 MiB，失败、取消、
+  重拍和成功上传后 best-effort 删除临时文件；
+- 对象上传固定到 `camera/photos/<deviceId>/<sha256(commandId)>.jpg`，禁止覆盖。HTTP Authorization
+  只来自 SecureStore，signed URL、照片字节和私有文件 URI 不进普通日志、SQLite、crash report 或 result；
+- SDK 返回稳定 `node://` URI，不返回对象过期时间；对象保留由 Gateway context 配置决定，读取时签发的
+  短期 `$ref` 不得持久化或当作 objectRef；
 - 不实现后台静默相机/麦克风。
 
 来源：
@@ -363,8 +379,9 @@ Apple 明确说明后台通知是低优先级、可能被节流且不保证送�
 Android 对后台启动 foreground service 有限制；涉及 camera/microphone/location 的 while-in-use
 权限时，后台启动尤其受限。因此：
 
-- App 在后台收到相机命令时进入 `awaiting_user`；
-- 通过可见通知让用户打开 Activity 后再访问相机/麦克风；
+- 当前相机能力固定 `reject_offline`，App 在后台/锁屏收到实时相机命令时直接返回
+  `foreground_required`，不进入 `awaiting_user`，也不从后台拉起 Activity；
+- 未来若加入 mailbox，必须另行设计可见通知与用户进入前台后的新授权流程，不能复用已过期命令静默拍摄；
 - foreground service 声明准确 service type 和可见通知；
 - 捕获 SecurityException 并返回平台限制；
 - 不利用豁免路径规避用户可见性。

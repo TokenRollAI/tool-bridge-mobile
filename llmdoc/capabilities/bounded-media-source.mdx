@@ -21,7 +21,7 @@ code:
 ## 范围
 
 本文记录 `phone/media.play` 把不受信的远端 HTTPS 音频解析为 App 私有本地文件的稳定边界。它不描述
-尚未实现的 `objectRef`，也不证明真机播放、后台、锁屏或音频中断行为。
+媒体尚未实现的 `objectRef` source 消费，也不证明真机播放、后台、锁屏或音频中断行为。
 
 ## 解析顺序
 
@@ -79,7 +79,7 @@ RIFF/WAVE 或 WebM 对应 signature。`Content-Length` 缺失时仍可流式读�
 ## 声明边界
 
 - hostname allowlist 是配置与域名信任边界；本实现不是通用浏览器下载器，也不授权任意域名或 IP。
-- HTTPS source 仍是本地媒体输入路径，不等于 Tool Bridge 受保护对象。没有 `objectRef`、绑定
+- HTTPS source 仍是本地媒体输入路径，不等于 Tool Bridge 受保护对象。媒体 source 尚未消费 `objectRef`、绑定
   command/device 的下载授权、对象 TTL 或上游权限检查。
 - 本地 source/controller 测试只能证明解析、拒绝与清理状态机；完整测试总数、Android/iOS 构建和双端
   真机媒体行为必须分别记录，不能由本文推断。

@@ -16,9 +16,9 @@ const easProject = {
 }
 
 const releaseMetadata = {
-  androidVersionCode: 8,
-  iosBuildNumber: '8',
-  version: '0.0.8',
+  androidVersionCode: 9,
+  iosBuildNumber: '9',
+  version: '0.0.9',
 }
 
 for (const [variant, expectedIdentifier] of Object.entries(variants)) {
@@ -62,7 +62,7 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   if (config.extra?.gatewayOrigin !== 'https://gateway.example.com') {
     throw new Error(`${variant}: gateway HTTPS origin 未规范化`)
   }
-  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.14.1') {
+  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.15.0') {
     throw new Error(`${variant}: production transport 版本标记不匹配`)
   }
   // 三个环境共用同一套品牌图标：安装标识虽然隔离，视觉标识不应分叉。
@@ -81,6 +81,9 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   }
   if (!config.android?.permissions?.includes('android.permission.POST_NOTIFICATIONS')) {
     throw new Error(`${variant}: 缺少本地通知所需的 Android POST_NOTIFICATIONS 权限`)
+  }
+  if (!config.android?.permissions?.includes('android.permission.CAMERA')) {
+    throw new Error(`${variant}: 缺少前台相机所需的 Android CAMERA 权限`)
   }
   const blockedPermissions = new Set(config.android?.blockedPermissions ?? [])
   for (const permission of [
@@ -135,6 +138,7 @@ const androidPermissions = new Set(
 for (const permission of [
   'android.permission.ACCESS_COARSE_LOCATION',
   'android.permission.ACCESS_FINE_LOCATION',
+  'android.permission.CAMERA',
   'android.permission.FOREGROUND_SERVICE',
   'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
   'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
@@ -144,7 +148,6 @@ for (const permission of [
   if (!androidPermissions.has(permission)) throw new Error(`原生配置缺少 ${permission}`)
 }
 for (const forbiddenPermission of [
-  'android.permission.CAMERA',
   'android.permission.ACCESS_BACKGROUND_LOCATION',
   'android.permission.FOREGROUND_SERVICE_LOCATION',
   'android.permission.READ_EXTERNAL_STORAGE',
@@ -229,6 +232,9 @@ if (JSON.stringify(iosInfo?.UIBackgroundModes) !== JSON.stringify(['audio'])) {
 if (iosInfo?.NSLocationWhenInUseUsageDescription !== '允许 $(PRODUCT_NAME) 仅在您确认后提供一次当前位置。') {
   throw new Error('iOS 前台位置 purpose string 缺失或不一致')
 }
+if (iosInfo?.NSCameraUsageDescription !== '允许 $(PRODUCT_NAME) 仅在前台显示可见预览并拍摄你授权的照片。') {
+  throw new Error('iOS 前台相机 purpose string 缺失或不一致')
+}
 if (
   iosInfo?.NSLocationAlwaysUsageDescription !== undefined
   || iosInfo?.NSLocationAlwaysAndWhenInUseUsageDescription !== undefined
@@ -243,4 +249,4 @@ if (iosEntitlements?.['aps-environment'] !== undefined) {
   throw new Error('本地通知切片不得声明 APNs aps-environment entitlement')
 }
 
-console.log('App 配置验证通过：三环境安装标识隔离并绑定同一 EAS 项目，共用同一套品牌图标，本地通知/前台位置/地图/媒体配置最小化，信箱图片无需主机配置，无 APNs/后台位置/录音/相机/Face ID。')
+console.log('App 配置验证通过：三环境安装标识隔离并绑定同一 EAS 项目，共用同一套品牌图标，本地通知/前台位置/前台相机/地图/媒体配置最小化，信箱图片无需主机配置，无 APNs/后台位置/录音/Face ID。')

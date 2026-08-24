@@ -1,6 +1,6 @@
 # 移动端能力目录
 
-状态：产品提案 + P0 本地运行时，以及已明确标记的 attention、media、apps、location、inbox 与 productivity
+状态：产品提案 + P0 本地运行时，以及已明确标记的 attention、media、apps、location、camera、inbox 与 productivity
 本地切片；除明确标记的本地实现或“当前协议可表达”外，均不代表已经实现。
 
 ## 1. 命名与返回约定
@@ -65,6 +65,7 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 | `phone/apps.open_url` | 10 / 20 | 4 KiB |
 | `phone/location.current` | 6 / 12 | 4 KiB |
 | `phone/location.open_map` | 10 / 20 | 4 KiB |
+| `phone/camera.capture_photo` | 2 / 4 | 4 KiB |
 | `phone/inbox.deliver` | 30 / 60（3,600 秒） | 2 KiB |
 | `phone/productivity.notify` | 5 / 10 | 2 KiB |
 | `phone/productivity.timer_start` | 5 / 10 | 2 KiB |
@@ -74,8 +75,8 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 
 结果超限返回 `result_too_large`，大值不进入 SQLite。rate limit、command deadline、能力自身 timeout
 和用户可停止 session 是不同边界。HTTPS 媒体另有 MIME/签名、redirect 最终 URL 和 25 MiB 实际
-传输上限；加载到 player 后还会在 `play()` 前拒绝直播、无效时长和超过 2 小时的媒体。`objectRef`
-仍未实现。
+传输上限；加载到 player 后还会在 `play()` 前拒绝直播、无效时长和超过 2 小时的媒体。相机已使用
+SDK context object upload 返回 `node://camera/photos/...`；媒体播放器仍未消费 object source。
 
 ## 2. P0：运行时与状态
 
@@ -137,7 +138,7 @@ native probe 和本地确认前按 caller/global 滑动窗口做 admission，并
 | `pending_commands` | 返回仍在等待确认/执行的安全命令元数据 | low | 本地已实现 |
 | `cancel` | 请求取消尚未完成且可中断的本地命令 | low | 本地已实现 |
 
-这三个工具只使用 `@tool-bridge/sdk/device@0.14.1` 已有的自定义 command、result、context 与
+这三个工具只使用 `@tool-bridge/sdk/device@0.15.0` 已有的自定义 command、result、context 与
 cancel signal，没有增加私有 wire 字段。context 存在时查询和取消按网关签发的 `caller.keyId`
 隔离；context 缺失时降级到 device credential 的非秘密 `keyId`（结果中仍标为
 `gateway_credential_principal`），不冒充具体 Agent ownership。
@@ -172,7 +173,7 @@ cancel signal，没有增加私有 wire 字段。context 存在时查询和取�
 
 #### `ring`
 
-建议入参：
+当前已实现入参：
 
 | 字段 | 类型 | 默认 | 限制 |
 | --- | --- | --- | --- |
@@ -521,36 +522,50 @@ background/Always/location foreground service/motion。后台持续定位和地�
 | --- | --- | --- |
 | `facing` | `front \| back` | 默认 back |
 | `quality` | `low \| medium \| high` | 默认 medium |
-| `purpose` | string | 必填，展示给用户 |
-| `expiresInSeconds` | integer | 60–3600 |
+| `purpose` | string | 必填，1–120 字符，展示给用户 |
 
-标准流程：
+当前流程：
 
-1. 命令到达后进入 `awaiting_user`；
-2. 通知/前台页面展示调用方和 purpose；
-3. 用户打开可见预览并确认；
-4. App 拍摄、移除不需要的元数据、计算校验和；
-5. 上传到网关签发的短期对象地址；
-6. 结果只返回引用：
+1. 只接受 App 处于 `active` 前台时到达的实时命令；后台、锁屏等非前台状态直接拒绝；
+2. Ask every time / Trusted session 先进入通用本地确认，再展示 caller、purpose 和可见相机预览；
+   用户按快门后可重拍或确认上传；
+3. Direct call 不进入逐次确认，也不再要求用户按快门；可见预览就绪 300 ms 后自动拍摄，仍保留取消入口
+   与系统快门声/相机指示；
+4. App 以 `exif: false` 捕获，再按 low/medium/high 重编码 JPEG，最长边分别不超过
+   1,280/1,920/2,560，压缩质量分别为 0.55/0.75/0.9；原始文件上限 30 MiB、上传文件上限 10 MiB；
+5. App 计算 SHA-256，通过 `@tool-bridge/sdk/device@0.15.0` 的 context object upload 上传到固定
+   `camera/photos`；entry path 为 `<deviceId>/<sha256(commandId)>.jpg`，禁止覆盖；
+6. 结果只返回受保护引用和有界元数据：
 
 ```json
 {
-  "objectRef": "tb-object://device/phone_a1b2/obj_01",
+  "objectRef": "node://camera/photos/phone_a1b2/…sha256(commandId)….jpg",
   "mimeType": "image/jpeg",
+  "bytes": 418221,
   "width": 1920,
   "height": 1080,
-  "sha256": "…",
-  "expiresAt": "2026-08-19T04:00:00Z"
+  "sha256": "…sha256(photo bytes)…"
 }
 ```
 
-安全约束：
+当前安全与部署约束：
 
 - `effect: write`、`risk: high`、`confirmation: always`；
-- App 在后台或锁屏时不得静默开始相机；
-- 预览和系统相机指示器不可隐藏；
-- 默认删除 EXIF 位置；确需保留必须在确认页单列；
-- 上传失败后临时文件有限期保留并可由用户删除。
+- descriptor 仍保守声明 `confirmation: always`；设备 policy 仅在用户主动设置 Direct call 时跳过逐次确认；
+- App 在后台/锁屏时拒绝，前台丢失会立即取消拍摄、重编码或上传，不能转入后台继续；
+- 预览、caller、purpose、自动拍摄提示、取消入口和系统相机指示不可隐藏；
+- 不请求麦克风或图库权限；重编码后的 JPEG 不保留输入 EXIF 位置；
+- Gateway 必须把可写 R2/S3 context 挂载为 `camera/photos`，设备凭证必须拥有写权限；当前 SDK
+  upload API 不提供服务端 commandId/max bytes 绑定，移动端以确定性 path、10 MiB 边界和禁止覆盖补强，
+  这不冒充服务端一次性 grant；
+- `objectRef` 是稳定 `node://` URI；对象保留期由 context 配置决定，后续读取产生的 signed reference
+  才是短期凭证。SDK 未返回对象 `expiresAt`，因此结果不声明该字段；
+- signed upload URL、照片字节、私有文件 URI和 purpose 不进入普通日志；所有退出路径都会 best-effort
+  清理已知临时文件。crash 后孤儿文件清理仍待真机/恢复专项验收。
+
+平台：Android 7.0+ 与 iOS 16.4+ 使用 Expo Camera development build；两端均要求 Camera usage
+description/权限与真实 camera hardware probe。模拟器、组件测试和 native build 不能替代双端真机
+预览、系统指示、快门声、前后台切换、权限撤销及物理拍摄证据。
 
 ### P2 相机能力
 

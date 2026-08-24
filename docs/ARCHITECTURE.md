@@ -1,7 +1,7 @@
 # 系统架构
 
-状态：目标架构 + P0 本地实现事实。标注“上游当前”的部分来自现有 Tool Bridge device 契约；
-标注“新增”的部分需要上游实现。
+状态：目标架构 + P0/P1 本地实现事实。标注“上游当前”的部分来自已发布 Tool Bridge device 契约；
+标注“新增”的部分需要上游继续实现。
 
 ## 0. 当前实现边界
 
@@ -48,7 +48,7 @@ Expo Router UI
   状态公告按 semantic key 去重，倒计时、媒体进度和敏感确认正文不进入自动公告；
 - emergency disable 会取消进行中 handler、拒绝 pending confirmation、停止 attention/media/timer、
   suspend SDK realtime，并使后续命令在 handler 前拒绝；
-- `@tool-bridge/sdk/device@0.14.1` 已接入 realtime：SecureStore 动态取 credential、RN WebSocket
+- `@tool-bridge/sdk/device@0.15.0` 已接入 realtime 与 context object upload：SecureStore 动态取 credential、RN WebSocket
   header、官方 hello/ready/call/result、心跳、cancel 与 AppState suspend/resume 均进入生产 wiring；
   registry 只投影 SDK 正式字段，没有私自定义 frame；
 - 首页已提供手工 Gateway HTTPS origin + API key 内测入口。保存严格执行“停止旧 transport -> 写
@@ -79,6 +79,13 @@ available、permission_required 或 unavailable；high-risk 本地确认完成�
 `phone/location.open_map` 是独立 handoff，不读取当前位置：strict 结构化目标先进入本地 platform builder，
 只生成 Android `geo:` 或 Apple Maps HTTPS link，再经实际 handler probe、逐次确认、claim 后复检与
 5 秒 Linking 上限进入系统提交点。结果/审计只含 `handed_off` 与 provider，不保留目标内容。
+
+`phone/camera.capture_photo` 由纯 TypeScript controller 协调 Expo Camera UI、ImageManipulator 重编码
+与 SDK object upload。它只接受 `AppState=active`：Ask every time / Trusted session 先走通用确认，再由
+用户在可见预览中拍摄和复核；Direct call 跳过逐次确认，在可见预览 ready 后自动拍摄。AppState 离开
+active 会 abort 等待、处理或上传。照片固定重编码为最大 10 MiB JPEG，上传到可写 `camera/photos`
+context 的 `<deviceId>/<sha256(commandId)>.jpg`，结果返回稳定 `node://` URI 和元数据，signed URL 与
+本地文件 URI 不跨越 transport/audit 边界。真实 Gateway/R2 与双端真机行为仍未验收。
 
 `phone/productivity.notify` 是 local-only 即时通知：用户先在首页看到用途说明并主动请求系统权限，
 远程命令只接受 strict purpose/message，经前台 permission/channel probe、admission、确认与持久化 claim
@@ -167,7 +174,7 @@ TypeScript interface 暴露；平台差异保留为结构化 availability 和 re
 | 责任 | 仓库 |
 | --- | --- |
 | HTBP 基础语义、能力 profile 标准 | `TokenRollAI/HTBP` |
-| 网关 device session、pairing、mailbox、push、object upload | `TokenRollAI/tool-bridge` |
+| 网关 device session、pairing、mailbox、push、context/object storage | `TokenRollAI/tool-bridge` |
 | 公共跨运行时 device client | `TokenRollAI/tool-bridge` 发布的 SDK 包 |
 | App、策略、原生能力、设备 UI | `TokenRollAI/tool-bridge-mobile` |
 | 浏览器扩展运行时 | `TokenRollAI/tool-bridge-browser` |
@@ -221,7 +228,7 @@ wss://<gateway>/system/device/ws?deviceId=<deviceId>
 5. 设备以同一 id 返回 `result`；
 6. 双方使用精确 JSON `{"type":"ping"}` / `{"type":"pong"}` 心跳。
 
-当前移动实现通过 `@tool-bridge/sdk/device@0.14.1` 注入 React Native 原生 WebSocket factory，使用其
+当前移动实现通过 `@tool-bridge/sdk/device@0.15.0` 注入 React Native 原生 WebSocket factory，使用其
 非 WHATWG 第三个参数把 Authorization 放在 upgrade header；长期 SK 不进入 URL。enabled 时不因
 AppState 短暂变化主动断线，Disabled 时 suspend；操作系统仍可在后台暂停或终止进程，
 不得因此声称后台可达。
@@ -230,9 +237,9 @@ AppState 短暂变化主动断线，Disabled 时 suspend；操作系统仍可在
 `Authorization: Bearer ...` material 写入 SecureStore。手工配置优先于可选的
 `EXPO_PUBLIC_GATEWAY_ORIGIN` 构建预置；后者永远不能携带 secret。
 
-0.14.1 call 使用完整 `path` 承载 node path + command leaf，并可携带网关签发的
+0.15.0 call 使用完整 `path` 承载 node path + command leaf，并可携带网关签发的
 caller/createdAt/expiresAt/traceId。移动 adapter 按最后一个 `/` 拆分，caller 稳定主体优先使用
-`caller.keyId`，期限取网关 `expiresAt` 与本地接收后 30 秒的较早值。context 缺失时才
+`caller.keyId`，期限取网关 `expiresAt` 与本地能力上限的较早值（普通命令 30 秒，相机 120 秒）。context 缺失时才
 降级到 device credential principal + 本地时间；U-3 短期 ticket 仍未交付。
 
 ### 4.2 后台可达（新增）
@@ -373,15 +380,19 @@ interface MobileCapability {
 
 状态、坐标、计时器 id 等小 JSON 直接放 `result.value`。
 
-### 8.2 对象引用（新增上游能力）
+### 8.2 对象引用（context upload 已发布，强绑定仍待上游）
 
-照片、音频和视频采用三段式：
+0.15.0 已发布 `uploadContextObject`：设备向固定 context 请求 create-upload，直接 PUT 到短期 signed URL，
+并获得稳定 `node://<context>/<entry>` URI。当前相机切片据此采用：
 
-1. 设备向网关请求限定 MIME、大小和 TTL 的上传授权；
-2. 设备直接上传对象存储并提交 sha256；
-3. command result 返回 `objectRef` 和元数据。
+1. 本地捕获并重编码有界 JPEG，计算 SHA-256；
+2. 使用 SecureStore credential 向 `camera/photos/create_upload` 请求授权；
+3. 设备直接 PUT Blob，禁止覆盖确定性的 `<deviceId>/<sha256(commandId)>.jpg`；
+4. command result 返回稳定 `node://camera/photos/...` `objectRef` 和元数据。
 
-上传授权必须绑定：
+当前 SDK/context contract 已绑定 context、device HTTP credential、entry path 和 content type；移动端还
+执行 10 MiB 上限、commandId 确定性路径与持久化幂等。但若要把 U-7 完整标为 production-ready，
+服务端上传授权仍应显式绑定：
 
 - deviceId；
 - commandId；
@@ -390,7 +401,8 @@ interface MobileCapability {
 - 过期时间；
 - 单次上传。
 
-Agent 读取对象仍需通过 Tool Bridge 权限检查，不能把公开 bucket URL 当对象引用。
+Agent 读取对象仍需通过 Tool Bridge 权限检查，不能把公开 bucket URL 或短期 signed `$ref` 当稳定
+对象引用。对象生命周期由 context 配置决定；SDK 没有返回 per-object `expiresAt`，移动端不得虚构。
 
 ### 8.3 实时流（P2）
 

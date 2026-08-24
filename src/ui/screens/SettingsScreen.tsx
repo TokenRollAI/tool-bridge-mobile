@@ -41,10 +41,12 @@ type SettingsScreenProps = Readonly<{
   onEmergencyDisable(): void
   onEnable(): void
   onOpenCapabilities(): void
+  onOpenCameraSettings(): void
   onOpenMedia(): void
   onOpenNotificationSettings(): void
   onOpenStatus(): void
   onRequestNotificationPermission(): void
+  onRequestCameraPermission(): void
   onSaveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void>
   onSetBackgroundRuntime(enabled: boolean): void
   onSetControlMode(mode: ControlMode): void
@@ -57,10 +59,12 @@ export function SettingsScreen({
   onEmergencyDisable,
   onEnable,
   onOpenCapabilities,
+  onOpenCameraSettings,
   onOpenMedia,
   onOpenNotificationSettings,
   onOpenStatus,
   onRequestNotificationPermission,
+  onRequestCameraPermission,
   onSaveGatewayConfiguration,
   onSetBackgroundRuntime,
   onSetControlMode,
@@ -77,6 +81,13 @@ export function SettingsScreen({
     )
   const notificationPermissionRequestable = notificationAvailability?.status === 'unavailable'
     && notificationAvailability.reason === 'notification_permission_requestable'
+  const cameraAvailability = snapshot.capabilities.find(({ descriptor }) => (
+    descriptor.path === 'phone/camera' && descriptor.tool === 'capture_photo'
+  ))?.availability
+  const cameraPermissionRequestable = cameraAvailability?.status === 'permission_required'
+    && cameraAvailability.reason === 'camera_permission_required'
+  const cameraSettingsRequired = cameraAvailability?.status === 'unavailable'
+    && cameraAvailability.reason === 'camera_permission_denied'
 
   useDiscreteAccessibilityAnnouncement(
     `control-mode:${snapshot.controlMode}`,
@@ -154,7 +165,7 @@ export function SettingsScreen({
                 <Icon color={colors.warning} name="warning" size={16} />
                 <Text style={styles.warningText}>
                   直接调用模式下高特权工具（shell、剪贴板、任意 URL/Intent）可被 Agent 直接执行；
-                  请仅在你完全信任当前网关与 Agent 时启用。
+                  前台相机也会在可见预览就绪后自动拍摄并上传。请仅在你完全信任当前网关与 Agent 时启用。
                 </Text>
               </View>
             ) : null}
@@ -175,6 +186,34 @@ export function SettingsScreen({
             onClear={onClearGatewayConfiguration}
             onSave={onSaveGatewayConfiguration}
           />
+
+          {cameraPermissionRequestable ? (
+            <StatusCard icon="camera" title="前台相机未启用">
+              <Text style={styles.body}>
+                相机只用于前台可见预览和单张拍摄；不会申请麦克风、图库或后台相机权限。
+              </Text>
+              <AccessibleAction
+                accessibilityHint="打开系统相机权限请求；系统拒绝始终优先"
+                icon="camera"
+                label="启用前台相机"
+                onPress={onRequestCameraPermission}
+              />
+            </StatusCard>
+          ) : null}
+
+          {cameraSettingsRequired ? (
+            <StatusCard icon="camera" title="前台相机已关闭">
+              <Text style={styles.body}>
+                系统相机权限已被永久拒绝；远程命令和直接调用模式都不能绕过该设置。
+              </Text>
+              <AccessibleAction
+                accessibilityHint="前往系统设置调整 Tool Bridge 的相机权限"
+                icon="settings"
+                label="打开相机设置"
+                onPress={onOpenCameraSettings}
+              />
+            </StatusCard>
+          ) : null}
 
           {notificationPermissionRequestable ? (
             <StatusCard icon="notification" title="本地通知未启用">

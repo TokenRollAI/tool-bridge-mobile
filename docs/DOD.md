@@ -33,7 +33,7 @@
 - [x] 没有依赖 Expo Go 才能工作的关键路径；
 - [x] CI 从全新 checkout 可复现。
 
-当前测试事实：unit、component、本地运行时与 SDK device consumer contract 共 221 项全绿；真实
+当前测试事实：unit、component、本地运行时与 SDK device consumer contract 共 358 项全绿；真实
 gateway wire fixture 尚未
 交付，所以组合项中的 protocol contract 不提前勾选。Android 已用仓库正式 clean build 入口在本地
 构建成功，证据见 [2026-08-19 Android debug 验证记录](verification/2026-08-19-android-debug.md)。
@@ -78,14 +78,14 @@ dependency audit 仍保持未完成。
 这里的 identity 是 SecureStore 中的本地 `installationId`；手工内测模式的客户端 SDK deviceId 默认由
 设备硬件标识经单向摘要派生（或由用户自定义），不是网关签发身份。credential 勾选项代表 opaque credential facade 与手工
 API key 只使用 SecureStore，当前仍无 pairing 签发凭证。前台 realtime
-勾选项证明 `@tool-bridge/sdk/device@0.14.1` 的 RN header、hello/ready/call/result、完整 path/context、
+勾选项证明 `@tool-bridge/sdk/device@0.15.0` 的 RN header、hello/ready/call/result、完整 path/context、
 cancel 与 Disabled suspend 已接到本地 executor，并通过 fake WebSocket contract；双端 Metro 需在本次
 升级后重跑。它不证明完整真实 gateway matrix、
 短期 ticket、pairing、后台 mailbox 或撤销端到端。U-1 已解阻，U-2 至 U-6 仍未完成。证据见
 [SDK device integration 验证](verification/2026-08-19-sdk-device-integration.md)。
 手工 Gateway 配置的输入、SecureStore 与 transport 切换证据见
 [2026-08-19 手工 Gateway 配置验证](verification/2026-08-19-manual-gateway-configuration.md)；它不替代
-pairing、短期 ticket 或真实网关联合验收。0.14.1 另已用 Android Preview 0.0.6
+pairing、短期 ticket 或真实网关联合验收。历史 0.14.1 wire 另已用 Android Preview 0.0.6
 完成单次真机 `status/get` 直连验证，证据见
 [2026-08-23 SDK device wire 兼容验证](verification/2026-08-23-sdk-device-wire-compatibility.md)；该记录不勾选
 iOS、后台、弱网、所有能力或完整 pairing 验收项。
@@ -109,7 +109,7 @@ iOS、后台、弱网、所有能力或完整 pairing 验收项。
 - [x] 最小系统权限；
 - [x] 权限请求有使用语境和清晰 purpose；
 - [x] 执行前本地策略检查；
-- [x] 高风险能力有本地确认；
+- [x] 高风险能力有本地控制边界；默认逐次确认，Direct call 仅按用户主动选择的能力专用前台流程执行；
 - [x] 参数 runtime schema 校验，未知字段策略明确；
 - [x] 速率、时长、结果大小和 URL/MIME 等边界明确；
 - [x] 日志 redaction 测试；
@@ -202,17 +202,25 @@ instrumentation，也不替代 TalkBack/VoiceOver、真机 haptic、音频、位
 
 ### 4.3 相机协作
 
-- [ ] 后台命令只进入 awaiting_user；
+- [x] 后台/非 active 命令直接拒绝，不启动 camera 或进入等待拍摄；
 - [ ] 用户看到 caller、purpose 和目标网关；
-- [ ] 用户进入前台并明确确认；
+- [x] Ask every time / Trusted session 要求逐次确认、用户快门和上传复核；Direct call 只在前台可见预览
+  ready 后自动拍摄，不再要求用户快门；
 - [ ] 相机预览和系统指示可见；
-- [ ] 拍摄后默认移除 EXIF 位置；
-- [ ] 上传使用绑定 commandId 的单次 URL；
-- [ ] result 只有 objectRef 和元数据；
-- [ ] 对象到期不可读取；
+- [x] 捕获设置 `exif: false` 且重编码为有界 JPEG，不把输入 EXIF 复制到输出；
+- [x] 上传 entry path 包含 `sha256(commandId)` 且禁止覆盖；服务端单次/大小/TTL 强绑定仍未完成；
+- [x] result 只有稳定 `node://` objectRef、MIME、bytes、尺寸和 SHA-256 元数据；
+- [ ] 对象保留遵循 Gateway context，Agent 读取只经受保护的短期引用；
 - [ ] 拒绝、权限撤销、锁屏、离线、上传失败均无假成功；
 - [ ] 日志/崩溃产物无图像字节、signed URL 和精确位置；
 - [ ] crash 后孤儿文件清理。
+
+这里的勾选项只由 strict schema、controller/component contract、真实 SDK upload helper mock flow、配置
+introspection 和 source boundary 支撑；它们证明本地实现路径，不证明物理相机或真实对象存储。当前
+仍缺 Android/iOS 真机的预览/系统指示/快门声、Direct call 自动拍摄、权限拒绝/撤销、前后台/锁屏切换，
+以及真实 Gateway + `camera/photos` R2/S3 context 的上传/读取/保留证据，因此相机 golden slice 与组合
+DOD 仍未完成。详细命令、成功项与构建环境阻塞见
+[2026-08-25 前台相机本地实现验证](verification/2026-08-25-camera-local-implementation.md)。
 
 ### 4.4 位置
 
