@@ -12,6 +12,7 @@ relations:
     - runtime/accessibility-semantics.mdx
 code:
   paths:
+    - modules/tool-bridge-attention/**
     - src/capabilities/camera/**
     - src/ui/components/CameraCaptureModal.tsx
     - src/runtime/applicationRuntime.ts
@@ -40,10 +41,20 @@ helper 也不返回对象过期时间。
 
 ## 前台、权限与 UI 状态
 
-controller 在入口要求 React Native `AppState === active`，同一时刻只允许一个拍摄流程。probe 在前台分别
-读取 `CameraView.isAvailableAsync()` 与当前系统权限：可再次请求映射为 `permission_required`，永久拒绝或
-硬件不可用映射为 unavailable。远程 handler 不直接请求权限；权限只能由全屏相机流程或设置页的本地用户
-操作触发。
+controller 在入口要求 React Native `AppState === active`，同一时刻只允许一个拍摄流程。原生硬件 probe
+复用 `ToolBridgeAttention.getAvailableCameraFacingsAsync()`：Android 通过 Camera2
+`CameraManager.cameraIdList` + `CameraCharacteristics.LENS_FACING` 枚举，iOS 通过 AVFoundation
+`AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position:)` 分别检查前/后镜头。它只返回
+schema 支持的 `back | front`，不创建 `AVCaptureSession`、不打开采集流、不读取照片；Web 返回空数组并
+fail closed。`CameraView` 只负责后续可见预览和拍照，`CameraView.isAvailableAsync()` 是 Web-only API，
+不能作为 Android/iOS 原生硬件 probe。
+
+执行顺序固定为：strict 参数通过后，argument-aware preflight 先枚举镜头；请求的 facing 不存在时，在本地
+确认前以 `camera_facing_unavailable`、`retryable: false` 拒绝。随后通用 probe 先检查前台，再要求枚举结果
+至少有一个 `back | front`，最后才读取当前系统 Camera 权限。native 枚举异常、未知 facing 或权限读取异常
+稳定映射为 `camera_probe_failed`，不把原始异常详情返回远端；空枚举映射为 `camera_unavailable`。权限可
+再次请求映射为 `permission_required`，永久拒绝映射为 unavailable。远程 handler 与 probe/preflight 都不
+请求权限；权限只能由全屏相机流程或设置页的本地用户操作触发。
 
 `ApplicationRuntime.handleAppStateChange()` 一旦离开 `active` 就同步调用
 `cancelForForegroundLoss()`。controller 在取得照片、处理后和上传后也复检 foreground、取消和 deadline；

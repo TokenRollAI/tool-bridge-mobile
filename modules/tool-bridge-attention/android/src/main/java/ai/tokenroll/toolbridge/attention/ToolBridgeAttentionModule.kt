@@ -37,6 +37,19 @@ class ToolBridgeAttentionModule : Module() {
     }
   }
 
+  // CameraView.isAvailableAsync 只在 Web 实现。原生端直接枚举 Camera2 的镜头朝向，
+  // 不打开采集流，也不读取照片；结果只暴露 capability schema 支持的 front/back。
+  private fun availableCameraFacings(): List<String> {
+    val manager = cameraManager() ?: return emptyList()
+    return manager.cameraIdList.mapNotNull { id ->
+      when (manager.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING)) {
+        CameraCharacteristics.LENS_FACING_BACK -> "back"
+        CameraCharacteristics.LENS_FACING_FRONT -> "front"
+        else -> null
+      }
+    }.distinct().sorted()
+  }
+
   override fun definition() = ModuleDefinition {
     Name("ToolBridgeAttention")
 
@@ -60,6 +73,14 @@ class ToolBridgeAttentionModule : Module() {
 
     AsyncFunction("cancelAsync") {
       vibrator()?.cancel()
+    }
+
+    AsyncFunction("getAvailableCameraFacingsAsync") {
+      try {
+        availableCameraFacings()
+      } catch (error: Throwable) {
+        throw CodedException("camera_probe_failed", "无法枚举系统摄像头", error)
+      }
     }
 
     AsyncFunction("probeTorchAsync") {

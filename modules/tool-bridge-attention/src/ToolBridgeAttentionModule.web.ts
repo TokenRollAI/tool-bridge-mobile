@@ -1,5 +1,7 @@
 import { NativeModule, registerWebModule } from 'expo'
 
+import type { ToolBridgeCameraFacing } from './ToolBridgeAttention.types'
+
 class ToolBridgeAttentionModule extends NativeModule {
   async cancelAsync(): Promise<void> {}
 
@@ -7,6 +9,10 @@ class ToolBridgeAttentionModule extends NativeModule {
 
   async enableTorchAsync(): Promise<boolean> {
     return false
+  }
+
+  async getAvailableCameraFacingsAsync(): Promise<readonly ToolBridgeCameraFacing[]> {
+    return []
   }
 
   async probeHapticsAsync(): Promise<boolean> {

@@ -1,10 +1,12 @@
-import { Camera, CameraView } from 'expo-camera'
+import { Camera } from 'expo-camera'
 import * as Crypto from 'expo-crypto'
 import { File } from 'expo-file-system'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 
 import { throwIfSignalAborted } from '@/capabilities/abortSignal'
 import { ToolExecutionError } from '@/capabilities/types'
+
+import ToolBridgeAttentionModule from '../../../modules/tool-bridge-attention/src/ToolBridgeAttentionModule'
 
 import {
   CAMERA_MAX_RAW_BYTES,
@@ -13,6 +15,10 @@ import {
 } from './schema'
 
 import type { CapturedCameraPhoto } from './captureCoordinator'
+import type {
+  ToolBridgeAttentionNativeModule,
+  ToolBridgeCameraFacing,
+} from '../../../modules/tool-bridge-attention/src/ToolBridgeAttention.types'
 
 export type CameraPermission = Readonly<{
   canAskAgain: boolean
@@ -20,8 +26,8 @@ export type CameraPermission = Readonly<{
 }>
 
 export interface CameraPlatformAdapter {
+  getAvailableFacings(): Promise<readonly ToolBridgeCameraFacing[]>
   getPermission(): Promise<CameraPermission>
-  isAvailable(): Promise<boolean>
   requestPermission(): Promise<CameraPermission>
 }
 
@@ -52,19 +58,30 @@ function mapPermission(permission: Awaited<ReturnType<typeof Camera.getCameraPer
 }
 
 export class ExpoCameraPlatformAdapter implements CameraPlatformAdapter {
+  constructor(
+    private readonly nativeModule: Pick<
+      ToolBridgeAttentionNativeModule,
+      'getAvailableCameraFacingsAsync'
+    > = ToolBridgeAttentionModule,
+  ) {}
+
+  async getAvailableFacings(): Promise<readonly ToolBridgeCameraFacing[]> {
+    try {
+      const facings = await this.nativeModule.getAvailableCameraFacingsAsync()
+      if (facings.some(facing => facing !== 'back' && facing !== 'front')) {
+        throw new Error('invalid_camera_facing')
+      }
+      return [...new Set(facings)]
+    } catch {
+      throw new ToolExecutionError('camera_probe_failed', '系统相机硬件探测失败', true)
+    }
+  }
+
   async getPermission(): Promise<CameraPermission> {
     try {
       return mapPermission(await Camera.getCameraPermissionsAsync())
     } catch {
       throw new ToolExecutionError('camera_probe_failed', '系统相机权限探测失败', true)
-    }
-  }
-
-  async isAvailable(): Promise<boolean> {
-    try {
-      return await CameraView.isAvailableAsync()
-    } catch {
-      throw new ToolExecutionError('camera_probe_failed', '系统相机硬件探测失败', true)
     }
   }
 

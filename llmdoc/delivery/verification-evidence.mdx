@@ -34,6 +34,34 @@ code:
 结果采用“已验证 / 未验证 / 受阻”三段式。受阻必须写清外部服务、工具链或上游契约缺口；失败和未运行
 不能归类为成功。日期化记录可以证明某个历史 commit/artifact，但不能作为当前工作树的持续事实。
 
+## 本次 2026-08-25：Android 前置相机 probe 修复
+
+### 已验证
+
+- 基于 `a2ea637` 的未提交修复工作树完成 Android preview release clean build，并用 `adb install -r`
+  保留数据安装到 Xiaomi `25102RKBEC`；安装包为 `ai.tokenroll.toolbridgemobile.preview`
+  0.0.9/versionCode 9。
+- ADB 现场确认 App 为 resumed 前台、manifest 声明 Camera、runtime permission 已授予、AppOps 为
+  foreground，`dumpsys media.camera` 可见 back/front Camera ID `[0,1]`。
+- 题述真实 Gateway call 到达设备的 Direct call 真机路径后，原生枚举选择并打开前置 `CameraId-1`，完成
+  可见预览、预览就绪后的自动拍摄和本地图像处理。这个证据只覆盖 Android 前置镜头和上传前本地链路。
+- 相机专项 Jest 为 4 suites / 16 tests passed，TypeScript typecheck 与 ESLint passed；覆盖 native facing
+  adapter、front/back preflight、权限映射、处理和上传 consumer 的本地边界。
+
+### 受阻
+
+- 同一次真实 Gateway call 在 create-upload 阶段因 Gateway 未挂载可写 `camera/photos` context 而失败；
+  没有完成对象 PUT、稳定 `node://` result 或真实 Gateway/storage E2E，不能把此前的本地处理成功写成完整
+  `capture_photo` 成功。
+- iOS 只完成 clean prebuild。本机缺少 CocoaPods 和完整 Xcode，仅有
+  `/Library/Developer/CommandLineTools`，因此未通过 `xcodebuild`，不能记为 iOS 原生 build。
+
+### 未验证
+
+- iOS build/真机相机、Android 后置镜头、双端真机、真实 `camera/photos` 对象上传与受保护读取均未验证；
+  首次授权/拒绝/设置撤销、后台/锁屏、弱网、系统相机指示/快门声和 crash 后孤儿清理也不能从本次证据
+  外推。
+
 ## 仓库与逻辑验证
 
 从锁定工具链和 frozen install 开始：

@@ -6,6 +6,7 @@ jest.mock('../../../../modules/tool-bridge-attention/src/ToolBridgeAttentionModu
   __esModule: true,
   default: {
     cancelAsync: async () => undefined,
+    getAvailableCameraFacingsAsync: async () => ['back', 'front'],
     probeHapticsAsync: async () => true,
     pulseAsync: async () => true,
   },
@@ -18,6 +19,7 @@ function createNativeModule(
     cancelAsync: async () => undefined,
     disableTorchAsync: async () => undefined,
     enableTorchAsync: async () => true,
+    getAvailableCameraFacingsAsync: async () => ['back', 'front'],
     probeHapticsAsync: async () => true,
     probeTorchAsync: async () => true,
     pulseAsync: async () => true,
