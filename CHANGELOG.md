@@ -3,6 +3,25 @@
 本文件记录可发布版本中用户可感知的变化。最新版本必须位于最前，并与 `package.json`、
 `app.config.ts` 和发布 tag 保持一致；自动发布流水线只提取首个版本段作为 GitHub Release 正文。
 
+## [0.0.10] - 2026-08-25
+
+> Preview：修复 Android/iOS 前台相机硬件探测，不是 production、App Store 或
+> Google Play 正式版本。
+
+### 修复
+
+- 不再在 Android/iOS 上调用 Web-only 的 `CameraView.isAvailableAsync()`，改为通过 Camera2 与
+  AVFoundation 只读枚举设备的前/后镜头，避免有权限且硬件正常时误报 `camera_probe_failed`。
+- 在本地确认前检查请求的 `facing`；设备缺少对应镜头时稳定返回
+  `camera_facing_unavailable`，并保留不向远端暴露原生异常的边界。
+
+### 验证边界
+
+- Android Preview release clean build、全量 `pnpm verify` 与 Android 真机前置镜头的可见预览、
+  自动拍摄和本地图像处理已通过。
+- Gateway 尚未挂载可写 `camera/photos` context，因此真实对象上传 E2E 未完成；iOS 原生
+  build 和真机需在安装完整 Xcode/CocoaPods 的环境继续验收。
+
 ## [0.0.9] - 2026-08-25
 
 > Preview：供内部验证前台相机拍摄与 Tool Bridge 对象上传，不是 production、App Store 或
@@ -66,6 +85,7 @@
 
 - 首个内部 Preview，包含移动端脚手架、前台 device transport、本地安全执行链和基础能力。
 
+[0.0.10]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.10
 [0.0.9]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.9
 [0.0.8]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.8
 [0.0.7]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.7
