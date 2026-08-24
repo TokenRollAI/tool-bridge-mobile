@@ -2,7 +2,9 @@ import {
   connectDevice,
   createReactNativeWebSocketFactory,
   TBError,
+  uploadContextObject as sdkUploadContextObject,
 } from '@tool-bridge/sdk/device'
+import { fetch as expoFetch } from 'expo/fetch'
 
 import {
   diagnoseDeviceTransportClose,
@@ -21,9 +23,11 @@ import type {
   DeviceConnection,
   DeviceConnectionState,
   DeviceWebSocketFactory,
+  UploadContextObjectResult,
 } from '@tool-bridge/sdk/device'
 
 export const LOCAL_REALTIME_COMMAND_TTL_MS = 30_000
+export const LOCAL_CAMERA_COMMAND_TTL_MS = 120_000
 
 // 本地 capability 的规范命名空间是 `phone/*`；wire 上 `phone` 段改由挂载路径承载，
 // 因此 expose 前剥掉前缀、call 进入本地 executor 前再补回，SQLite 历史与审计格式不变。
@@ -100,6 +104,14 @@ type ExecuteCommand = (command: LocalCommand, signal: AbortSignal) => Promise<Co
 
 type DeviceConnect = typeof connectDevice
 
+export type ContextObjectUploadInput = Readonly<{
+  body: Blob
+  contentType: string
+  contextPath: string
+  entryPath: string
+  signal: AbortSignal
+}>
+
 type SdkDeviceTransportDependencies = Readonly<{
   baseUrl: string | null
   clock?: () => Date
@@ -123,12 +135,23 @@ const permissionErrorCodes = new Set([
 
 const unavailableErrorCodes = new Set([
   'cancelled',
+  'camera_busy',
+  'camera_capture_failed',
+  'camera_processing_failed',
+  'camera_probe_failed',
+  'camera_unavailable',
+  'camera_upload_conflict',
+  'camera_upload_failed',
+  'camera_upload_invalid',
+  'camera_upload_unavailable',
   'runtime_pending_read_failed',
   'expired',
+  'foreground_required',
   'linking_probe_timeout',
   'media_fetch_failed',
   'notification_status_unknown',
   'notification_unavailable',
+  'photo_too_large',
   'stale_location',
   'timeout',
   'timer_cancel_status_unknown',
@@ -163,8 +186,11 @@ export function createSdkDeviceCallHandler(options: Readonly<{
   const clock = options.clock ?? (() => new Date())
   return async call => {
     const receivedAt = clock()
-    const localExpiresAtMs = receivedAt.getTime() + LOCAL_REALTIME_COMMAND_TTL_MS
     const { command, nodePath } = parseDeviceCallPath(call.path)
+    const localTtlMs = nodePath === 'camera' && command === 'capture_photo'
+      ? LOCAL_CAMERA_COMMAND_TTL_MS
+      : LOCAL_REALTIME_COMMAND_TTL_MS
+    const localExpiresAtMs = receivedAt.getTime() + localTtlMs
     let caller: LocalCommand['caller']
     let createdAt: string
     let expiresAt: string
@@ -239,6 +265,45 @@ export class SdkDeviceTransport {
 
   getSnapshot(): DeviceTransportSnapshot {
     return this.#snapshot
+  }
+
+  async uploadContextObject(input: ContextObjectUploadInput): Promise<UploadContextObjectResult> {
+    const baseUrl = this.#baseUrl
+    if (baseUrl === null) throw new TBError('unavailable', 'gateway 尚未配置')
+    const initialCredential = await this.dependencies.credentialStore.get()
+    if (initialCredential === null) throw new TBError('permission_denied', '设备凭证不存在')
+    validateCredential(initialCredential, baseUrl)
+
+    return sdkUploadContextObject({
+      baseUrl,
+      body: input.body,
+      contentType: input.contentType,
+      contextPath: input.contextPath,
+      credentialProvider: {
+        invalidate: () => { void this.#invalidateHttpCredential(initialCredential) },
+        prepare: async ({ baseUrl: requestedBaseUrl, deviceId, purpose, signal }) => {
+          if (signal.aborted) throw new Error('设备凭证读取已取消')
+          if (
+            purpose !== 'http'
+            || requestedBaseUrl !== baseUrl
+            || deviceId !== initialCredential.deviceId
+          ) throw new Error('对象上传凭证上下文不匹配')
+          const credential = await this.dependencies.credentialStore.get()
+          if (credential === null) throw new Error('设备凭证不存在')
+          validateCredential(credential, baseUrl)
+          if (
+            credential.deviceId !== initialCredential.deviceId
+            || credential.keyId !== initialCredential.keyId
+            || credential.material !== initialCredential.material
+          ) throw new Error('设备凭证在对象上传前发生变化')
+          return { headers: { authorization: `Bearer ${credential.material}` } }
+        },
+      },
+      deviceId: initialCredential.deviceId,
+      entryPath: input.entryPath,
+      fetcher: expoFetch as typeof globalThis.fetch,
+      signal: input.signal,
+    })
   }
 
   // appState 仅作为“生命周期已变化，请重新评估连接”的触发信号；其具体值不再参与连接门禁
@@ -490,6 +555,35 @@ export class SdkDeviceTransport {
         this.#diagnosticRevision += 1
         this.#connection = null
       }
+      this.#publish({
+        diagnostic: null,
+        deviceId: null,
+        gatewayOrigin: this.#baseUrl,
+        issue: null,
+        mountPath: null,
+        state: this.#baseUrl === null ? 'unconfigured' : 'credentials_required',
+      })
+    } catch {
+      this.#publish({ ...this.#snapshot, issue: 'credential_invalid', state: 'error' })
+    }
+  }
+
+  async #invalidateHttpCredential(expected: DeviceCredentialEnvelope): Promise<void> {
+    try {
+      const current = await this.dependencies.credentialStore.get()
+      if (
+        current === null
+        || current.audienceOrigin !== expected.audienceOrigin
+        || current.deviceId !== expected.deviceId
+        || current.keyId !== expected.keyId
+        || current.material !== expected.material
+      ) return
+      await this.dependencies.credentialStore.clear()
+      const connection = this.#connection
+      this.#connection = null
+      this.#suppressActiveSocketDiagnostic?.()
+      this.#diagnosticRevision += 1
+      connection?.close()
       this.#publish({
         diagnostic: null,
         deviceId: null,

@@ -9,6 +9,7 @@ const readySnapshot: ApplicationSnapshot = {
   attentionSession: null,
   auditRecords: [],
   backgroundRuntimeEnabled: false,
+  cameraCaptureRequest: null,
   capabilities: [],
   controlMode: 'ask_every_time',
   defaultDeviceId: null,

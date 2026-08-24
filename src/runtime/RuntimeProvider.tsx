@@ -7,6 +7,10 @@ import {
   type ApplicationSnapshot,
 } from './applicationRuntime'
 
+import type {
+  CameraCaptureFailure,
+  CapturedCameraPhoto,
+} from '@/capabilities/camera/captureCoordinator'
 import type { ControlMode } from '@/commands/types'
 import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
 import type { ResolvedInboxImage } from '@/inbox/imageSource'
@@ -37,12 +41,15 @@ export function useRuntime(): Readonly<{
   clearAuditHistory(): Promise<number>
   clearGatewayConfiguration(): Promise<void>
   clearInbox(): Promise<number>
+  failCameraCapture(commandId: string, failure: CameraCaptureFailure): boolean
   markAllInboxMessagesRead(): Promise<number>
   markInboxMessageRead(messageId: string): Promise<void>
+  openCameraSettings(): Promise<void>
   openNotificationSettings(): Promise<void>
   pauseMediaSession(sessionId: string): Promise<void>
   rejectConfirmation(commandId: string): boolean
   requestNotificationPermission(): Promise<void>
+  requestCameraPermission(): Promise<void>
   resolveInboxImage(rawUrl: string, signal: AbortSignal): Promise<ResolvedInboxImage>
   setBackgroundRuntimeEnabled(enabled: boolean): Promise<void>
   resumeMediaSession(sessionId: string): Promise<void>
@@ -52,6 +59,7 @@ export function useRuntime(): Readonly<{
   snapshot: ApplicationSnapshot
   stopAttentionSession(): Promise<void>
   stopMediaSession(sessionId?: string): Promise<void>
+  submitCameraCapture(commandId: string, photo: CapturedCameraPhoto): boolean
 }> {
   const runtime = useContext(RuntimeContext)
   if (runtime === null) throw new Error('useRuntime 必须在 RuntimeProvider 内使用')
@@ -66,11 +74,14 @@ export function useRuntime(): Readonly<{
     clearAuditHistory: () => runtime.clearAuditHistory(),
     clearGatewayConfiguration: () => runtime.clearGatewayConfiguration(),
     clearInbox: () => runtime.clearInbox(),
+    failCameraCapture: (commandId, failure) => runtime.failCameraCapture(commandId, failure),
     markAllInboxMessagesRead: () => runtime.markAllInboxMessagesRead(),
     markInboxMessageRead: messageId => runtime.markInboxMessageRead(messageId),
+    openCameraSettings: () => runtime.openCameraSettings(),
     openNotificationSettings: () => runtime.openNotificationSettings(),
     pauseMediaSession: sessionId => runtime.pauseMediaSession(sessionId),
     rejectConfirmation: commandId => runtime.rejectConfirmation(commandId),
+    requestCameraPermission: () => runtime.requestCameraPermission(),
     requestNotificationPermission: () => runtime.requestNotificationPermission(),
     resolveInboxImage: (rawUrl, signal) => runtime.resolveInboxImage(rawUrl, signal),
     setBackgroundRuntimeEnabled: enabled => runtime.setBackgroundRuntimeEnabled(enabled),
@@ -81,5 +92,6 @@ export function useRuntime(): Readonly<{
     snapshot,
     stopAttentionSession: () => runtime.stopAttentionSession(),
     stopMediaSession: sessionId => runtime.stopMediaSession(sessionId),
+    submitCameraCapture: (commandId, photo) => runtime.submitCameraCapture(commandId, photo),
   }
 }

@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { CapabilityRegistry } from '@/capabilities/registry'
 import {
   createSdkDeviceCallHandler,
+  LOCAL_CAMERA_COMMAND_TTL_MS,
   LOCAL_REALTIME_COMMAND_TTL_MS,
   parseDeviceCallPath,
   SdkDeviceTransport,
@@ -211,6 +212,20 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       signal: new AbortController().signal,
     })
     expect(commands[1]).toMatchObject({ path: 'phone/fixture', tool: 'get' })
+
+    await handler({
+      arguments: { purpose: '拍摄设备' },
+      id: 'call_camera',
+      path: 'camera/capture_photo',
+      signal: new AbortController().signal,
+    })
+    expect(commands[2]).toMatchObject({
+      expiresAt: new Date(
+        Date.parse('2026-08-19T10:00:00.000Z') + LOCAL_CAMERA_COMMAND_TTL_MS,
+      ).toISOString(),
+      path: 'phone/camera',
+      tool: 'capture_photo',
+    })
 
     const deniedHandler = createSdkDeviceCallHandler({
       callerSubjectId: 'device_key_01',

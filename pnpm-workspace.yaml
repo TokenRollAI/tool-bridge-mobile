@@ -18,8 +18,36 @@ audit:
 
 strictPeerDependencies: true
 
-# 0.14.1 修复了当前 Gateway 使用的完整 path device call wire，并提供网关签发的
-# invocation context；已核对 registry tarball/integrity、MIT license、/device export 与上游实现。
-# 因为该版本于 2026-08-23 发布，在 consumer/Metro/真实 Gateway 门禁完成前只允许此精确版本。
+# 0.14.1 修复了完整 path/context wire；0.15.0 在同一 RN-safe /device 入口新增
+# uploadContextObject。两版均已核对 registry tarball/integrity、MIT license、export 与上游实现；
+# 0.15.0 的相机 consumer/Metro/真实 Gateway 门禁完成前只允许此精确版本。
+# 其余 Expo 57.0.x 条目由 2026-08-24 官方兼容补丁升级产生；均受精确 package/lock、Expo check、
+# license、双端 autolinking/构建门禁约束，避免供应链等待期阻断本次 SDK 57 原生验证。
 minimumReleaseAgeExclude:
-  - '@tool-bridge/sdk@0.14.1'
+  - '@tool-bridge/sdk@0.14.1 || 0.15.0'
+  - expo-image-manipulator@57.0.13
+  - '@expo/cli@57.0.18'
+  - '@expo/config-plugins@57.0.9'
+  - '@expo/config@57.0.9'
+  - '@expo/fingerprint@0.20.10'
+  - '@expo/image-utils@0.11.5'
+  - '@expo/metro-config@57.0.10'
+  - '@expo/metro-file-map@57.0.2'
+  - '@expo/prebuild-config@57.0.14'
+  - '@expo/require-utils@57.0.5'
+  - babel-preset-expo@57.0.8
+  - expo-asset@57.0.14
+  - expo-constants@57.0.14
+  - expo-modules-autolinking@57.0.11
+  - expo-modules-core@57.0.13
+  - expo@57.0.16
+  - '@expo/metro-runtime@57.0.13'
+  - '@expo/ui@57.0.13'
+  - expo-build-properties@57.0.14
+  - expo-crypto@57.0.2
+  - expo-dev-client@57.0.15
+  - expo-dev-launcher@57.0.15
+  - expo-dev-menu@57.0.15
+  - expo-location@57.0.13
+  - expo-notifications@57.0.14
+  - expo-router@57.0.16

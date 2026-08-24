@@ -12,9 +12,9 @@ type VariantConfig = Readonly<{
 export const EXPO_OWNER = 'tokenroll'
 export const EAS_PROJECT_ID = '378c7a3e-437a-49a6-ae20-fef5af6f6188'
 export const EXPO_PROJECT_SLUG = 'tool-bridge'
-export const APP_VERSION = '0.0.8'
-export const ANDROID_VERSION_CODE = 8
-export const IOS_BUILD_NUMBER = '8'
+export const APP_VERSION = '0.0.9'
+export const ANDROID_VERSION_CODE = 9
+export const IOS_BUILD_NUMBER = '9'
 
 export const APP_VARIANTS: Readonly<Record<AppVariant, VariantConfig>> = {
   development: {
@@ -105,6 +105,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         {
           enableBackgroundPlayback: true,
           enableBackgroundRecording: false,
+          microphonePermission: false,
+          recordAudioAndroid: false,
+        },
+      ],
+      [
+        'expo-camera',
+        {
+          barcodeScannerEnabled: false,
+          cameraPermission: '允许 $(PRODUCT_NAME) 仅在前台显示可见预览并拍摄你授权的照片。',
           microphonePermission: false,
           recordAudioAndroid: false,
         },
@@ -203,7 +212,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       gatewayOrigin: parseGatewayOrigin(process.env.EXPO_PUBLIC_GATEWAY_ORIGIN),
       linkHosts: parseLinkHosts(process.env.EXPO_PUBLIC_LINK_HOSTS),
       mediaHosts: parseMediaHosts(process.env.EXPO_PUBLIC_MEDIA_HOSTS),
-      productionTransport: '@tool-bridge/sdk/device@0.14.1',
+      productionTransport: '@tool-bridge/sdk/device@0.15.0',
     },
   }
 }
