@@ -27,11 +27,13 @@ const baseContext: CapabilityContext = {
 
 function platform(overrides: Partial<CameraPlatformAdapter> = {}): CameraPlatformAdapter {
   return {
+    getAvailableFacings: jest.fn(async (): Promise<readonly ('back' | 'front')[]> => (
+      ['back', 'front']
+    )),
     getPermission: jest.fn(async (): Promise<CameraPermission> => ({
       canAskAgain: true,
       status: 'granted',
     })),
-    isAvailable: jest.fn(async () => true),
     requestPermission: jest.fn(async (): Promise<CameraPermission> => ({
       canAskAgain: true,
       status: 'granted',
@@ -179,12 +181,29 @@ describe('CameraCaptureController', () => {
     })
 
     const unavailable = new CameraCaptureController(new CameraCaptureCoordinator(), platform({
-      isAvailable: jest.fn(async () => false),
+      getAvailableFacings: jest.fn(async () => []),
     }), unusedProcessor, unusedUploader)
     await expect(unavailable.probe('active')).resolves.toEqual({
       reason: 'camera_unavailable',
       status: 'unavailable',
     })
+  })
+
+  test('preflight 在确认前拒绝设备不存在的镜头朝向', async () => {
+    const controller = new CameraCaptureController(
+      new CameraCaptureCoordinator(),
+      platform({
+        getAvailableFacings: jest.fn(async (): Promise<readonly ('back' | 'front')[]> => ['back']),
+      }),
+      {} as CameraPhotoProcessor,
+      {} as CameraObjectUploader,
+    )
+
+    await expect(controller.preflight('front')).rejects.toMatchObject({
+      code: 'camera_facing_unavailable',
+      retryable: false,
+    })
+    await expect(controller.preflight('back')).resolves.toBeUndefined()
   })
 
   test('capability 使用 high/write/always 并有 strict 默认参数', () => {

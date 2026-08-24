@@ -34,9 +34,12 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 
 ## Android 原生控制面现状
 
-- 仓库自有 Android Expo native module 当前是 `modules/tool-bridge-attention` 的 haptic probe/执行与
-  torch 闪光灯 probe/enable/disable（走 `CameraManager`，不需 Camera 权限）；其余已实现能力通过受限
-  Expo API、App 内状态机或系统 handoff 提供。
+- 仓库自有 Expo native module `modules/tool-bridge-attention` 当前提供 haptic probe/执行、torch 闪光灯
+  probe/enable/disable，以及相机前/后镜头的只读枚举。镜头枚举在 Android 走 Camera2
+  `CameraManager.cameraIdList` + `CameraCharacteristics.LENS_FACING`，在 iOS 走 AVFoundation
+  `AVCaptureDevice.default(... position:)`；只返回 schema 支持的 `front | back`，不创建采集 session、
+  不打开采集流、不读取照片，也不请求 Camera 权限。其余已实现能力通过受限 Expo API、App 内状态机或
+  系统 handoff 提供。
 - 当前没有 AccessibilityService、MediaProjection、notification-listener 或 DevicePolicyManager/device-owner
   控制实现，也没有对应 service/config；因此不能跨 App 操作任意 UI、捕获屏幕或管理专用设备。
 - 当前原生权限面仍按已实现切片最小化：相机切片通过 `expo-camera` 声明 Android CAMERA 与 iOS
@@ -68,8 +71,11 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 - descriptor 是 high-risk write、`confirmation: always`、foreground-only、`reject_offline`；Direct call
   由本机全局策略跳过逐次确认，但仍进入全屏可见预览，预览就绪后自动拍摄且没有用户快门/拍后复核。
   Ask every time / Trusted session 则在通用确认后由用户按快门，并允许重拍或确认上传。
-- strict 输入只有安全 `purpose`、前/后摄像头和 low/medium/high 质量；probe 同时检查前台、真实相机硬件
-  和权限。等待预览、重编码或上传期间离开 `active` 都立即取消，不允许后台或锁屏完成。
+- strict 输入只有安全 `purpose`、前/后摄像头和 low/medium/high 质量；argument-aware preflight 在本地
+  确认前用原生只读枚举拒绝设备不存在的 requested facing。通用 probe 先检查前台，再要求原生枚举至少
+  存在一个 `front | back`，随后才读取系统 Camera 权限；native 异常或未知 facing 稳定映射为
+  `camera_probe_failed`，不向远端返回原始详情。等待预览、重编码或上传期间离开 `active` 都立即取消，
+  不允许后台或锁屏完成。
 - 原图最大 30 MiB；本地移除 EXIF 并按质量重编码为最长边 1280/1920/2560 的 JPEG，输出最大 10 MiB，
   复核 JPEG 边界并计算 SHA-256。临时文件在已知成功/失败/取消/重拍路径 best-effort 清理。
 - 处理后对象固定上传到 `camera/photos/<deviceId>/<sha256(commandId)>.jpg`，禁止覆盖并严格核对 SDK 返回

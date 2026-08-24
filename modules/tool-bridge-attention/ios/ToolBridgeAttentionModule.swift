@@ -10,6 +10,19 @@ public class ToolBridgeAttentionModule: Module {
     return device.hasTorch && device.isTorchAvailable ? device : nil
   }
 
+  // 与 Android probe 对齐，只报告 capture schema 能表达的内建前/后摄像头。
+  // 这里只查询硬件，不创建 AVCaptureSession，也不会开始采集。
+  private func availableCameraFacings() -> [String] {
+    var facings: [String] = []
+    if AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) != nil {
+      facings.append("back")
+    }
+    if AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) != nil {
+      facings.append("front")
+    }
+    return facings
+  }
+
   public func definition() -> ModuleDefinition {
     Name("ToolBridgeAttention")
 
@@ -29,6 +42,10 @@ public class ToolBridgeAttentionModule: Module {
 
     // UIImpactFeedbackGenerator is one-shot; the JS session controller cancels future pulses.
     AsyncFunction("cancelAsync") {}
+
+    AsyncFunction("getAvailableCameraFacingsAsync") {
+      return self.availableCameraFacings()
+    }
 
     AsyncFunction("probeTorchAsync") {
       return self.torchDevice() != nil

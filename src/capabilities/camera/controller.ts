@@ -123,7 +123,7 @@ export class CameraCaptureController {
   async probe(appState: string): Promise<CapabilityAvailability> {
     if (appState !== 'active') return { reason: 'foreground_required', status: 'unavailable' }
     try {
-      if (!await this.platform.isAvailable()) {
+      if ((await this.platform.getAvailableFacings()).length === 0) {
         return { reason: 'camera_unavailable', status: 'unavailable' }
       }
       return this.#availability(await this.platform.getPermission())
@@ -132,6 +132,17 @@ export class CameraCaptureController {
         reason: error instanceof ToolExecutionError ? error.code : 'camera_probe_failed',
         status: 'unavailable',
       }
+    }
+  }
+
+  async preflight(facing: CameraCaptureArguments['facing']): Promise<void> {
+    const facings = await this.platform.getAvailableFacings()
+    if (!facings.includes(facing)) {
+      throw new ToolExecutionError(
+        'camera_facing_unavailable',
+        `设备没有可用的${facing === 'front' ? '前置' : '后置'}摄像头`,
+        false,
+      )
     }
   }
 
