@@ -67,6 +67,18 @@
     },
     "runtime/safety-boundaries.mdx": {
       "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "product/requirements-and-roadmap.mdx": {
+      "validatedRevision": null
+    },
+    "delivery/engineering-baseline.mdx": {
+      "validatedRevision": null
+    },
+    "delivery/definition-of-done.mdx": {
+      "validatedRevision": null
+    },
+    "delivery/verification-evidence.mdx": {
+      "validatedRevision": null
     }
   },
   "convergence": {

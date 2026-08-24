@@ -13,6 +13,8 @@ relations:
     - capabilities/local-notifications.mdx
     - capabilities/local-timers.mdx
     - integration/upstream-and-platform-gaps.mdx
+    - product/requirements-and-roadmap.mdx
+    - delivery/definition-of-done.mdx
 code:
   paths:
     - src/capabilities/**
@@ -73,8 +75,8 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 - 处理后对象固定上传到 `camera/photos/<deviceId>/<sha256(commandId)>.jpg`，禁止覆盖并严格核对 SDK 返回
   的稳定 `node://` URI；inline result 只含 URI、MIME、大小、尺寸与 SHA-256，不含照片、signed URL、
   私有文件 URI或虚构的对象过期时间。
-- 本地自动化、双端 clean prebuild 与 production Metro 已通过；Android/iOS 原生 build、双端真机相机
-  行为、真实 Gateway/storage、系统指示/快门声与 crash 后孤儿文件清理均未验收。
+- 本地自动化覆盖相机 schema、状态机、处理和 SDK upload consumer；prebuild、Metro、原生 build、双端
+  真机、真实 Gateway/storage、系统指示/快门声与 crash 后孤儿清理必须按各自证据层单独判断。
 
 完整 schema、UI 状态、处理、上传、部署前置与证据上限见
 `llmdoc/capabilities/foreground-camera-capture.mdx`。
@@ -226,7 +228,19 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 ## 证据上限
 
 unit/component/local contract 证明的是本地边界。registry 将单项 probe 异常隔离为
-`unavailable: probe_failed`。历史 Android clean debug build 只证明对应历史工作树的原生依赖与配置能编译；
-本轮相机只有双端 clean prebuild 与 Metro，不可写成 Android/iOS 原生 build。它们都不证明 production
-gateway、storage 或真机前台/后台/锁屏行为。信箱还必须把本地自动化、真实
+`unavailable: probe_failed`。任何 clean build 只证明对应 commit/artifact 的原生依赖与配置能编译；prebuild
+或 Metro 不可写成 Android/iOS 原生 build，它们也不证明 production gateway、storage 或真机前台/后台/
+锁屏行为。信箱还必须把本地自动化、真实
 Gateway `inbox/deliver`、双端真机与 U-5/U-6 离线 mailbox/push 分为四层，不得互相替代。
+
+## 产品阶段映射
+
+- P0 先提供真实 probe、policy、confirmation、幂等、审计、撤销和可达性地基；没有正式 pairing、动态
+  profile、mailbox/push 与双端真机前，不把单个本地 handler 称为 MVP。
+- P1-A 以 attention 为首个物理设备 golden slice；P1-B 覆盖媒体和受控 handoff；P1-C 覆盖仅前台相机
+  与受保护对象；P1-D 覆盖位置、inbox、notification、timer、accessibility 和发布准备。
+- P2/P3 候选能力进入 registry 前必须先补用户用例、平台/权限/商店矩阵、abuse case 和独立 DOD；能力
+  数量不优先于安全、身份、幂等、审计或端到端可完成性。
+
+产品范围、控制模式与阶段出口见 `product/requirements-and-roadmap.mdx`；所有公开能力的共同完成条件见
+`delivery/definition-of-done.mdx`。

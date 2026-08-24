@@ -6,6 +6,7 @@ relations:
     - runtime/architecture.mdx
   related:
     - capabilities/local-timers.mdx
+    - delivery/verification-evidence.mdx
 code:
   paths:
     - src/commands/repository.ts
@@ -13,7 +14,6 @@ code:
     - src/storage/memoryRepositories.ts
     - src/storage/__tests__/commandRepository.test.ts
     - src/storage/__tests__/retention.test.ts
-    - docs/verification/2026-08-19-command-retention.md
 ---
 
 # Command 终态 retention 参考
@@ -39,9 +39,9 @@ code:
 - repository tests 验证 UPDATE/prune 同 transaction、UPDATE 失败不 prune、SQL candidate 保护与排序；
   retention tests 连续完成 10,050 个 command，证明每次完成后 terminal 不超过 10,000，且很老但刚完成
   的 command 不会在自己的 complete 中立即被删。
-- `/usr/bin/sqlite3` 3.51.0 fixture 对 10,001 个 terminal、1 个 running、1 个 active timer source 执行
-  production 等价 DELETE 后得到 terminal 10,000，同时保留 running、current 与 protected source，并删除
-  oldest eligible。它验证 SQL 语法/计数，不证明 Expo SQLite 真机锁争用、I/O 或 10,000 条性能。
+- 真实 SQLite fixture 对 10,001 个 terminal、1 个 running、1 个 active timer source 执行 production
+  等价 DELETE 后必须得到 terminal 10,000，同时保留 running、current 与 protected source，并删除 oldest
+  eligible。它验证 SQL 语法/计数，不证明 Expo SQLite 真机锁争用、I/O 或 10,000 条性能。
 - 有界本地 tombstone 不等于网关级永久 dedupe；被 retention 合法淘汰的旧 id 是否可重用仍需要上游协议
   和保留策略定义。
 
@@ -51,5 +51,5 @@ code:
 - SQLite 实现：`src/storage/commandRepository.ts`
 - 内存实现：`src/storage/memoryRepositories.ts`
 - 自动化：`src/storage/__tests__/commandRepository.test.ts`、`src/storage/__tests__/retention.test.ts`
-- fixture 记录：`docs/verification/2026-08-19-command-retention.md`
-- 安全/验收：`docs/SECURITY.md`、`docs/DOD.md`
+- fixture 与证据记录法：`llmdoc/delivery/verification-evidence.mdx`
+- 安全/验收：`llmdoc/runtime/safety-boundaries.mdx`、`llmdoc/delivery/definition-of-done.mdx`

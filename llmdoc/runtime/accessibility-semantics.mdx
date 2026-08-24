@@ -6,6 +6,8 @@ relations:
     - runtime/safety-boundaries.mdx
   related:
     - delivery/evidence-language.mdx
+    - delivery/definition-of-done.mdx
+    - delivery/verification-evidence.mdx
 code:
   paths:
     - src/ui/components/Screen.tsx
@@ -16,7 +18,7 @@ code:
     - src/ui/accessibility.ts
     - src/ui/navigation.ts
     - src/ui/**/__tests__/**
-    - docs/verification/2026-08-19-android-emulator.md
+    - scripts/verify-android-emulator.mjs
 ---
 
 # Accessibility semantics 自动化基线
@@ -52,12 +54,12 @@ code:
 - component tests 覆盖 page/card header、StatusRow 关联、操作唯一名称/role/hint/state、48dp、focus、公告
   去重及不公告高频/敏感内容；相机组件测试覆盖 Direct call 自动分支和非 Direct 快门/复核分支；theme test
   覆盖文本和交互边界 contrast gate。
-- API 36 emulator semantic smoke 验证四个 tab 的唯一 accessibility label/selected state；保存原字号后设为
+- Android emulator semantic smoke 应验证 tab 的唯一 accessibility label/selected state，保存原字号后设为
   200%，force-stop/relaunch，逐页滚动并操作 Activity clear/cancel/confirm，复核关键 action bounds 至少
   48dp，最后恢复原字号。
-- UIAutomator 只观察语义树、selected state、bounds 和点击。本轮没有开启 Android TalkBack，也没有
-  VoiceOver、Switch Access、iOS 200% Dynamic Type 或双端真机人工证据；不能声称实际朗读、手势/rotor
-  顺序、平台焦点顺序和真机可访问性已完成。
+- UIAutomator 只观察语义树、selected state、bounds 和点击，不能替代 Android TalkBack、VoiceOver、
+  Switch Access、iOS Dynamic Type 或双端真机人工证据；不能据此声称实际朗读、手势/rotor 顺序、平台
+  焦点顺序和真机可访问性已完成。
 - 相机没有 TalkBack/VoiceOver、双端真机焦点顺序、系统相机指示或快门声证据；CameraView label 与组件
   action 测试不能证明辅助技术能正确朗读真实预览或 Direct call 的物理拍摄状态。
 
@@ -69,4 +71,4 @@ code:
 - tests：`src/ui/components/__tests__/accessibilityComponents.test.tsx`、
   `src/ui/components/__tests__/PendingConfirmationModal.test.tsx`、`src/ui/__tests__/accessibility.test.tsx`、
   `src/ui/components/__tests__/CameraCaptureModal.test.tsx`、`src/ui/__tests__/themeContrast.test.ts`
-- 验收：`docs/DOD.md`、`docs/verification/2026-08-19-android-emulator.md`
+- 验收：`llmdoc/delivery/definition-of-done.mdx`、`llmdoc/delivery/verification-evidence.mdx`

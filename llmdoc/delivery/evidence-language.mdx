@@ -4,13 +4,15 @@ kind: guide
 relations:
   related:
     - delivery/verification-and-claims.mdx
+    - delivery/verification-evidence.mdx
+    - delivery/definition-of-done.mdx
     - integration/upstream-and-platform-gaps.mdx
     - capabilities/local-device-inbox.mdx
 code:
   paths:
-    - docs/DOD.md
-    - docs/SDK.md
-    - docs/UPSTREAM.md
+    - package.json
+    - scripts/**
+    - test/**
 ---
 
 # 证据语言
@@ -60,23 +62,21 @@ code:
 - 可写：`@tool-bridge/sdk/device@0.15.0 consumer wiring 已集成`、`新 device call path/context 本地适配已实现`、
   `相机稳定 node URI upload consumer 本地已集成`、
   `本机 URL/API key fallback 已实现`、
-  `本地 executor 已实现持久化去重`、`本轮双端 clean prebuild 与 production Metro 已成功`、
+  `本地 executor 已实现持久化去重`、`当前 commit 的双端 clean prebuild 与 production Metro 已成功`、
   `设备在线且 direct call 已到达本地 executor 后，本机可安全保存并查询富内容消息；图片需用户逐图点按后
   按本地 policy 有界加载，并可 best-effort 请求固定本地提醒`。
-- 真机 `status/get` 成功后只可限定为：`0.14.1 新版直连 device wire 与当前 Railway
-  gateway 的 status/get 路径已完成 Android 真机兼容验证`；不外推到所有能力、iOS、后台、
-  弱网或完整 pairing。
+- 当前真机 `status/get` 成功后只可限定到记录中的 SDK/Gateway 版本、设备、平台、build、command path 和
+  运行条件；不外推到所有能力、iOS、后台、弱网、长期连接或完整 pairing。
 - 需限定：`SDK ready 时 online`，不把进程存活外推为后台可达；没有 origin 时可写
   `transport 为 unconfigured`。
 - 需限定：`Android/iOS 已配置某权限或 background mode`，后接“尚无双端真机行为证据”。
 - 不可写：`手工 API key 等于已配对`、`已接通 production gateway`、`Agent 可随时给离线手机发信`、
   `本地信箱已经实现后台 push/mailbox`、
-  `本轮 Android/iOS 原生构建已通过`、`已通过真机验收`、`真实 Gateway/storage 已兼容`、
+  `当前 Android/iOS 原生构建已通过`、`已通过真机验收`、`真实 Gateway/storage 已兼容`、
   `通用 objectRef 读写已完成`、`服务端已强绑定 command/size/TTL/single-use`。
 
-本轮必须明确：Android `assembleDebug` 被 Maven Central HTTP 403 阻塞；iOS native build 因缺 CocoaPods/
-完整 Xcode 未运行；双端真机和真实 `camera/photos` Gateway/storage 均未验收。不能用历史 Android
-`status/get` 构建/真机证据覆盖当前相机工作树。
+当前工作树是否完成 Android/iOS native build、双端真机或真实 Gateway/storage，必须从当前命令和对应
+commit/artifact 的有效记录判断；不能用历史 `status/get`、其他 capability 或 prebuild/Metro 证据覆盖。
 
 ## DOD 勾选规则
 

@@ -6,11 +6,12 @@ relations:
     - delivery/evidence-language.mdx
   related:
     - delivery/github-preview-release.mdx
+    - delivery/definition-of-done.mdx
+    - delivery/verification-evidence.mdx
     - runtime/safety-boundaries.mdx
 code:
   paths:
     - package.json
-    - docs/DOD.md
     - scripts/verify-docs.mjs
     - scripts/verify-app-config.mjs
     - scripts/verify-android-emulator.mjs
@@ -21,7 +22,8 @@ code:
 ## 1. 先按变更类型选择验证
 
 - 文档或通用 TypeScript：至少运行 `pnpm verify`。
-- Expo config、依赖或原生模块：除 `pnpm verify` 外，按 `docs/DOD.md` 执行对应 Android/iOS clean build。
+- Expo config、依赖或原生模块：除 `pnpm verify` 外，按 `delivery/definition-of-done.mdx` 执行对应
+  Android/iOS clean build。
 - push、相机、音频、后台、深链、位置或权限：构建不足，必须按 DOD 留下双端真机证据。
 - 协议/schema：必须使用上游正式 fixture 与 gateway/downstream 兼容测试；本地 fake contract 不替代。
 
@@ -49,8 +51,8 @@ MainActivity 能冷启动。当前 release build 使用 debug test key，只能�
 
 ## 3. 写证据记录
 
-记录命令、工具链版本、平台、build 类型、结果、产物摘要和明确未覆盖项。Android 当前范例见
-`docs/verification/2026-08-19-android-debug.md`。
+记录命令、工具链版本、平台、build 类型、结果、产物摘要和明确未覆盖项；完整模板与证据失效规则见
+`delivery/verification-evidence.mdx`。
 
 结论按以下格式分层：
 
@@ -60,5 +62,5 @@ MainActivity 能冷启动。当前 release build 使用 debug test key，只能�
 
 ## 4. 同步文档
 
-新增或改变公开能力时，同一变更同步 `README.md`、`docs/PRD.md`、`docs/CAPABILITIES.md`、
-`docs/SDK.md`、`docs/DOD.md` 及相关安全/架构文档。只勾选证据直接覆盖的 DOD 子项，组合项不得拆词取巧。
+新增或改变公开能力时，同一变更同步根 `README.md`、latest `CHANGELOG.md`，以及 `llmdoc/` 中相关产品、
+能力、integration、安全和 DOD 知识。只勾选证据直接覆盖的 DOD 子项，组合项不得拆词取巧。
