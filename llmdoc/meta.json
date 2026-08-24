@@ -1,0 +1,75 @@
+{
+  "schema": "llmdoc.meta/v3",
+  "baseline": {
+    "revision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675",
+    "verifiedAt": "2026-08-24T16:41:24.601Z"
+  },
+  "documents": {
+    "architecture.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "capabilities/architecture.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "capabilities/bounded-linking-handoffs.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "capabilities/bounded-media-source.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "capabilities/local-device-inbox.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "capabilities/local-notifications.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "capabilities/local-timers.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "delivery/eas-project-binding.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "delivery/evidence-language.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "delivery/github-preview-release.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "delivery/verification-and-claims.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "integration/manual-gateway-configuration.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "integration/sdk-device-transport.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "integration/trusted-grants.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "integration/upstream-and-platform-gaps.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "runtime/accessibility-semantics.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "runtime/activity-history.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "runtime/architecture.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "runtime/command-retention.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    },
+    "runtime/safety-boundaries.mdx": {
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
+    }
+  },
+  "convergence": {
+    "capturedAt": "2026-08-24T16:36:12Z",
+    "source": "init",
+    "documentCount": 20,
+    "totalEstimatedTokens": 18962
+  }
+}

@@ -1,0 +1,67 @@
+---
+description: 区分本地实现、SDK consumer、构建、真实 Gateway、平台验收与设备信箱证据层级的措辞规则。
+kind: guide
+relations:
+  related:
+    - delivery/verification-and-claims.mdx
+    - integration/upstream-and-platform-gaps.mdx
+    - capabilities/local-device-inbox.mdx
+code:
+  paths:
+    - docs/DOD.md
+    - docs/SDK.md
+    - docs/UPSTREAM.md
+---
+
+# 证据语言
+
+## 必须区分的五层状态
+
+1. **本地已实现**：代码与注入式 unit/component/contract 测试证明本地边界或状态机。
+2. **SDK consumer 已集成**：精确使用上游发布的公共入口，且 export/产物、consumer contract 和目标
+   bundler 通过；这不等于真实 gateway 已兼容。
+3. **Android 已构建**：clean Expo prebuild 后 Gradle 成功产出 debug APK，证明该工作树的 Android
+   原生依赖与配置可编译；不证明设备行为。
+4. **Gateway 已兼容**：只有通过真实 gateway wire/兼容矩阵后才能声称已接通对应服务端。
+5. **平台已验收**：只有对应 iOS 构建、模拟器/仪器测试以及 DOD 要求的双端真机证据齐全后才能声称。
+
+这些层级不能互相替代。尤其不能把 fake/injected adapter 的 contract test 写成网关端到端证据，
+也不能把 generated native 配置写成后台、锁屏、DND、位置精度或音频中断已经在真机有效。
+
+## 设备信箱的四层证据
+
+1. **本地自动化**：schema/migration/repository/controller/component/local runtime contract 只能证明在线
+   call 已到达 executor 后的 v4 内容保存、全保留集搜索/六排序/已读、幂等、clear/replay、revision、
+   RN Markdown 白名单、点击前零网络、任意结构合规 HTTPS 与安全跨 hostname redirect 的注入式 resolver
+   边界；不证明 DNS 私网/rebinding 防护或最终 redirect hostname 对用户可见。
+2. **真实 Gateway path**：必须单独验证当前 gateway 的 `inbox/deliver` expose/call/result、重复 id 与
+   正文脱敏；其他 capability（包括 Android 真机 `status/get`）成功不能替代。
+3. **双端真机**：必须分别留下 Android/iOS build 与真机证据，覆盖重启持久化、Markdown 布局、长列表/
+   搜索/排序/全部已读、真实图片下载/解码/取消/清理、前后台内存与无障碍，以及权限/channel/锁屏提醒；
+   Metro、prebuild、模拟器或注入 adapter 都不能替代。
+4. **离线 mailbox/push**：必须有 U-5 enqueue/claim/cancel/expiry/result 和 U-6 token/opaque wake hint 的
+   正式契约与端到端未送达/撤销证据；本地 SQLite 信箱、`scheduled` 通知或前台长连不构成这一层。
+
+## 当前可用措辞
+
+- 可写：`@tool-bridge/sdk/device@0.14.1 consumer wiring 已集成`、`新 device call path/context 本地适配已实现`、
+  `本机 URL/API key fallback 已实现`、
+  `本地 executor 已实现持久化去重`、`Android clean debug build 已成功`、
+  `设备在线且 direct call 已到达本地 executor 后，本机可安全保存并查询富内容消息；图片需用户逐图点按后
+  按本地 policy 有界加载，并可 best-effort 请求固定本地提醒`。
+- 真机 `status/get` 成功后只可限定为：`0.14.1 新版直连 device wire 与当前 Railway
+  gateway 的 status/get 路径已完成 Android 真机兼容验证`；不外推到所有能力、iOS、后台、
+  弱网或完整 pairing。
+- 需限定：`SDK ready 时 online`，不把进程存活外推为后台可达；没有 origin 时可写
+  `transport 为 unconfigured`。
+- 需限定：`Android/iOS 已配置某权限或 background mode`，后接“尚无双端真机行为证据”。
+- 不可写：`手工 API key 等于已配对`、`已接通 production gateway`、`Agent 可随时给离线手机发信`、
+  `本地信箱已经实现后台 push/mailbox`、
+  `iOS 已构建`、`已通过真机验收`、`支持 objectRef`。
+
+## DOD 勾选规则
+
+- 组合条目必须满足全部条件；例如“allowlisted HTTPS/objectRef”不能因 HTTPS 部分完成就勾选。
+- 自动化证据只勾选它直接证明的本地不变量，并在邻近文字注明证据上限。
+- 测试未运行、失败、受环境阻塞或只在另一平台运行时必须明确报告。
+- 发布、PR、真机、性能和上游兼容条目不能以说明文字代替证据。

@@ -11,7 +11,7 @@ const forbiddenNames = [
   /\.(jks|keystore|mobileprovision|p12|pfx)$/,
 ]
 const textExtensions = new Set([
-  '', '.cjs', '.css', '.env', '.example', '.js', '.json', '.jsx', '.md', '.mjs',
+  '', '.cjs', '.css', '.env', '.example', '.js', '.json', '.jsx', '.md', '.mdx', '.mjs',
   '.ts', '.tsx', '.txt', '.yaml', '.yml',
 ])
 const secretPatterns = [
@@ -33,7 +33,13 @@ for (const file of trackedFiles) {
     continue
   }
   if (file === 'scripts/verify-secrets.mjs' || !textExtensions.has(extname(file))) continue
-  const source = await readFile(file, 'utf8')
+  let source
+  try {
+    source = await readFile(file, 'utf8')
+  } catch (error) {
+    if (error?.code === 'ENOENT') continue
+    throw error
+  }
   if (secretPatterns.some(pattern => pattern.test(source))) {
     failures.push(`${file}: 疑似包含私钥或 Tool Bridge 凭证`)
   }
