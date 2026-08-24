@@ -17,11 +17,11 @@ const required = [
   'docs/DOD.md',
   'docs/adr/0001-react-native-expo.md',
   'docs/adr/0002-app-scaffold-baseline.md',
-  'llmdoc/index.md',
-  'llmdoc/startup.md',
-  'llmdoc/must/evidence-language.md',
-  'llmdoc/must/project-basics.md',
-  'llmdoc/must/safety-boundaries.md',
+  'llmdoc/meta.json',
+  'llmdoc/architecture.mdx',
+  'llmdoc/delivery/evidence-language.mdx',
+  'llmdoc/delivery/verification-and-claims.mdx',
+  'llmdoc/runtime/safety-boundaries.mdx',
 ]
 
 const failures = []
@@ -52,7 +52,7 @@ async function markdownFiles(directory) {
     if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue
     const path = join(directory, entry.name)
     if (entry.isDirectory()) files.push(...await markdownFiles(path))
-    else if (entry.name.endsWith('.md')) files.push(path)
+    else if (entry.name.endsWith('.md') || entry.name.endsWith('.mdx')) files.push(path)
   }
   return files
 }
