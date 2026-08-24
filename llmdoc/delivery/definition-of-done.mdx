@@ -1,0 +1,161 @@
+---
+description: 仓库、单项能力、平台矩阵、PR 与 production release 的规范性完成条件。
+kind: guide
+relations:
+  requires:
+    - delivery/evidence-language.mdx
+    - runtime/safety-boundaries.mdx
+  related:
+    - product/requirements-and-roadmap.mdx
+    - delivery/engineering-baseline.mdx
+    - delivery/verification-evidence.mdx
+    - delivery/github-preview-release.mdx
+code:
+  paths:
+    - package.json
+    - app.config.ts
+    - .github/workflows/**
+    - scripts/**
+    - test/**
+    - src/**/__tests__/**
+---
+
+# Definition of Done
+
+## 使用方式
+
+“完成”要求证据覆盖该条目的全部条件。口头说明、截图、代码存在、模拟器 happy path 或一个平台成功都
+不能替代。组合项不可因其中一半已实现就勾选；失败、跳过、环境阻塞或未运行必须显式记录。
+
+当前实现状态应从代码、测试与最近有效证据得出，不在本规范中维护会陈旧的 checkbox、机器、commit、
+run 或测试数量快照。证据层级和记录格式见 `delivery/evidence-language.mdx` 与
+`delivery/verification-evidence.mdx`。
+
+## 仓库与 P0 工程
+
+仓库基础完成要求：
+
+- 目的、边界、目标/非目标、能力、架构、安全、上游、技术基线、路线和 DOD 在 README 与 `llmdoc/`
+  可检索；链接检查纳入 CI；
+- 使用独立 pnpm workspace、明确 license，Node/pnpm/Expo/RN/TS 版本由事实文件与 frozen lockfile 锁定；
+- strict TypeScript、零 warning lint、unit/component/local contract、secret/license/dependency/config/native
+  module/SDK entry 等仓库 gate 全绿；
+- development/preview/production 的 application id、bundle id、scheme、名称和环境隔离；
+- Android debug/preview 与 iOS simulator 能从 clean checkout 可复现；关键路径不依赖 Expo Go；
+- 仓库没有 certificate、profile、service account、APNs/FCM key、Gateway credential 或生成的 secret。
+
+运行时基础完成要求：
+
+- installation identity 与 credential 使用系统安全存储，pairing ticket 短期、单次、目标 origin 可见；
+- realtime 使用官方 React Native device SDK 与短期 ticket，mailbox 状态可持久化；
+- registry 来自实际 probe，policy 在每次执行前运行，emergency disable 立即阻止新执行；
+- pairing revoke 后 realtime 与 mailbox 都失效，crash/restart 后命令状态不被猜测或重复执行；
+- online、background-reachable、offline、disabled 有对应 transport/mailbox/push 证据，不能靠进程存活推断。
+
+手工 URL/API key、fake WebSocket、SDK consumer 或本地 SQLite 可分别满足局部工程条件，但不满足正式
+pairing、短期 ticket、真实 Gateway、mailbox/push 或撤销闭环。
+
+## 每个公开能力
+
+### 产品与契约
+
+- 有用户价值、非目标、path/tool、strict input/output schema、稳定 result/error；
+- effect、risk、confirmation、queue policy、Android/iOS 支持与 unavailable/degraded 语义明确；
+- 由实际 probe 暴露，并可从 Agent 帮助/发现面找到；CLI 可调用与检查结果但不形成管理旁路；
+- 新增/变化同步 README、产品需求、能力、runtime/integration、安全和相关 DOD 知识。
+
+### 安全与隐私
+
+- 系统权限最小化，申请有本地上下文和 purpose；远程命令不能直接触发未授权敏感权限；
+- schema 拒绝未知或危险输入，确认显示内容防 control/bidi 欺骗；
+- admission、速率、时长、deadline/cancel、结果字节、URL/MIME/对象等边界明确且在副作用前执行；
+- 高风险默认拒绝或逐次确认；Direct/trusted 例外必须是用户主动、能力专用并继续服从 live probe 和平台；
+- 普通日志、audit、crash、outcome 与 accessibility 不泄漏 credential、正文、坐标、照片、signed URL 或
+  完整不可信 URL；
+- abuse case、redaction、拒绝、取消、过期、revoke、failure cleanup 和未知结果有测试。
+
+### 正确性与证据
+
+- 同一 commandId 并发/跨 executor/重启重放只执行一次副作用，断线重连也不重复；
+- 用户或 OS 拒绝不是成功；offline/queued/delivered/awaiting/running/final 状态可区分；
+- timeout、cancel、crash/restart、权限动态变化、native error mapping 和容量/retention 有测试；
+- 纯逻辑 unit、UI component、正式 Gateway wire、Android native、iOS native、双端真机、前后台/锁屏、
+  弱网/离线/未送达均按能力适用性留证据；
+- 平台专有能力可把另一端标为明确 unavailable，但不能删掉协议、probe 和降级测试。
+
+## Golden scenario 的额外门禁
+
+- **找手机**：前台请求到物理提示 P95 达标；后台必须经过 mailbox/push；逐通道报告 DND/静音/权限，
+  用户停止和到期有最终状态，100 次重放不产生第二会话，revoke 后不可执行。
+- **媒体**：HTTPS 与 object source 都有正式边界；player 控制一致；双端真机验证锁屏控制、后台、耳机/
+  来电中断；第三方 handoff 只报告交接；错误 MIME、超大或过期对象被拒绝。
+- **相机**：后台/锁屏不启动；用户看到 caller/purpose/Gateway 与系统指示；Ask/Trusted 手动拍摄复核，
+  Direct 仍有可见预览；结果只有受保护对象引用，Gateway 保留/读取授权、失败脱敏与 crash 孤儿清理有效。
+- **位置**：确认和权限之后才采集；时间、精度、approximate/mocked 状态诚实；stale fix 被拒绝；后台不
+  升级为持续定位；地图 handoff 不回显目标或声称导航完成。
+- **设备信箱**：在线 call 的 schema、专用有界表、全保留集搜索/排序、已读、Markdown 白名单、逐图有界
+  加载、内容清除与防重放都通过；真实 Gateway、双端真机提醒和 U-5/U-6 离线路径分别验收。
+- **local notification**：固定内容、权限只在本地请求、前台/授权/channel availability、幂等和脱敏通过；
+  Android/iOS 真机分别覆盖 grant/deny/channel、前后台/锁屏呈现及冷/热启动点击。
+- **timer**：输入窗口、SQLite ownership/capacity、确定性 identifier、补偿/恢复/reconcile/disabled 通过；
+  双端真机覆盖后台、锁屏、kill、低电量、权限撤销与到点 cancel，Android 另覆盖 reboot/Doze。
+- **Activity 与 accessibility**：近期本地 audit 与仅审计清除不影响防重放/凭证；语义、焦点、target size、
+  对比度和公告脱敏通过自动化，TalkBack/VoiceOver/Switch Access/Dynamic Type 仍需双端人工证据。
+
+各能力的精确限值、状态机和已知剩余风险由 `capabilities/` 与 `runtime/` 专题文档维护，避免在 DOD 中
+复制会漂移的实现细节。
+
+## 平台、性能与可靠性矩阵
+
+每个 release candidate 至少覆盖 Android 最低支持版、当前与上一稳定 OS major、两个厂商/系统组合，
+以及 iOS 最低支持版、当前与上一稳定 OS major、两个设备/OS 组合。双端都要覆盖前台、后台、锁屏、
+省电/低电量、通知拒绝和权限运行中撤销。最低 OS 是安装/构建边界，不代表能力可用；仍需 live probe。
+
+MVP release candidate 还需有设备、OS、build、网络和样本数明确的报告，证明：
+
+- 冷启动到本地状态可见 P95 不超过 2.5 秒；
+- 同区域前台 online command 到 handler start P95 不超过 500 ms；
+- 前台找手机到物理提示 P95 不超过 2 秒；
+- delivered 命令终态一致率 100%；连续 24 小时前后台切换无失控重连或明显耗电异常；
+- 10,000 条 command 幂等/retention 和 5,000 条 audit 保留持续成立；
+- 超限对象在传输前拒绝，主线程没有造成明显掉帧的长任务。
+
+## PR DOD
+
+- scope 单一、可回滚，说明为何变更；
+- 列出能力、权限、协议、数据处理和平台差异；
+- 自动 gate 全绿，并按变更类型完成 clean build、native 或真机验证；
+- 安全敏感 diff 经第二位 reviewer，上游/下游兼容有证据；
+- README、`llmdoc/`、fixture 与 latest changelog 按需同步；
+- 无未解释的生成原生 diff、secret、敏感日志或未经评审的新依赖；
+- 回滚方式明确，用户可感知变化进入 changelog。
+
+## Preview 与 production release DOD
+
+GitHub Preview 只需满足 `delivery/github-preview-release.mdx` 的双路径 gate，并明确使用 Preview application
+id、内部测试签名、APK 与 iOS simulator 门禁。它不是 production/store release，不能提前关闭以下条件。
+
+Production release 必须：
+
+- clean production Android App Bundle 与 iOS archive；frozen lockfile；artifact 可追溯 commit；签名材料
+  来自受控 secret store；SBOM/dependency audit；安装 smoke；Gateway compatibility matrix；
+- privacy policy、iOS privacy manifest/usage description、Play Data Safety/permissions、push entitlement/
+  environment、数据删除/revoke、capability kill switch、incident contact 和不夸大的商店元数据均复核；
+- internal/beta golden scenarios、staged rollout、crash/ANR/command failure/push invalid token 监控、上一版本
+  rollback 与服务端兼容、release 后远程停用/revoke 复核均有证据。
+
+## 变更类型的最低验证
+
+| 变更 | 最低门禁 |
+| --- | --- |
+| 仅文档 | `pnpm verify` |
+| 纯 TypeScript | typecheck + lint + unit + local contract |
+| React UI | 上述 + component + 双端截图/交互 |
+| Expo config / native dependency | 上述 + Android/iOS clean build + 最终生成配置 |
+| Kotlin / Swift | 上述 + 对应 native test + 真机场景 |
+| push / background | 双端真机前后台、锁屏、kill、过期/未送达 |
+| 权限 / camera / location / audio | 双端真机 grant/deny/revoke 与能力专用物理行为 |
+| protocol / schema | 上游/downstream fixture + 兼容版本/真实 Gateway matrix |
+| credential / storage | 安全 review + migration、crash recovery、rotation/revoke |
+
+若任何必需门禁未执行、失败或受阻，结论必须保持“未验证/受阻”，不得用文字说明改写为完成。

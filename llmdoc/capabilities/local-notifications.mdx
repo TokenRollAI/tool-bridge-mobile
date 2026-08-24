@@ -66,8 +66,8 @@ badge 和 DND bypass。前台 handler 只展示符合精确 deterministic identi
 - Android channel importance 为 NONE：`unavailable: notification_channel_disabled`，UI 引导系统设置；
 - background、初始化失败、缺 channel 或 native probe 失败：结构化 unavailable。
 
-只有用户主动点击本地 UI 才调用权限请求；请求前重建 channel，并有独立有界等待。Android API 36 fresh
-install 可能把“尚未请求”表达为 `denied + canAskAgain=true`，必须映射为 requestable，不能与永久拒绝合并。
+只有用户主动点击本地 UI 才调用权限请求；请求前重建 channel，并有独立有界等待。新安装的 Android
+可能把“尚未请求”表达为 `denied + canAskAgain=true`，必须映射为 requestable，不能与永久拒绝合并。
 
 `phone/inbox.deliver` 同样只读取上述现有授权，远程投递不会请求权限。requestable 返回
 `permission_required`；denied/channel disabled/adapter unavailable 返回 `unavailable`；读取或调度超时、
@@ -112,10 +112,10 @@ Android 仍声明 `POST_NOTIFICATIONS`，因为本地通知需要系统授权。
 
 - unit/local contract 覆盖 strict schema、固定 request/channel/id、权限映射、commit race、zero schedule、
   脱敏和 `scheduled` 语义；信箱另覆盖 commit 后提醒与失败不回滚。它们使用注入 adapter，不是系统 UI E2E。
-- Android clean build 与 merged manifest 证明 local-only final config 可生成；API 36 emulator smoke 只证明
-  fresh permission 映射和 capability 投影，未请求权限、调度、呈现或点击通知。
-- 本机无完整 Xcode；iOS simulator/真机和 Android 真机均未验收。APNs entitlement 静态移除不等于 iOS
-  local notification 行为已验证。
+- Android clean build 与 merged manifest 只能证明对应 commit 的 local-only final config 可生成；emulator
+  smoke 只证明 fresh permission 映射和 capability 投影，未请求权限、调度、呈现或点击通知。
+- iOS/Android 的 simulator、native build 与真机结果必须按当前 evidence 记录判断；APNs entitlement 静态
+  移除不等于 iOS local notification 行为已验证。
 
 ## 事实真源
 

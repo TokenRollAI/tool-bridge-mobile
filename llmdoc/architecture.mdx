@@ -8,6 +8,9 @@ relations:
     - capabilities/architecture.mdx
     - integration/sdk-device-transport.mdx
     - integration/upstream-and-platform-gaps.mdx
+    - product/requirements-and-roadmap.mdx
+    - delivery/engineering-baseline.mdx
+    - delivery/definition-of-done.mdx
     - delivery/evidence-language.mdx
     - delivery/verification-and-claims.mdx
 code:
@@ -17,13 +20,6 @@ code:
     - app/**
     - src/**
     - modules/**
-    - docs/PRD.md
-    - docs/ARCHITECTURE.md
-    - docs/SECURITY.md
-    - docs/CAPABILITIES.md
-    - docs/SDK.md
-    - docs/DOD.md
-    - docs/UPSTREAM.md
 ---
 
 # Tool Bridge Mobile 整体架构
@@ -101,13 +97,14 @@ deadline/cancel、逐次确认和 emergency disable 始终高于远程命令或 
 
 上游 U-2 至 U-7、真实 Gateway 能力矩阵、iOS 原生/真机、双端权限/后台/锁屏、production signing、
 商店合规、rollout 与 rollback 都必须保持明确的“未实现”或“未验证”标签。历史日期化快照不作为 V3
-持续事实；证据应回到 `docs/verification/` 的具体记录和当前命令结果。
+持续事实；证据应按 `delivery/verification-evidence.mdx` 回到对应 commit/artifact 和当前命令结果。
 
 ## 主题路由
 
 - `runtime/`：本地命令执行、策略、持久化、清除、恢复、安全和 accessibility；
 - `capabilities/`：当前能力总览，以及 camera、media、Linking、inbox、notification、timer 的稳定契约；
 - `integration/`：SDK transport、手工 Gateway、trusted grant 决策和上游/平台缺口；
-- `delivery/`：证据语言、验证、EAS 项目绑定和 GitHub Preview 发布。
+- `product/`：稳定产品需求、非目标、质量目标与 P0-P3 路线；
+- `delivery/`：工程基线、DOD、证据语言、验证、EAS 项目绑定和 GitHub Preview 发布。
 
 V3 不维护静态索引或启动阅读清单；使用 `npx @tokenroll/llmdoc tree|search|context|show` 按任务检索。

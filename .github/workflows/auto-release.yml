@@ -1,0 +1,131 @@
+name: auto-release-preview
+
+on:
+  workflow_run:
+    workflows:
+      - verify
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: auto-release-preview-main
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      release_tag: ${{ steps.release.outputs.release_tag }}
+      should_publish: ${{ steps.release.outputs.should_publish }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - name: Select unreleased verified version
+        id: release
+        env:
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          remote_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$remote_main" != "$VERIFIED_SHA" ]]; then
+            echo "Verified commit is no longer main HEAD; a newer verify run will decide the release."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          release_tag="v$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")"
+          node scripts/verify-release-tag.mjs "$release_tag"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse --verify --quiet "refs/tags/$release_tag" >/dev/null; then
+            tagged_sha="$(git rev-list -n 1 "$release_tag")"
+            echo "Tag $release_tag is already reserved at $tagged_sha; the automatic path will not move or reuse it."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: prepare
+    if: needs.prepare.outputs.should_publish == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - name: Download APK from the verified run
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: tool-bridge-mobile-preview-apk-${{ github.event.workflow_run.head_sha }}
+          path: verified-artifact
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Prepare versioned release assets and notes
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+          release_apk="tool-bridge-mobile-preview-${RELEASE_TAG}.apk"
+          cp verified-artifact/tool-bridge-mobile-preview.apk "release-artifacts/${release_apk}"
+          (
+            cd release-artifacts
+            sha256sum "$release_apk" > "${release_apk}.sha256"
+          )
+          node scripts/verify-release-tag.mjs "$RELEASE_TAG" --notes > release-notes.md
+      - name: Create tag and publish GitHub Pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          remote_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$remote_main" != "$VERIFIED_SHA" ]]; then
+            echo "Verified commit is no longer main HEAD; refusing to reserve a stale release tag."
+            exit 0
+          fi
+
+          git fetch --tags origin
+          if git rev-parse --verify --quiet "refs/tags/$RELEASE_TAG" >/dev/null; then
+            tagged_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
+            echo "Tag $RELEASE_TAG was reserved at $tagged_sha before publish; leaving it to the tag workflow."
+            exit 0
+          else
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git tag --annotate "$RELEASE_TAG" "$VERIFIED_SHA" --message "Tool Bridge Mobile $RELEASE_TAG Preview"
+            git push origin "refs/tags/$RELEASE_TAG"
+          fi
+
+          release_apk="release-artifacts/tool-bridge-mobile-preview-${RELEASE_TAG}.apk"
+          gh release create "$RELEASE_TAG" \
+            "$release_apk" \
+            "${release_apk}.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Tool Bridge Mobile ${RELEASE_TAG} (Preview)" \
+            --notes-file release-notes.md \
+            --prerelease \
+            --latest=false \
+            --verify-tag

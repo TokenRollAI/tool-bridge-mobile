@@ -1,0 +1,146 @@
+---
+description: React Native、Expo CNG、版本平台、依赖分层、状态、协议、测试与交付的工程基线。
+kind: architecture
+relations:
+  requires:
+    - runtime/safety-boundaries.mdx
+  related:
+    - integration/sdk-device-transport.mdx
+    - delivery/eas-project-binding.mdx
+    - delivery/definition-of-done.mdx
+    - delivery/github-preview-release.mdx
+code:
+  paths:
+    - package.json
+    - pnpm-lock.yaml
+    - pnpm-workspace.yaml
+    - .node-version
+    - app.config.ts
+    - eas.json
+    - src/**
+    - modules/**
+---
+
+# 工程与技术基线
+
+## 已决定的栈
+
+- React Native + strict TypeScript，Expo Framework 采用 development build 与 CNG/prebuild；Expo Go 只可
+  做无原生依赖的临时 UI 实验，不能作为验收环境。
+- Expo Router 管理页面；协议、schema、policy、command 状态机和跨平台 handler 优先写纯 TypeScript；
+  React 组件不直接发送协议帧或调用任意原生对象。
+- 平台 API 优先使用成熟 Expo 模块。Expo SDK 不提供所需 probe/生命周期/系统能力时，才通过 Expo
+  Modules API 暴露最小类型化 Kotlin/Swift 接口，不提供任意 Intent、selector 或原生对象入口。
+- SQLite 是 command、audit、timer、inbox 等持久域的事实真源；SecureStore/平台安全存储只保存身份与
+  credential material；所有远端输入从 `unknown` 开始并经 Zod strict schema 校验。
+- 官方 `@tool-bridge/sdk/device` 提供 device wire、session 和 context object upload；移动仓库不复制
+  `@tool-bridge/core` 私有协议源码，也不手写第二份 wire schema。
+- Android 先形成首个端到端切片，iOS 从第一天保持工程可构建和共有协议对等。
+
+## 版本与平台
+
+当前锁定 Node 22.23.1、pnpm 11.21.0、Expo 57.0.16、React Native 0.86.2、React 19.2.3、TypeScript
+6.0.3 和 `@tool-bridge/sdk` 0.15.0。Android min/compile/target 是 24/36/36、Java 17；iOS deployment
+target 是 16.4。
+
+版本事实真源依次是 `package.json`、`.node-version`、`pnpm-lock.yaml`、`app.config.ts` 与生成配置。
+本文记录为何选择和如何使用，不替代这些文件；升级必须 frozen install、核对 Expo 兼容性并重新运行
+SDK/bundler/native gate。
+
+三种安装变体独立：
+
+| 环境 | Android applicationId / iOS bundle id |
+| --- | --- |
+| development | `ai.tokenroll.toolbridgemobile.dev` |
+| preview | `ai.tokenroll.toolbridgemobile.preview` |
+| production | `ai.tokenroll.toolbridgemobile` |
+
+原生工程由 `expo prebuild --clean` 生成并保持未跟踪。变体共用 Expo/EAS 项目
+`@tokenroll/tool-bridge`，slug `tool-bridge` 与 project id `378c7a3e-437a-49a6-ae20-fef5af6f6188`；项目
+身份不是 secret，也不替代 application id、transport 环境、签名或 production 配置隔离。
+
+## 代码与状态组织
+
+- `app/`：Expo Router 页面；`src/ui/`：共享 UI、accessibility 和用户确认；
+- `src/runtime/`、`src/policy/`、`src/commands/`：组装、唯一执行入口、本地裁决和命令生命周期；
+- `src/gateway/`、`src/identity/`：SDK transport、配置、身份和 SecureStore facade；
+- `src/capabilities/`、`src/inbox/`、`src/storage/`、`src/audit/`：类型化能力、内容域和 repositories；
+- `modules/`：只有平台能力无法由成熟模块满足时才加入的 Expo native module；
+- `test/contract/`：本地与 SDK consumer 契约，不冒充真实 Gateway wire 或真机 E2E。
+
+P0 不引入大型全局状态框架：持久数据以 repository 为真源；connection、registry、policy 是独立 service；
+React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/retry 默认值不能自动重试副作用；只有
+明确的 commandId/idempotency 状态机可重放。
+
+## 依赖职责
+
+| 领域 | 选择与边界 |
+| --- | --- |
+| device transport / object upload | `@tool-bridge/sdk/device@0.15.0`；生产代码只导入 `/device`，包根 Node 入口不能进入手机 bundle。 |
+| router / handoff | `expo-router`、`expo-linking`；URL 与 map 目标在业务层先受控，Linking 只做 probe/handoff。 |
+| credential | `expo-secure-store`；secret 不进入 SQLite、构建环境、日志或仓库。 |
+| persistence | `expo-sqlite`；事务承载幂等、crash recovery、有界保留和专用内容域。 |
+| camera | `expo-camera` + `expo-image-manipulator`；只做可见前台拍摄、有界 JPEG，不读取图库或录音。 |
+| media | `expo-audio` + 直接 peer `expo-asset`；只接收本地 resolver 已验证的私有 `file://`。 |
+| location | `expo-location`；当前只开启 foreground/When In Use，不启用后台/Always/motion。 |
+| local notification | `expo-notifications`；当前只做 local schedule，final config 移除 APNs/FCM/boot/exact 等未实现入口。 |
+| private files | `expo-file-system`；流式有界写入与确定性清理，必须作为直接依赖。 |
+| Markdown | `markdown-it` parser + RN 白名单 renderer；禁用 HTML/linkify，不使用 WebView。 |
+| native probe | 本地 `tool-bridge-attention` 模块只封装 haptic/torch probe 与执行，不扩成通用控制面。 |
+| UI icons | `@expo/vector-icons` + 直接 peer `expo-font`；统一经本地语义组件使用。 |
+
+新依赖必须说明用途、维护状态、Android/iOS 支持、权限/原生配置影响以及现有依赖为何不足。Expo 原生
+依赖用 `pnpm exec expo install` 选择兼容版本并与 lockfile 一并评审；native peer 不依赖 pnpm 偶然的传递
+安装。安装通知、相机或后台模块不等于对应远程/真机能力已完成。
+
+## 网络与后台目标
+
+- 前台 realtime 使用官方 SDK 与 React Native WebSocket header adapter；当前手工 origin/API key 只是
+  pairing/ticket 前 fallback。
+- HTTP 由受控 adapter 包装 timeout、错误与 redaction；有副作用请求不用通用自动重试。
+- 大对象通过 Gateway 签发的短期授权直传对象存储；相机已有 upload consumer，完整服务端强绑定和读取
+  仍待上游/联合验收。
+- 后台目标是 U-5 mailbox 的 pull/claim/result 配合 U-6 原生 APNs/FCM token 与 opaque wake hint；不把
+  Expo Push Service 设为协议依赖，也不把本地 notification/timer 当作 push。
+- P2 实时媒体可评估 WebRTC，但必须由上游 session broker 和能力专用安全评审支撑。
+
+## CNG、权限与资产
+
+config/plugin 是原生配置事实入口；验证必须检查 clean prebuild 后的 merged Android manifest 与 iOS
+entitlement/Info.plist，不能只看 `app.config.ts`。当前配置有可见媒体 foreground service、Camera、
+foreground location、local notification 等已实现入口，并明确阻止 boot/exact alarm、overlay、存储、
+APNs/FCM 及不需要的 badge/remote transport。每次 Expo 模块升级都要复核 final 生成结果。
+
+应用图标以 `assets/icon/brand-mark.svg` 为唯一品牌形状源，`pnpm icons:generate` 导出已提交 PNG；CI 只
+验证这些资产的尺寸、透明通道、引用和 Android adaptive icon 安全区，不在 runner 重新依赖系统图形工具。
+
+## 测试与交付
+
+| 层 | 工具与证明范围 |
+| --- | --- |
+| 纯逻辑 | Jest：policy、状态机、schema、redaction。 |
+| React UI | React Native Testing Library：确认、权限、错误和 accessibility 语义。 |
+| 原生模块 | Android native test / XCTest：平台 adapter；JS mock 不替代。 |
+| consumer contract | 官方 SDK + fake WebSocket/fetch：公共入口和本地适配；不等于真实 Gateway。 |
+| UI E2E | Maestro 或仓库 smoke：驱动界面；不证明硬件真实发声、拍照、后台或 push。 |
+| 真机矩阵 | Android/iOS 设备 + 脱敏日志：权限、后台、锁屏、DND、弱网、系统物理效果。 |
+
+PR 至少执行 frozen install 与仓库 `pnpm verify`；配置/依赖还需双端 clean build，平台/敏感能力还需对应
+native test 和双端真机。精确门禁及证据写法见 `delivery/definition-of-done.mdx` 与
+`delivery/verification-evidence.mdx`。
+
+GitHub Actions 负责 verify、Android Preview APK、iOS simulator 和 GitHub Preview；EAS 是可替换的构建
+执行器，不是架构依赖。Preview 使用 preview application id 与内部测试签名，不生成 production AAB/IPA，
+不替代正式签名、商店、Gateway、真机、安全或 rollout 门禁。
+
+## 被否决方案与复核触发
+
+- Flutter 会增加 Dart 与协议类型生成链，降低现有 TypeScript SDK 复用；
+- 双端纯原生会在 P0 重复协议、策略、状态机和 UI；必要能力可渐进下沉，不需预先维护两套业务层；
+- PWA 缺少所需后台、凭证、相机、媒体会话和通知模型；
+- Expo Go-only 不能承载自定义原生代码和 production 配置；
+- 在移动仓库重写 HTBP client 会造成协议与安全修复分叉。
+
+有可重复的真机证据表明 React Native/Expo 阻塞关键 DOD、Expo 模块带来不可接受权限/供应链风险、启动或
+内存持续不达标、公共 device SDK 无法保持跨运行时边界、需要跟踪生成原生目录，或 push/签名供应链发生
+变化时，必须新增或替代架构决策；主观偏好不构成推翻基线的证据。

@@ -17,7 +17,6 @@ code:
     - src/gateway/deviceTransportDiagnostic.ts
     - src/identity/**
     - scripts/verify-sdk-device-entry.mjs
-    - docs/SDK.md
 ---
 
 # SDK device transport 参考
@@ -131,20 +130,14 @@ credential generation 的 invocation 身份、U-4 动态 profile、U-5 mailbox�
 
 ## 证据边界
 
-已有 consumer 证据：真实 SDK supervisor + fake WebSocket contract、新 call path/context 归一化、双向
-schema registry expose、错误映射、凭证
-fail-closed、手工配置事件顺序、raw close 脱敏/旧连接隔离与 secret 不回显、双端 production Metro
-export、全量 `pnpm verify`。相机上传另以真实 SDK helper + mocked fetch 覆盖 create-upload、HTTP
-Authorization、Blob PUT、URI 核对和 credential 精确失效；这是 consumer contract，不是真实 Gateway E2E。
+仓库 consumer contract 覆盖真实 SDK supervisor + fake WebSocket、新 call path/context 归一化、双向
+schema registry expose、错误映射、credential fail-closed、手工配置事件顺序、raw close 脱敏/旧连接隔离
+与 secret 不回显。相机上传另以真实 SDK helper + mocked fetch 覆盖 create-upload、HTTP Authorization、
+Blob PUT、URI 核对和 credential 精确失效；这是 consumer contract，不是真实 Gateway E2E。
 
-2026-08-23 新增有限真实 Gateway 证据：Android Preview 0.0.6 保数据覆盖安装后，当前
-Railway Gateway 的单次 `device/phone/9daf921003a4/status/get` 调用返回并严格符合 live
-output schema；调用前后 App 均为 `online/active` 且无 `protocol_error`。只能声称该 Android
-真机路径与当前 Gateway 兼容，不外推到所有能力、iOS、后台、弱网、长连稳定性或完整 pairing。
-
-本轮相机工作树的双端 clean prebuild 与 production Metro 成功，但 Android 原生 build 被 Maven Central
-HTTP 403 阻塞，iOS 原生 build 因缺 CocoaPods/完整 Xcode 未运行；真实相机、系统指示/快门声与
-`camera/photos` Gateway/storage 均无真机或联合验收。
+原生 build、Metro、真机和真实 Gateway/storage 的完成状态必须从当前 commit/artifact 的有效记录判断。
+任何历史单次 Android `status/get` 兼容结果都不能外推到当前 SDK、全部能力、iOS、后台、弱网、长连、
+pairing 或 `camera/photos`；需要按 `llmdoc/delivery/verification-evidence.mdx` 重跑目标矩阵。
 
 这些不证明真实 gateway 对空 command node 的删除语义、真机 header/diagnostic、弱网/重连、前后台 OS
 行为、credential revoke、mailbox 或 push。诊断 UI 出现固定分类也不等于对应根因已经由真机日志或

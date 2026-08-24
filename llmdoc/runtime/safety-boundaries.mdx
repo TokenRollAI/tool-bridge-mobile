@@ -8,10 +8,10 @@ relations:
     - capabilities/foreground-camera-capture.mdx
     - capabilities/local-device-inbox.mdx
     - integration/sdk-device-transport.mdx
+    - product/requirements-and-roadmap.mdx
+    - delivery/definition-of-done.mdx
 code:
   paths:
-    - docs/SECURITY.md
-    - docs/CAPABILITIES.md
     - app.config.ts
     - src/runtime/**
     - src/capabilities/**
@@ -129,7 +129,9 @@ code:
 
 ## 事实真源
 
-- 安全要求与平台依据：`docs/SECURITY.md`
-- 能力契约和支持矩阵：`docs/CAPABILITIES.md`
+- 产品安全原则和非目标：`llmdoc/product/requirements-and-roadmap.mdx`
+- 能力契约和支持矩阵：`llmdoc/capabilities/architecture.mdx` 与对应 `llmdoc/capabilities/*.mdx`
 - 执行不变量：`src/runtime/localCommandExecutor.ts`、`src/policy/policyEngine.ts`
-- SDK transport 边界：`llmdoc/integration/sdk-device-transport.mdx`、`docs/SDK.md`
+- SDK transport 边界：`llmdoc/integration/sdk-device-transport.mdx`
+- 完成与证据要求：`llmdoc/delivery/definition-of-done.mdx`、
+  `llmdoc/delivery/verification-evidence.mdx`

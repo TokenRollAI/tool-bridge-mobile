@@ -1,0 +1,169 @@
+---
+description: Tool Bridge Mobile 的目标用户、产品原则、MVP 需求、控制模式、成功判定与阶段路线。
+kind: reference
+relations:
+  requires:
+    - architecture.mdx
+    - runtime/safety-boundaries.mdx
+  related:
+    - capabilities/architecture.mdx
+    - integration/upstream-and-platform-gaps.mdx
+    - delivery/definition-of-done.mdx
+code:
+  paths:
+    - README.md
+    - app/**
+    - src/runtime/**
+    - src/capabilities/**
+    - src/inbox/**
+---
+
+# 产品需求与路线
+
+## 产品定义与用户
+
+Tool Bridge Mobile 是 HTBP / Tool Bridge 生态的移动设备执行端。用户把手机连接到 Gateway 后，Agent
+可以发现设备当下真实可用的能力，并在系统权限、本地确认、设备状态和平台限制内调用。产品价值是把
+Agent 的动作安全地落到真实设备，而不是新增聊天入口、远程桌面、监控软件或 MDM。
+
+首要用户是希望 Agent 协助跨设备日常任务、同时要求控制权与隐私清晰的个人用户，以及希望通过统一
+HTBP 工具树使用移动硬件和系统 handoff 的开发者。组织设备、展厅或现场采集是后续场景；它们不构成
+放宽用户确认、系统权限或平台政策的理由。
+
+核心 Jobs to be Done：
+
+- 找手机：以系统允许的声、振动和闪光提示定位指定设备；
+- 内容交接：让 App 播放受控媒体、打开地图或 HTTPS 目标，而不把 URL 留在聊天里；
+- 设备视觉输入：用户掌控可见相机流程，Agent 只获得受保护的稳定对象引用；
+- 本地任务承接：把消息、通知和计时器安全保存或提交给设备系统，不把 best-effort 说成送达；
+- 状态与审计：让用户和 Agent 区分可用、等待确认、拒绝、过期、未知和成功。
+
+## 产品原则
+
+1. Agent 请求，设备裁决；Gateway 鉴权不能替代本地策略、用户拒绝和系统权限。
+2. 工具目录反映真实 probe、前后台、权限与控制模式，字段不可得时返回结构化 unavailable。
+3. 权限渐进申请；远程命令不得替用户弹出敏感系统授权框。
+4. 有副作用就可见；拍照、音频、位置等敏感行为必须遵守能力专用的可见流程和审计边界。
+5. 异步、离线、等待确认、过期、取消和结果未知都是一等状态，不用同步 happy path 掩盖。
+6. 不突破操作系统边界，不承诺后台相机、跨 App 任意控制、绕过锁屏、静音或 DND。
+7. Android 先形成端到端切片；iOS 从工程起点保持共有协议对等，不支持的能力明确降级而非模拟成功。
+
+## MVP 范围与当前阶段
+
+MVP 包含本地安全运行时、设备身份与正式 pairing、前台 realtime、动态能力、SQLite 幂等与审计、紧急
+停用、mailbox/push 后台可达，以及首批 attention、media、handoff、camera、location、inbox、local
+notification 和 timer 能力。
+
+现状是 P0 本地运行时与多项 P1 本地纵向切片已经实现，但产品仍未达到 MVP：
+
+- 已有 SecureStore installation identity、手工 Gateway HTTPS origin/API key 内测入口、官方 SDK 前台
+  consumer、ready-only online、本地 registry/policy/confirmation、SQLite command/audit/timer/inbox、
+  emergency disable 和 Activity/能力/信箱/设置界面；
+- 已有 `phone/status.get`、attention、受控 media、HTTPS/map handoff、foreground location、local-only
+  notification、local timer、device inbox 和 foreground camera 的本地实现；
+- 正式 pairing、短期 ticket、动态 profile、durable mailbox、push、完整对象授权/读取、真实 Gateway
+  能力矩阵、完整双端原生 build/真机以及 production/store 发布仍未完成。
+
+“本地已实现”、SDK consumer、原生构建、真实 Gateway 与平台验收必须按
+`delivery/evidence-language.mdx` 分层；任何历史机器、commit、run 或单次调用记录都不是持续产品状态。
+
+## 功能需求
+
+### 身份、配对与可达性
+
+- 本地 `installationId` 稳定保存在 SecureStore；正式 `deviceId`、最小权限 credential、rename、rotate、
+  revoke 必须由 pairing/Gateway 签发流程提供。
+- pairing session 必须短期、单次并向用户显示目标 Gateway；凭证正文不能进入日志或 UI。
+- 手工 HTTPS origin/API key 仅是 pairing 前内测 fallback；其客户端 deviceId/principal 不冒充网关签发
+  身份、具体 Agent、最小 scope、rotation 或 revoke。
+- 只有 SDK `ready` 可称 online；未来 background-reachable 必须由 mailbox/push 契约和设备证据支撑。
+- disabled 不连接、不接收后续工作并停止本地活动；完整服务端 revoke 需单独验收。
+
+### 能力发现与命令生命周期
+
+- 每个能力声明 path/tool、strict input/output schema、effect、risk、confirmation、queue policy、平台条件
+  和 live probe；权限、AppState 或模式变化最终应反映到动态 profile。
+- 所有命令有全局唯一 `commandId`、创建/过期时间、取消信号和稳定错误；同一 ID 最多产生一次外部副作用，
+  重试只回放首次终态。
+- 目标生命周期覆盖 `queued -> delivered -> awaiting_user -> running -> final`，其中 final 可为
+  succeeded/rejected/expired/cancelled/failed/result_unknown。当前前台 direct-call 只实现到达 executor 后的
+  本地部分，不冒充上游 mailbox 状态机。
+- 过期或取消后不得开始新副作用；确认等待结束后必须重新检查 deadline、cancel、probe 与 policy。
+
+### 首批能力
+
+- 状态与运行时：返回非敏感设备状态、实时能力和同一 credential principal 的安全活动摘要/取消请求；
+  不可得字段不填造，取消不冒充跨进程或 mailbox 撤销。
+- 找手机：支持有界声、振动、闪光偏好、TTL、速率限制和设备本地停止；结果逐通道陈述，不绕过 DND。
+- 媒体：只控制 App 自有单 player；HTTPS 来源须先做逐跳 URL、MIME/signature、字节、时长和私有 cache
+  校验；对象 source、后台、锁屏和音频中断只有独立契约与真机证据后才算完成。
+- App/map handoff：通用入口只接受配置 allowlist 内的 HTTPS；地图入口只接受结构化 coordinate/query 并
+  由本地构造平台目标；成功只表示系统接受 handoff。
+- 相机：仅前台、全屏可见。Ask/Trusted 由用户确认、按快门和复核；用户主动选择 Direct call 后仍显示
+  预览和取消入口，只省略逐次确认、快门及拍后复核。结果只含稳定 `node://` URI 与有界 JPEG 元数据。
+- 位置：MVP 只有逐次确认后的单次 foreground fix 与地图 handoff；持续/后台定位不在 MVP。
+- 设备信箱：在线 direct call 到达后才写入有界 SQLite 内容域；Markdown 用 RN 白名单组件，图片必须用户
+  逐图授权后有界加载；清除内容不清 command 防重放。本地信箱不等于离线 mailbox/push。
+- Local-only notification：远程命令只在已有授权且前台时调度固定内容；不请求权限、不注册 push token，
+  `scheduled` 不等于 presented/clicked。
+- Local timer：只接受未来 10 秒至 24 小时内的 canonical UTC 时间；SQLite 状态高于系统 pending 快照，
+  固定 payload 和 best-effort DATE trigger 不构成准时送达承诺。
+- 本地控制台：展示模式、连接、能力、信箱和近期脱敏 Activity；仅审计清除、信箱清除、transport revoke
+  与完整本地/服务端数据删除是不同操作。
+
+能力的精确 schema、容量、错误、清理和结果语义以 `capabilities/`、`runtime/` 与 `integration/` 的专题
+文档和当前代码为准；本页不复制会频繁变化的字段表。
+
+## 控制模式
+
+| 模式 | 语义 |
+| --- | --- |
+| Disabled | 停止连接与本地执行，不允许新命令越过停用边界。 |
+| Ask every time | 所有有副作用能力在设备上逐次确认。 |
+| Trusted session | 目标态：在限定时段与 scope 内放行允许的低/中风险能力；credential-bound grant 尚未实现。 |
+| Direct call | 用户本机主动选择的直接模式；仍受系统权限、live probe、前后台及能力专用可见流程约束。 |
+| Policy managed | 为本地签名策略预留，MVP 不启用。 |
+
+默认模式是 Ask every time。任何模式都不能放宽系统权限、平台限制、emergency disable 或高风险能力的
+专用边界；trusted grant 的身份与失效决策见 `integration/trusted-grants.mdx`。
+
+## 非目标
+
+- 通用远程桌面、屏幕共享、任意第三方 App UI 自动化或 root shell；
+- 绕过锁屏、静音/DND、系统权限、商店政策或企业策略；
+- 后台隐藏拍照、录音、持续视频/位置监控；
+- 读取短信/即时通讯正文、静默拨号或静默发消息；
+- 把照片、音视频以 base64 写入 HTBP JSON frame；
+- 用 device secret 充当用户管理 secret；
+- MDM、家长控制、反盗窃锁定/抹除、通用 Agent Dashboard 或浏览器扩展。
+
+## 质量目标与发布判定
+
+MVP 质量目标包括：在线低风险命令测试成功率至少 99%；已送达命令终态一致率 100%；同一 commandId
+重放 100 次只产生一次副作用；前台找手机 P95 不超过 2 秒；未来后台可达 P95 不超过 10 秒且未送达不
+记成功；拒绝、过期、取消与离线无假成功；日志/崩溃产物的敏感字段扫描零命中。
+
+这些数值必须由目标设备、OS、build、网络和样本数明确的报告支持。只有
+`delivery/definition-of-done.mdx` 的仓库、协议、能力、安全、双端真机和发布门禁都满足，状态才能从
+“未完成”升级为对应 beta/stable；演示视频、模拟器或单次 WebSocket happy path 不构成发布判定。
+
+## 路线与优先级
+
+- **P0 运行时地基**：完成工程/身份/前台 SDK consumer、动态能力、本地策略、持久化与可达性；出口要求
+  双端真机可正式配对、注册状态能力并在 revoke 后失效。当前仅本地地基与内测 fallback 部分完成。
+- **P1-A 找手机**：完成真实声/振动/闪光、停止、幂等、限流、mailbox/push、DND/后台/锁屏/弱网与
+  Agent/CLI golden scenario。
+- **P1-B 媒体与交接**：完成受控 HTTPS/object source、App player、系统媒体控制、map/link handoff 和
+  双端后台/锁屏/音频中断证据。
+- **P1-C 相机协作**：完成可见前台捕获、受保护对象上传/读取、权限和临时文件边界，以及真实
+  Gateway/storage 与双端真机证据。
+- **P1-D 位置与本地辅助**：完成一次位置、inbox、notification、timer、动态 profile、accessibility、
+  国际化、隐私/商店材料与 beta rollout。
+- **P2 扩展能力**：候选包括扫码、用户确认的视频/WebRTC、geofence、compose/dial handoff、短时传感器、
+  签名 policy、多网关授权、设备事件与手表入口；每项必须先有用例、平台矩阵、权限/商店评审、abuse
+  case 和独立 DOD。
+- **P3 设备网络**：长期探索手机作为附近设备发现/确认枢纽、跨设备执行选择和安全 handoff，而不是把
+  设备变为无限权限执行器。
+
+需求冲突时依次优先：用户安全与平台政策；身份/权限/幂等/审计；端到端可完成；双端语义一致；能力
+数量；UI 装饰。阶段没有隐含日期承诺，checkbox 或一次性验证快照不能替代当前代码与验收证据。

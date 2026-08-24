@@ -100,12 +100,10 @@ context 缺失的旧网关路径才完全使用本地 120 秒。
 
 ## 验证边界
 
-当前可声明：本地相机实现与 SDK 0.15 object-upload consumer 已集成；专项自动化覆盖 schema、probe、两种
-UI 分支、前台丢失取消、图像/路径边界、真实 SDK helper 的 create-upload + Authorization + Blob PUT 与
-凭证精确失效；Android/iOS clean prebuild 和 production Metro bundle 已通过。
+可声明的稳定实现事实：本地相机流程与 SDK 0.15 object-upload consumer 已集成；专项自动化覆盖 schema、
+probe、两种 UI 分支、前台丢失取消、图像/路径边界、真实 SDK helper 的 create-upload + Authorization +
+Blob PUT 与凭证精确失效。
 
-当前不可声明：Android 原生 build 通过（Maven Central HTTP 403 阻塞）、iOS 原生 build 通过（缺 CocoaPods/
-完整 Xcode）、双端真机相机行为已验收、真实 Gateway + `camera/photos` storage 已兼容、通用 `objectRef`
-读取已完成，或服务端已经提供完整 U-7 强绑定。详细日期化证据见
-`docs/verification/2026-08-25-camera-local-implementation.md`。
-
+原生 build、双端真机相机、真实 Gateway + `camera/photos` storage、通用受保护对象读取与完整 U-7 服务端
+强绑定必须从当前 commit 对应证据判断；本地自动化、prebuild 或 Metro 不能替代。记录方法见
+`llmdoc/delivery/verification-evidence.mdx`。

@@ -1,0 +1,131 @@
+---
+description: 可复用的验证命令、证据记录模板、场景覆盖与历史证据失效规则。
+kind: guide
+relations:
+  requires:
+    - delivery/definition-of-done.mdx
+    - delivery/evidence-language.mdx
+  related:
+    - delivery/engineering-baseline.mdx
+    - delivery/github-preview-release.mdx
+    - integration/sdk-device-transport.mdx
+code:
+  paths:
+    - package.json
+    - scripts/**
+    - test/**
+    - src/**/__tests__/**
+    - .github/workflows/**
+---
+
+# 验证证据工作法
+
+## 证据记录模板
+
+每次验证至少记录：
+
+- 被验证的 commit/worktree 状态、范围和变更类型；
+- 命令原文及 Node、pnpm、Expo、Java/Xcode、平台和 runner 版本；
+- App variant、application id/bundle id、build 类型、设备/模拟器型号与 OS；
+- Gateway/storage 版本、环境和能力 path；secret、完整 URL/query、正文、坐标与媒体必须脱敏；
+- 成功/失败/阻塞、退出码、关键断言、artifact 名称/大小/digest 与可追溯地址；
+- 证据直接覆盖的 DOD 条目，以及明确未覆盖的平台、真机、后台、锁屏、弱网、物理效果或服务端语义。
+
+结果采用“已验证 / 未验证 / 受阻”三段式。受阻必须写清外部服务、工具链或上游契约缺口；失败和未运行
+不能归类为成功。日期化记录可以证明某个历史 commit/artifact，但不能作为当前工作树的持续事实。
+
+## 仓库与逻辑验证
+
+从锁定工具链和 frozen install 开始：
+
+```sh
+pnpm install --frozen-lockfile
+pnpm verify
+pnpm peers check
+pnpm audit:dependencies
+```
+
+`pnpm verify` 串联文档链接、release/changelog、三变体配置、图标、原生模块、SDK device entry、secret、
+license、dependency mitigation、Expo version、typecheck、lint 与 Jest。失败的子项不可被单独成功命令覆盖。
+
+按范围补充：
+
+- protocol/schema：官方上游 fixture、真实 SDK consumer 和 downstream/Gateway compatibility；
+- persistence：真实 SQLite migration、并发/重放、crash recovery、容量与 retention；
+- UI：component/accessibility、焦点/公告/大字号、取消和错误态；
+- 网络/对象：redirect、timeout/cancel、MIME/signature、声明/实际字节、credential invalidation 和清理；
+- 安全：permission/config、secret/redaction、control/bidi、abuse、revoke 与 unknown-result。
+
+注入式 adapter、fake WebSocket 或 mocked fetch 只能证明本地边界和 consumer contract，不可命名为真实
+Gateway E2E、对象存储兼容或真机行为。
+
+## 原生生成与构建
+
+Expo config、依赖、plugin、权限或 native module 变化时，至少执行对应的 clean prebuild/build：
+
+```sh
+APP_VARIANT=development pnpm exec expo config --type public
+pnpm build:android:debug
+pnpm build:ios:sim
+```
+
+Android 权限需检查三层：Expo config introspection、clean prebuild 的 merged manifest、安装后的
+`dumpsys package`。`blockedPermissions` 可移除依赖声明，但 debug manifest 或其他高优先级 manifest 仍可能
+重新引入；只看 config 不能下最终结论。iOS 同理检查 generated Info.plist、entitlements、background modes
+和 usage descriptions。
+
+clean prebuild/autolinking/Metro export 只证明生成配置或 bundle；Gradle/Xcode build 才证明对应原生工作树
+可编译；模拟器 build 不证明真机签名、权限和物理行为。构建受网络或本机工具链阻塞时，记录已完成层级，
+不要把 prebuild 提升为 native build。
+
+## Android emulator 与 Preview APK
+
+在已有 development debug APK、唯一且完成 boot 的 emulator 与运行中的 Metro 条件下，可执行
+`pnpm verify:android:emulator`。它只操作 development application id，验证安装后权限、页面/语义、动态能力、
+紧急停用与重启等 UI smoke；它不是 native instrumentation、真机或另一平台证据。
+
+内部 Android 离线安装包使用 `pnpm build:android:preview`。验收至少确认：
+
+- package 是 preview application id；
+- APK 包含 `assets/index.android.bundle`，不依赖 Metro；
+- 签名可验证并明确是否为测试 key；
+- 显式 MainActivity 可冷启动；
+- 记录 artifact SHA-256。
+
+本地产物不自动成为 CI/Release artifact；preview test key 不能称 production signer。
+
+## 真实 Gateway、对象存储与真机
+
+Gateway matrix 要逐能力验证 hello/expose/call/cancel/result、schema/error、重复 id、deadline、credential
+拒绝/revoke、断线重连和脱敏，不能用另一个能力的成功外推。`status/get` 的单次 Android 路径不覆盖 inbox、
+camera、iOS、后台、弱网或长期稳定。
+
+对象上传另需验证预挂载 context、device scope、create-upload、PUT、禁止覆盖、checksum/size/MIME/TTL/
+single-use、稳定 URI、受保护读取与保留；SDK helper 的 mocked fetch 或本地确定性 path 不等价于服务端强
+绑定。
+
+push/mailbox 需验证 enqueue/claim/lease/cancel/expiry/result、token rotation/revoke、opaque wake hint、
+未送达与进程终止恢复；本地 notification、timer、SQLite inbox 或前台长连不构成该证据。
+
+双端真机按能力覆盖首次授权、拒绝、设置中撤销、前后台/锁屏/kill、低电量、弱网和物理效果。相机还要
+覆盖可见预览、Direct 自动拍摄、系统指示/快门声、上传取消与临时文件；媒体覆盖锁屏/耳机/来电中断；
+notification/timer 覆盖 channel、呈现、点击、Doze/reboot 或平台等价场景；accessibility 覆盖真实读屏器、
+Switch Access 与大字号。
+
+## Release 证据
+
+每个 Preview release 记录 workflow 路径（main 自动或手工 tag）、verified SHA、tag、GitHub Release、APK
+资产 URL 与独立核对的 SHA-256。workflow/release notes 来源及权限边界见
+`delivery/github-preview-release.mdx`。
+
+Production 还需签名 AAB/IPA、privacy/entitlement/store 声明、SBOM、安装 smoke、Gateway matrix、golden
+scenario、监控、staged rollout 与 rollback；Preview 成功不能替代。
+
+## 证据失效与复用
+
+- 依赖、Expo/RN/SDK、原生 plugin、权限、schema/wire、Gateway/storage 或能力关键路径变化时，相关旧证据
+  失效并重跑对应层级；
+- 纯文档更新可引用未变化实现的最近有效证据，但仍需当前 `pnpm verify`；
+- 历史 artifact 只对其 tag/commit 有效，不用于宣称当前工作树已 build 或已真机验收；
+- Android 证据不外推 iOS，prebuild/Metro 不外推 native build，模拟器不外推真机，本地 contract 不外推
+  Gateway，schedule promise 不外推 presented/delivered/clicked。
