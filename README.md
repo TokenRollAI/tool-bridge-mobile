@@ -1,6 +1,7 @@
 # tool-bridge-mobile
 
 [![verify](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/verify.yml)
+[![auto-release-preview](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/auto-release.yml/badge.svg)](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/auto-release.yml)
 [![release-preview](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/release.yml/badge.svg)](https://github.com/TokenRollAI/tool-bridge-mobile/actions/workflows/release.yml)
 
 让 Agent 的能力边界从云端延伸到用户明确授权的手机。
@@ -35,7 +36,8 @@
 > `status/get` 直连读调用；该证据不外推到其他能力、iOS、后台、弱网或完整 pairing。
 > 当前内测入口允许用户在本机填写 Gateway HTTPS URL 与 API key，secret 只进入
 > SecureStore；这不等于 pairing、最小权限设备凭证或短期 ticket。设备本地信箱不是网关 command
-> mailbox；离线队列、远程 push 和通用 object 读取/生命周期契约仍等待[上游交付](docs/UPSTREAM.md)。
+> mailbox；离线队列、远程 push 和通用 object 读取/生命周期契约仍等待
+> [上游交付](llmdoc/integration/upstream-and-platform-gaps.mdx)。
 
 ## 它解决什么问题
 
@@ -50,21 +52,23 @@ Agent 今天大多只能调用云端 API。这个项目让 Agent 在用户许可
 
 它不是远程桌面、监控软件或 MDM。系统权限、用户确认和平台限制始终优先于 Agent 指令。
 
-## 文档地图
+## 知识地图
 
 | 文档 | 内容 |
 | --- | --- |
-| [PRD](docs/PRD.md) | 用户、场景、范围、需求和产品验收 |
-| [能力目录](docs/CAPABILITIES.md) | 计划暴露的节点、工具、权限和阶段 |
-| [系统架构](docs/ARCHITECTURE.md) | 组件、连接、唤醒、命令生命周期和媒体传输 |
-| [SDK 使用](docs/SDK.md) | 当前 SDK 事实、移动端接入方式和上游缺口 |
-| [技术选型](docs/TECH-STACK.md) | React Native / Expo 方案及取舍 |
-| [安全与平台约束](docs/SECURITY.md) | 配对、授权、审计、iOS / Android 限制 |
-| [上游依赖](docs/UPSTREAM.md) | Tool Bridge 与 HTBP 需要同步交付的能力 |
-| [路线图](docs/ROADMAP.md) | P0 到 P3 的实现顺序 |
-| [Definition of Done](docs/DOD.md) | 仓库、功能、版本与场景验收闸门 |
-| [ADR-0001](docs/adr/0001-react-native-expo.md) | React Native + Expo 技术决策 |
-| [ADR-0002](docs/adr/0002-app-scaffold-baseline.md) | 精确版本、最低平台和环境标识基线 |
+| [产品、现状与仓库架构](llmdoc/architecture.mdx) | 产品边界、数据流、已决定事项和未实现项 |
+| [需求与路线图](llmdoc/product/requirements-and-roadmap.mdx) | 用户场景、阶段目标、范围和出口条件 |
+| [能力架构](llmdoc/capabilities/architecture.mdx) | 节点、工具、风险、确认策略和主题路由 |
+| [运行时架构](llmdoc/runtime/architecture.mdx) | 命令生命周期、持久化、并发和取消 |
+| [SDK device transport](llmdoc/integration/sdk-device-transport.mdx) | 当前 SDK 事实、移动端接入方式和兼容边界 |
+| [安全边界](llmdoc/runtime/safety-boundaries.mdx) | 凭证、授权、审计、隐私和平台限制 |
+| [上游缺口](llmdoc/integration/upstream-and-platform-gaps.mdx) | Tool Bridge 与 HTBP 需要同步交付的能力 |
+| [工程基线](llmdoc/delivery/engineering-baseline.mdx) | React Native / Expo 取舍、版本和构建环境 |
+| [Definition of Done](llmdoc/delivery/definition-of-done.mdx) | 仓库、能力、版本与场景验收闸门 |
+| [Changelog](CHANGELOG.md) | 最新发布说明和历史版本摘要 |
+
+`llmdoc/` 是项目持续知识源；代码、HTBP 正式规范和 Tool Bridge 已发布 API 仍是事实真源。单次机器、
+commit 和 workflow 证据不复制成静态文档，以 Git 历史、Actions run 和发布资产为追溯来源。
 
 ## 仓库边界
 
@@ -130,19 +134,26 @@ pnpm build:ios:sim
 `build:android:preview` 生成 application id 为 `ai.tokenroll.toolbridgemobile.preview`、内嵌 JS 的内部体验
 APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，artifact 保留 14 天。该包使用
 生成的 debug test key 签名，只用于内部试用；它不是生产签名、商店 release 或 release DOD 证据。
-本地构建与安装证据见 [Android preview APK 验证记录](docs/verification/2026-08-19-android-preview-apk.md)。
+验证口径和已知证据边界见
+[验证证据索引](llmdoc/delivery/verification-evidence.mdx)。
 
 ## 版本与 GitHub 预发布
 
-当前 App/package 版本为 `0.0.9`。推送匹配 `vX.Y.Z` 的 tag 时，
-[`release-preview`](.github/workflows/release.yml) 会先验证 tag、`package.json`、Expo App 版本和对应
-`docs/releases/<tag>.md` 完全一致，再执行 frozen install、全量 verify、peer/dependency gate、Android
-preview APK clean build 与 iOS simulator build。所有门禁成功后才创建 GitHub Pre-release，并附带
-版本化 APK 与 SHA-256。
+当前 App/package 版本为 `0.0.9`。版本变更合并到 `main` 后，[`verify`](.github/workflows/verify.yml)
+全绿会触发 [`auto-release-preview`](.github/workflows/auto-release.yml)：当 `package.json` 对应 tag 尚不存在时，
+它复用该次已通过双端门禁的 Android artifact，核对 package、Expo App 版本与 `CHANGELOG.md` 最新版本段，
+再创建版本 tag 和 GitHub Pre-release，并附带版本化 APK 与 SHA-256。版本已发布时幂等跳过；新的 main
+提交已经出现时，由更新 commit 的 verify run 决定是否发布，避免发布过期 SHA。
+
+手工推送匹配 `vX.Y.Z` 的 tag 仍可触发 [`release-preview`](.github/workflows/release.yml) 作为恢复路径；
+该路径会重新执行 frozen install、全量 verify、peer/dependency gate、Android Preview APK clean build 与
+iOS simulator build。如果自动流程已经创建 tag、但发布资产阶段失败，也可以通过该 workflow 的
+`workflow_dispatch` 输入现有 tag 重新验证并补发。两条路径都只提取 [CHANGELOG](CHANGELOG.md) 最上方、
+与版本一致的段落作为 Release 正文。
 
 版本页面：[GitHub Releases](https://github.com/TokenRollAI/tool-bridge-mobile/releases)。当前自动发布仍是
 内部 Preview：APK 使用 debug test key，且不会自动上传商店、创建 production AAB/IPA 或假装满足
-[Release DOD](docs/DOD.md#8-release-dod)。
+[Release DOD](llmdoc/delivery/definition-of-done.mdx)。
 
 仓库同时绑定到 Expo 项目 [`@tokenroll/tool-bridge`](https://expo.dev/accounts/tokenroll/projects/tool-bridge)，
 development / preview / production 共用 EAS Project ID，但继续使用不同的 application id、bundle id、
@@ -171,7 +182,7 @@ pnpm verify:android:emulator
 或真机验收。
 
 Android 需要 Java 17；iOS 需要 macOS、Xcode 26.4+ 与 CocoaPods。涉及 push、后台、相机、音频、
-位置或权限的功能仍必须按 [DOD](docs/DOD.md) 留下双端真机证据。
+位置或权限的功能仍必须按 [DOD](llmdoc/delivery/definition-of-done.mdx) 留下双端真机证据。
 
 ## License
 
