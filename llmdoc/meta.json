@@ -1,0 +1,75 @@
+{
+  "schema": "llmdoc.meta/v3",
+  "baseline": {
+    "revision": "2ac033f4bbcad2afe93bf7f372d20df5269c4d3e",
+    "verifiedAt": "2026-08-24T16:36:12Z"
+  },
+  "documents": {
+    "architecture.mdx": {
+      "validatedRevision": null
+    },
+    "capabilities/architecture.mdx": {
+      "validatedRevision": null
+    },
+    "capabilities/bounded-linking-handoffs.mdx": {
+      "validatedRevision": null
+    },
+    "capabilities/bounded-media-source.mdx": {
+      "validatedRevision": null
+    },
+    "capabilities/local-device-inbox.mdx": {
+      "validatedRevision": null
+    },
+    "capabilities/local-notifications.mdx": {
+      "validatedRevision": null
+    },
+    "capabilities/local-timers.mdx": {
+      "validatedRevision": null
+    },
+    "delivery/eas-project-binding.mdx": {
+      "validatedRevision": null
+    },
+    "delivery/evidence-language.mdx": {
+      "validatedRevision": null
+    },
+    "delivery/github-preview-release.mdx": {
+      "validatedRevision": null
+    },
+    "delivery/verification-and-claims.mdx": {
+      "validatedRevision": null
+    },
+    "integration/manual-gateway-configuration.mdx": {
+      "validatedRevision": null
+    },
+    "integration/sdk-device-transport.mdx": {
+      "validatedRevision": null
+    },
+    "integration/trusted-grants.mdx": {
+      "validatedRevision": null
+    },
+    "integration/upstream-and-platform-gaps.mdx": {
+      "validatedRevision": null
+    },
+    "runtime/accessibility-semantics.mdx": {
+      "validatedRevision": null
+    },
+    "runtime/activity-history.mdx": {
+      "validatedRevision": null
+    },
+    "runtime/architecture.mdx": {
+      "validatedRevision": null
+    },
+    "runtime/command-retention.mdx": {
+      "validatedRevision": null
+    },
+    "runtime/safety-boundaries.mdx": {
+      "validatedRevision": null
+    }
+  },
+  "convergence": {
+    "capturedAt": "2026-08-24T16:36:12Z",
+    "source": "init",
+    "documentCount": 20,
+    "totalEstimatedTokens": 18962
+  }
+}
