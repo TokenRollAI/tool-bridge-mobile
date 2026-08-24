@@ -1,69 +1,69 @@
 {
   "schema": "llmdoc.meta/v3",
   "baseline": {
-    "revision": "2ac033f4bbcad2afe93bf7f372d20df5269c4d3e",
-    "verifiedAt": "2026-08-24T16:36:12Z"
+    "revision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675",
+    "verifiedAt": "2026-08-24T16:41:24.601Z"
   },
   "documents": {
     "architecture.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "capabilities/architecture.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "capabilities/bounded-linking-handoffs.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "capabilities/bounded-media-source.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "capabilities/local-device-inbox.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "capabilities/local-notifications.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "capabilities/local-timers.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "delivery/eas-project-binding.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "delivery/evidence-language.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "delivery/github-preview-release.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "delivery/verification-and-claims.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "integration/manual-gateway-configuration.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "integration/sdk-device-transport.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "integration/trusted-grants.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "integration/upstream-and-platform-gaps.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "runtime/accessibility-semantics.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "runtime/activity-history.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "runtime/architecture.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "runtime/command-retention.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     },
     "runtime/safety-boundaries.mdx": {
-      "validatedRevision": null
+      "validatedRevision": "f2a52cc4a16b0bd317e405bc6950be72d6b69675"
     }
   },
   "convergence": {
