@@ -16,7 +16,7 @@ P0 首个脚手架锁定：
 | --- | --- |
 | Node.js | `22.23.1` |
 | pnpm | `11.21.0` |
-| Expo SDK | `57.0.15` |
+| Expo SDK | `57.0.16`（保持 SDK 57，仅跟随官方兼容 patch） |
 | React Native | `0.86.2` |
 | React | `19.2.3` |
 | TypeScript | `6.0.3`，`strict` |
@@ -35,8 +35,9 @@ P0 首个脚手架锁定：
 `378c7a3e-437a-49a6-ae20-fef5af6f6188`。EAS project/slug 只表示云端项目身份，不替代上述平台安装
 标识隔离，也不代表 production transport 已配置。
 
-production transport 在上游 device client、pairing 和 ticket 契约交付前保持 `unconfigured`；脚手架不得
-自创 wire schema 绕过该闸门。
+production transport 已消费上游 `@tool-bridge/sdk/device@0.15.0`；正式 pairing/ticket 交付前只允许
+用户在本机配置 HTTPS Gateway + SecureStore API key 的内测 fallback，不能把它描述为正式配对或
+最小权限设备凭证。脚手架不得自创 wire schema 绕过该闸门。
 
 ## 理由
 

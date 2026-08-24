@@ -25,14 +25,17 @@
 > SDK expose 现在为每个公开工具同时提供输入/输出 JSON Schema，并只注册静态配置完整的 App/媒体
 > 工具；`phone/runtime.capabilities/pending_commands/cancel` 提供当前 credential principal 范围内的
 > 本地能力、活动命令与取消控制。
-> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.14.1`：Android/iOS transport 使用官方
+> 当前还实现了仅前台的 `phone/camera.capture_photo`：Ask every time / Trusted session 会在可见预览中
+> 由用户按快门并复核，用户主动选择的 Direct call 会在可见预览就绪后自动拍摄；照片重编码为有界 JPEG，
+> 通过 SDK 上传到固定 `camera/photos` context，协议结果只含受保护的 `node://` 引用与元数据。
+> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.15.0`：Android/iOS transport 使用官方
 > hello/ready/call/result、心跳、重连与 cancel，支持命令叶子并入 path 的新 device wire 与网关签发
-> invocation context；调用继续经过本地安全执行链，只有收到 gateway ready
+> invocation context，并使用官方 context object upload；调用继续经过本地安全执行链，只有收到 gateway ready
 > 才显示 online。Android Preview 0.0.6 已通过当前 Railway Gateway 的单次真机
 > `status/get` 直连读调用；该证据不外推到其他能力、iOS、后台、弱网或完整 pairing。
 > 当前内测入口允许用户在本机填写 Gateway HTTPS URL 与 API key，secret 只进入
 > SecureStore；这不等于 pairing、最小权限设备凭证或短期 ticket。设备本地信箱不是网关 command
-> mailbox；离线队列、objectRef 与远程 push 仍等待[上游交付](docs/UPSTREAM.md)。
+> mailbox；离线队列、远程 push 和通用 object 读取/生命周期契约仍等待[上游交付](docs/UPSTREAM.md)。
 
 ## 它解决什么问题
 
@@ -40,7 +43,7 @@ Agent 今天大多只能调用云端 API。这个项目让 Agent 在用户许可
 
 - “帮我找手机”——让指定设备响铃、震动、闪灯，并返回是否已被用户找到；
 - “在手机上放首歌”——控制本 App 的播放队列，或打开用户选择的音乐 App；
-- “看看路由器指示灯”——请求用户确认后调用相机，拍一张照片并返回对象引用；
+- “看看路由器指示灯”——在前台可见预览中拍照并返回受保护对象引用；Direct call 模式无需再按快门；
 - “我到公司时提醒我提交报销”——创建本地提醒或地理围栏任务；
 - “把这个地址在手机地图里打开”——通过受控深链交给系统应用。
 - “把每天的订阅摘要发到这台手机”——投递 Markdown 到设备本地信箱，用户可搜索、排序并管理已读状态。
@@ -86,7 +89,8 @@ Agent 今天大多只能调用云端 API。这个项目让 Agent 在用户许可
 1. **能力可发现**：Agent 以运行时 `~help` / capability profile 为准，不猜平台能力。
 2. **平台诚实**：不可用就返回结构化 unavailable，不伪装执行成功。
 3. **最小权限**：权限按功能逐次申请，不在首次启动索取全部权限。
-4. **敏感动作可见**：相机、麦克风、持续定位等必须有系统指示与本地确认。
+4. **敏感动作可见**：相机、麦克风、持续定位等必须有系统指示；逐次确认可由用户主动选择的
+   Direct call 前台策略替代，但不能绕过系统权限、可见 UI 或平台限制。
 5. **结果可审计**：每次远程调用都有调用方、能力、时间、决策和结果记录。
 6. **大对象走引用**：照片、音频和视频不上塞 HTBP JSON 帧。
 
@@ -112,6 +116,9 @@ SDK `deviceId` 默认由设备硬件标识（Android ID / iOS IDFV）经单向�
 不变；也可在同一表单中自定义（字母、数字、`.`、`_`、`-`，最长 64 字符）。设备声明挂载到
 `device/phone/<deviceId>`。该 deviceId 不是网关签发身份，手工入口只是 pairing 交付前的内测通道。
 
+相机上传要求目标 Gateway 已把可写 R2/S3 context 挂载到 `camera/photos`，且当前 API key/设备凭证
+拥有该 context 的写权限。App 不接收或记录 signed upload URL，也不会把照片字节放进 HTBP JSON result。
+
 原生构建命令：
 
 ```bash
@@ -127,7 +134,7 @@ APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，a
 
 ## 版本与 GitHub 预发布
 
-当前 App/package 版本为 `0.0.6`。推送匹配 `vX.Y.Z` 的 tag 时，
+当前 App/package 版本为 `0.0.9`。推送匹配 `vX.Y.Z` 的 tag 时，
 [`release-preview`](.github/workflows/release.yml) 会先验证 tag、`package.json`、Expo App 版本和对应
 `docs/releases/<tag>.md` 完全一致，再执行 frozen install、全量 verify、peer/dependency gate、Android
 preview APK clean build 与 iOS simulator build。所有门禁成功后才创建 GitHub Pre-release，并附带

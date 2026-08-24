@@ -1,17 +1,19 @@
 # SDK 使用与集成边界
 
-状态：`@tool-bridge/sdk/device@0.14.1` 已接入移动端；首页 URL + API key 内测入口和在线 direct-call
-设备本地信箱已实现，pairing、短期 ticket、gateway command mailbox 与动态 profile 仍未实现。
+状态：`@tool-bridge/sdk/device@0.15.0` 已接入移动端；首页 URL + API key 内测入口、在线 direct-call
+设备本地信箱与 context object upload 相机切片已实现，pairing、短期 ticket、gateway command mailbox
+与动态 profile 仍未实现。
 
 ## 1. 当前结论
 
 上游自 `@tool-bridge/sdk@0.11.0` 起通过独立子入口提供 React Native / Hermes-safe 设备客户端；
-本仓库当前精确锁定 0.14.1：
+本仓库当前精确锁定 0.15.0：
 
 ```ts
 import {
   connectDevice,
   createReactNativeWebSocketFactory,
+  uploadContextObject,
 } from '@tool-bridge/sdk/device'
 ```
 
@@ -25,6 +27,8 @@ import {
 - 网关拒绝凭证后清除 SecureStore envelope，凭证缺失或 audience 不匹配时 fail closed；
 - 首页允许用户手工保存/清除 Gateway HTTPS origin 与 API key，保存或清除前先停止旧 transport；
 - 首页只在 SDK 收到 `ready` 后显示 `online`。
+- 相机对象上传复用同一 SecureStore credential，通过 SDK 的 HTTP credential provider 放入
+  `Authorization` header；signed upload URL 不进入 App 日志、SQLite 或 result。
 
 `@tool-bridge/sdk` 包级 `engines.node` 仍是 `>=22`，包根入口也仍面向 Node。这里的 Node 版本约束作用于
 pnpm 安装、TypeScript、Metro 与 CI 构建环境，不意味着 React Native 设备内运行 Node。移动生产代码必须
@@ -117,9 +121,34 @@ Markdown 图片 URL 仍只是正文数据：不会进入 result/普通 audit/通
 用户必须主动点击；URL 可以使用任意通过本地 policy 的 HTTPS hostname，无需构建时配置。移动端逐跳复核
 URL，完成有界下载和内容校验后，只把 App 私有 `file://` 交给 React Native Image。
 
+### 3.1 相机对象上传
+
+0.15.0 的 `uploadContextObject` 先向 `<context>/create_upload` 请求授权，再用短期 signed URL 直接
+PUT Blob，成功返回 `{ uri, etag? }`。移动端 adapter 使用 `expo/fetch`，并在每次 HTTP 鉴权前重新读取
+SecureStore：base URL、deviceId、keyId 或 material 在流程中变化都会 fail closed；create-upload 的
+401/403 只清除与本次开始时完全匹配的 credential，避免误删刚轮换的新凭证。
+
+`phone/camera.capture_photo` 固定使用：
+
+```text
+contextPath = camera/photos
+entryPath   = <deviceId>/<sha256(commandId)>.jpg
+overwrite   = false
+contentType = image/jpeg
+```
+
+Gateway 必须预先把可写 R2/S3 context 挂载为 `camera/photos`，当前凭证也必须拥有写 scope；缺少挂载、
+权限或路径冲突都返回结构化错误，不回传服务器正文或 signed URL。SDK 返回的 `node://camera/photos/...`
+是稳定对象 URI；对象保留由 context 配置决定，读取时再签发短期 `$ref`。SDK 不返回对象 `expiresAt`，
+因此 camera result 不虚构过期字段。
+
+当前上游 API 已满足 context-scoped direct upload，但没有为移动调用显式声明 server-side commandId、
+最大字节数或一次性 completion grant。移动端以确定性 entry path、`overwrite: false`、重编码后 10 MiB
+硬上限和本地 command 幂等补强；更强的服务端绑定继续记为 U-7 剩余工作。
+
 ## 4. Call 适配与兼容降级
 
-0.14.1 的 `DeviceCallHandler` 提供：
+0.15.0 的 `DeviceCallHandler` 提供：
 
 ```ts
 type DeviceCallHandler = (call: {
@@ -143,10 +172,10 @@ type DeviceCallHandler = (call: {
   `runtime/commands/list` → `phone/runtime/commands` + `list`；无 owner/命令叶子、空段或
   尾随斜杠均返回 `invalid_argument`；
 - context 存在时，caller 稳定 `subjectId` 使用网关签发的 `caller.keyId`，展示名只来自
-  `caller.displayName/owner`；`createdAt` 使用网关值，`expiresAt` 取网关期限与本地接收后
-  30 秒的较早值；
+  `caller.displayName/owner`；`createdAt` 使用网关值，`expiresAt` 取网关期限与本地上限的较早值；
+  普通实时命令本地上限为 30 秒，相机因可见预览/拍摄/上传为 120 秒；
 - context 缺失时保留旧网关降级：caller 是 device credential 的非秘密 `keyId`，
-  `displayName` 固定为“Tool Bridge 网关”，时间改用本地接收时刻和 30 秒上限；这条
+  `displayName` 固定为“Tool Bridge 网关”，时间改用本地接收时刻和相同的 30/120 秒能力上限；这条
   降级不冒充具体 Agent 或网关权威时间；
 - `arguments` 不能覆盖 caller/context/deadline；
 - SDK cancel 的 `AbortSignal` 直接传播给本地 executor。
@@ -176,7 +205,7 @@ U-6 push registration/dispatch，也不会把 local notification/timer 当成后
 
 ## 6. WebSocket 鉴权
 
-0.14.1 继续保留官方 RN adapter 对原生 React Native WebSocket 非 WHATWG 第三个参数的支持，
+0.15.0 继续保留官方 RN adapter 对原生 React Native WebSocket 非 WHATWG 第三个参数的支持，
 因此 Android/iOS 原生
 环境可以把设备 SK 放在 upgrade `Authorization` header。这个能力不适用于浏览器或 RN Web。
 
@@ -222,8 +251,11 @@ SDK 的进程内 cache 不能替代 SQLite tombstone；WebSocket 重连也不能
 - 新 call path 拆分、context caller/权威时间、30 秒期限收紧、旧网关降级、标准错误映射、
   缺凭证和 audience mismatch fail-closed 测试；
 - registry → DeviceExpose JSON Schema 投影测试；
-- `scripts/verify-sdk-device-entry.mjs`：精确版本、package exports 与无 Node `ws/process.env` 泄漏；
-- Android 和 iOS production Metro export 成功。
+- SDK object upload contract：真实 helper 的 create-upload/PUT、HTTP Authorization、Blob、返回 URI，
+  以及相机固定 context/path、取消与错误映射测试；
+- `scripts/verify-sdk-device-entry.mjs`：精确 0.15.0、package exports、`uploadContextObject` 类型与无 Node
+  `ws/process.env` 泄漏；
+- Android 和 iOS production Metro export 成功；
 - Android Preview 0.0.6 覆盖安装后，当前 Railway Gateway 的单次真机
   `device/phone/9daf921003a4/status/get` 读调用返回并通过 live output schema，调用前后
   UI 均为 `online/active` 且无 `protocol_error`。
@@ -233,7 +265,8 @@ SDK 的进程内 cache 不能替代 SQLite tombstone；WebSocket 重连也不能
 - 除上述单一 `status/get` 路径外的真实 gateway 兼容矩阵、弱网/重连和服务器拒绝；
 - 手工 API key 对真实 gateway 的认证兼容，以及 pairing、credential issuance/rotation/revoke 端到端；
 - iOS/Android 真机前后台连接和长期稳定性；
-- mailbox、push 与后台可达。
+- mailbox、push 与后台可达；
+- 相机在真实 Gateway/R2 context 上的上传、双端真机预览/自动拍摄、权限拒绝与前台丢失矩阵。
 
 升级 SDK 时必须继续精确锁版本，并通过 frozen install、入口漂移 gate、unit/contract、双端 Metro、
 真实 gateway fixture 和按风险选择的双端原生/真机验证。
@@ -241,6 +274,8 @@ SDK 的进程内 cache 不能替代 SQLite tombstone；WebSocket 重连也不能
 本次 consumer 验证命令、结果与未覆盖项见
 [2026-08-19 SDK device integration 验证](verification/2026-08-19-sdk-device-integration.md)；手工 URL/API key
 配置的专项证据见
-[2026-08-19 手工 Gateway 配置验证](verification/2026-08-19-manual-gateway-configuration.md)。0.14.1 升级、
+[2026-08-19 手工 Gateway 配置验证](verification/2026-08-19-manual-gateway-configuration.md)。0.14.1 wire 升级、
 Android Preview 与单次真机 `status/get` 证据见
 [2026-08-23 SDK device wire 兼容验证](verification/2026-08-23-sdk-device-wire-compatibility.md)。
+本次 0.15.0 object upload、相机 consumer、双端 Metro 与未完成 native/真机边界见
+[2026-08-25 前台相机本地实现验证](verification/2026-08-25-camera-local-implementation.md)。
