@@ -23,7 +23,7 @@ code:
 ## 当前用途
 
 正式 pairing/U-2 尚未交付时，首页允许用户手工输入 Gateway HTTPS origin 与 API key，直接驱动
-`@tool-bridge/sdk/device@0.14.1` 连接。它是内测 fallback，不是 pairing、设备凭证签发、最小 scope、
+`@tool-bridge/sdk/device@0.15.0` 连接。它是内测 fallback，不是 pairing、设备凭证签发、最小 scope、
 rotation/revoke 或 U-3 短期 ticket。
 
 ## 输入与身份
@@ -45,6 +45,9 @@ rotation/revoke 或 U-3 短期 ticket。
   `expo-secure-store`；API key 不进入 SQLite、AsyncStorage、普通审计、日志、crash report、源码或
   `EXPO_PUBLIC_*`。
 - 手工 SecureStore envelope 的 audience 优先于可选 `EXPO_PUBLIC_GATEWAY_ORIGIN` 构建预置。
+- 同一 envelope 也供 SDK context object upload 的 HTTP credential provider 使用；每次 create-upload 前
+  重新校验 HTTPS audience、deviceId、keyId 与 material，Authorization 只进入 header。create-upload
+  401/403 只失效仍与本次完全匹配的 credential，不删除已轮换的新值。
 - 构建变量只可保存非秘密 URL；清除手工 key 后，如果存在 build origin，transport 回到
   `credentials_required`，否则回到 `unconfigured`。
 
@@ -85,5 +88,8 @@ SecureStore 写入或删除失败时不得自动重连；错误文案不包含�
 unit/component/fake WebSocket 已覆盖 strict 输入、secret 清空、成功/失败事件顺序、旧 socket 关闭和新
 audience header。`pnpm verify` 仍是本地 gate。
 
-没有真实 gateway URL/API key、真机 header、弱网/重连、服务端 permission matrix 或 revoke 证据时，
+相机使用该手工 credential 上传时，Gateway 还必须预挂载可写 `camera/photos` R2/S3 context 并授予写 scope；
+这不把长期 API key 变成 pairing、最小 scope 或 production compatibility 证据。
+
+没有真实 gateway URL/API key、真机 header、弱网/重连、对象存储、服务端 permission matrix 或 revoke 证据时，
 只能声称“手工配置入口已实现”，不能声称“真实 gateway 已兼容”或“设备已配对”。

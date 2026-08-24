@@ -24,9 +24,9 @@ code:
 
 ## 已发布事实
 
-- 移动端精确依赖 `@tool-bridge/sdk@0.14.1`，生产代码只从 `@tool-bridge/sdk/device` 导入。
+- 移动端精确依赖 `@tool-bridge/sdk@0.15.0`，生产代码只从 `@tool-bridge/sdk/device` 导入。
 - `/device` 导出 `connectDevice`、`createReactNativeWebSocketFactory`、DeviceExpose/frame/TBError 类型与
-  codec；包根仍是 Node 入口。
+  codec，并在 0.15.0 增加 `uploadContextObject`；包根仍是 Node 入口。
 - package `engines.node >=22` 由仓库 Node 22.23.1 构建环境满足，不代表手机运行 Node。
 - 当前 `dist/device.js` 只有 `partysocket/ws` 外部 import，不导入 Node `ws` 或 `process.env`；
   `scripts/verify-sdk-device-entry.mjs` 是升级漂移 gate。
@@ -53,6 +53,8 @@ code:
 - 在交给 SDK 的 raw WebSocket factory 外采集脱敏失败分类、阶段与 close code，不复制 SDK 协议状态机；
 - gateway rejection 后清 credential，缺 credential 和 audience mismatch fail closed；
 - call 进入既有 `LocalCommandExecutor`，继续受 SQLite 去重、probe、policy、确认、结果上限与审计约束。
+- 相机对象上传使用同一 transport 的 HTTP credential provider；它在 create-upload 前重新读取并校验
+  SecureStore credential，以 `expo/fetch` 执行 SDK 的 create-upload + Blob PUT，不复制 SDK 协议。
 
 首页现已提供手工 HTTPS origin + API key 内测入口。它经
 `ManualGatewayConfigurationController` 按“停止旧连接 -> 写/清 SecureStore -> 应用新 origin”切换，失败时
@@ -60,7 +62,7 @@ code:
 
 ## Call 归一化
 
-0.14.1 `DeviceCallHandler` 提供 `id/path/arguments/signal/context?`；命令不再单列 `tool`，而是
+0.15.0 延续 `DeviceCallHandler` 的 `id/path/arguments/signal/context?`；命令不再单列 `tool`，而是
 `path` 的最后一段。当前 adapter：
 
 - 保留 `id` 为 `commandId`；
@@ -69,9 +71,10 @@ code:
   空段或尾随斜杠为 SDK `invalid_argument`；
 - context 存在时，本地 caller `subjectId` 优先使用网关签发的 `caller.keyId`，
   display name 只来自 `caller.displayName/owner`；`createdAt` 使用网关值，`expiresAt` 取
-  网关期限与本地接收后 30 秒的较早值；
+  网关期限与本地期限的较早值；相机 `camera/capture_photo` 本地上限是 120 秒，其他 realtime command
+  是 30 秒；
 - context 缺失时是旧网关兼容降级：用 device credential 非秘密 `keyId` 作为
-  gateway principal，用本地接收时间和 30 秒上限；它不冒充具体 Agent 或网关权威时间；
+  gateway principal，用本地接收时间以及同一 120/30 秒能力上限；它不冒充具体 Agent 或网关权威时间；
 - `arguments` 只作为 capability 参数，不能覆盖 caller/context/deadline；
 - 传播 SDK AbortSignal；
 - 成功只返回本地 outcome value，失败归一为 SDK 规范 TBError。
@@ -79,6 +82,19 @@ code:
 context `caller.keyId` 是本次调用所用 SK 的网关签发非明文标识，不等于 device
 credential generation，也不足以独立完成 credential-bound trusted grant。context 缺失时同一
 device credential 的调用继续共享 caller bucket 和 timer ownership。
+
+## Context object upload
+
+0.15.0 的 `uploadContextObject` 接收 body、context/entry path、content type、credential provider、fetcher
+与 signal：先向 `<context>/create_upload` POST 元数据，再将 body PUT 到 grant 的短期 signed URL；成功只
+返回 `{ uri, etag? }`。grant 的 `expiresAt` 仅用于上传前检查，不进入 helper result，更不能作为稳定对象
+生命周期写入 capability result。
+
+移动 transport 的 HTTP credential provider 要求请求目的为 `http`，且 base URL、deviceId、audience、
+keyId 与 secret material 全部匹配本次开始时的 SecureStore envelope；Authorization 只进 header。SDK 在
+create-upload 401/403 后调用 invalidation 时，只清除仍与本次 envelope 完全相同的凭证，保留已经轮换的
+新值。相机 consumer 进一步固定 `camera/photos` 与确定性 entry path，并精确核对返回 URI；详细边界见
+`llmdoc/capabilities/foreground-camera-capture.mdx`。
 
 ## 状态和未完成项
 
@@ -106,21 +122,29 @@ suspend、配置切换、local revoke 和 credential invalidation 在调用 SDK 
 不信任远端可伪造的 close reason 来判断“主动关闭”。重连期间保留最近失败，SDK `ready`、新配置、
 `unconfigured` 与 `credentials_required` 清除旧诊断。
 
-U-1 已由该子入口交付并被消费。手工 URL/API key fallback 不完成 U-2 或 U-3。仍未完成：U-2
+U-1 已由该子入口交付并被消费。0.15.0 的 context-scoped direct upload 已解除 U-7 的 SDK API 缺口，
+但真实 Gateway/storage 联合验收及 command/device/MIME/大小/TTL/single-use 服务端强绑定仍未完成。
+手工 URL/API key fallback 不完成 U-2 或 U-3。仍未完成：U-2
 pairing/credential issuance、U-3 短期 ticket、完整真实 gateway compatibility matrix、绑定 device
-credential generation 的 invocation 身份、U-4 动态 profile、U-5 mailbox、U-6 push 和 U-7 objectRef。
+credential generation 的 invocation 身份、U-4 动态 profile、U-5 mailbox、U-6 push、受保护对象读取和
+完整 U-7。
 
 ## 证据边界
 
 已有 consumer 证据：真实 SDK supervisor + fake WebSocket contract、新 call path/context 归一化、双向
 schema registry expose、错误映射、凭证
 fail-closed、手工配置事件顺序、raw close 脱敏/旧连接隔离与 secret 不回显、双端 production Metro
-export、全量 `pnpm verify`。
+export、全量 `pnpm verify`。相机上传另以真实 SDK helper + mocked fetch 覆盖 create-upload、HTTP
+Authorization、Blob PUT、URI 核对和 credential 精确失效；这是 consumer contract，不是真实 Gateway E2E。
 
 2026-08-23 新增有限真实 Gateway 证据：Android Preview 0.0.6 保数据覆盖安装后，当前
 Railway Gateway 的单次 `device/phone/9daf921003a4/status/get` 调用返回并严格符合 live
 output schema；调用前后 App 均为 `online/active` 且无 `protocol_error`。只能声称该 Android
 真机路径与当前 Gateway 兼容，不外推到所有能力、iOS、后台、弱网、长连稳定性或完整 pairing。
+
+本轮相机工作树的双端 clean prebuild 与 production Metro 成功，但 Android 原生 build 被 Maven Central
+HTTP 403 阻塞，iOS 原生 build 因缺 CocoaPods/完整 Xcode 未运行；真实相机、系统指示/快门声与
+`camera/photos` Gateway/storage 均无真机或联合验收。
 
 这些不证明真实 gateway 对空 command node 的删除语义、真机 header/diagnostic、弱网/重连、前后台 OS
 行为、credential revoke、mailbox 或 push。诊断 UI 出现固定分类也不等于对应根因已经由真机日志或

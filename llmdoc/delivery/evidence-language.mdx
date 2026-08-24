@@ -42,11 +42,25 @@ code:
 4. **离线 mailbox/push**：必须有 U-5 enqueue/claim/cancel/expiry/result 和 U-6 token/opaque wake hint 的
    正式契约与端到端未送达/撤销证据；本地 SQLite 信箱、`scheduled` 通知或前台长连不构成这一层。
 
+## 相机与对象上传的证据层级
+
+1. **本地相机实现**：schema/controller/component/processor/uploader 自动化可证明前台取消、Direct/非
+   Direct UI 分支、JPEG/大小/路径/URI 边界和临时文件已知路径清理。
+2. **SDK 0.15 upload consumer**：使用发布的 `uploadContextObject` 且真实 helper + mocked fetch 覆盖
+   create-upload、HTTP Authorization、Blob PUT 与 credential 精确失效；这不等于真实 Gateway/storage。
+3. **原生配置与 bundle**：双端 clean prebuild/autolinking 和 production Metro 成功只证明生成配置与 JS
+   bundle；不能替代 Android/iOS native build 或真机相机行为。
+4. **真实 Gateway/storage**：必须单独验证预挂载可写 `camera/photos`、写 scope、稳定 URI、拒绝覆盖、
+   读取与保留；本地确定性 path/10 MiB 不是服务端 command/size/TTL/single-use 强绑定。
+5. **双端真机**：需覆盖权限首次请求/拒绝/撤销、前后台/锁屏、真实预览、Direct call 自动物理拍摄、系统
+   指示/快门声、上传取消与临时文件；组件测试、prebuild 和 Metro 不能替代。
+
 ## 当前可用措辞
 
-- 可写：`@tool-bridge/sdk/device@0.14.1 consumer wiring 已集成`、`新 device call path/context 本地适配已实现`、
+- 可写：`@tool-bridge/sdk/device@0.15.0 consumer wiring 已集成`、`新 device call path/context 本地适配已实现`、
+  `相机稳定 node URI upload consumer 本地已集成`、
   `本机 URL/API key fallback 已实现`、
-  `本地 executor 已实现持久化去重`、`Android clean debug build 已成功`、
+  `本地 executor 已实现持久化去重`、`本轮双端 clean prebuild 与 production Metro 已成功`、
   `设备在线且 direct call 已到达本地 executor 后，本机可安全保存并查询富内容消息；图片需用户逐图点按后
   按本地 policy 有界加载，并可 best-effort 请求固定本地提醒`。
 - 真机 `status/get` 成功后只可限定为：`0.14.1 新版直连 device wire 与当前 Railway
@@ -57,7 +71,12 @@ code:
 - 需限定：`Android/iOS 已配置某权限或 background mode`，后接“尚无双端真机行为证据”。
 - 不可写：`手工 API key 等于已配对`、`已接通 production gateway`、`Agent 可随时给离线手机发信`、
   `本地信箱已经实现后台 push/mailbox`、
-  `iOS 已构建`、`已通过真机验收`、`支持 objectRef`。
+  `本轮 Android/iOS 原生构建已通过`、`已通过真机验收`、`真实 Gateway/storage 已兼容`、
+  `通用 objectRef 读写已完成`、`服务端已强绑定 command/size/TTL/single-use`。
+
+本轮必须明确：Android `assembleDebug` 被 Maven Central HTTP 403 阻塞；iOS native build 因缺 CocoaPods/
+完整 Xcode 未运行；双端真机和真实 `camera/photos` Gateway/storage 均未验收。不能用历史 Android
+`status/get` 构建/真机证据覆盖当前相机工作树。
 
 ## DOD 勾选规则
 

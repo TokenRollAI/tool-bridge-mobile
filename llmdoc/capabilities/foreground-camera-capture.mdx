@@ -1,0 +1,111 @@
+---
+description: 仅前台相机拍摄的能力契约、Direct call UI、图像处理、对象上传与证据边界。
+kind: reference
+relations:
+  requires:
+    - runtime/safety-boundaries.mdx
+    - integration/sdk-device-transport.mdx
+  related:
+    - capabilities/architecture.mdx
+    - integration/upstream-and-platform-gaps.mdx
+    - delivery/evidence-language.mdx
+    - runtime/accessibility-semantics.mdx
+code:
+  paths:
+    - src/capabilities/camera/**
+    - src/ui/components/CameraCaptureModal.tsx
+    - src/runtime/applicationRuntime.ts
+    - src/gateway/sdkDeviceTransport.ts
+    - app/_layout.tsx
+    - app.config.ts
+---
+
+# 仅前台相机拍摄参考
+
+## 能力契约
+
+公开能力是 `phone/camera.capture_photo`。descriptor 固定为 `effect: write`、`risk: high`、
+`confirmation: always`、`queuePolicy: reject_offline`，每个 caller/全局每 60 秒最多 2/4 次，inline result
+最多 4 KiB。
+
+strict input 只有：
+
+- `purpose`：trim 后 1–120 个字符，拒绝 control 与 bidi override/isolate；
+- `facing: front | back`，默认 `back`；
+- `quality: low | medium | high`，默认 `medium`。
+
+strict result 只有稳定 `node://` `objectRef`、`mimeType: image/jpeg`、bytes、width、height 和照片字节
+SHA-256。照片内容、signed URL、App 私有 `file://` URI和对象 `expiresAt` 都不能进入结果；SDK 0.15 上传
+helper 也不返回对象过期时间。
+
+## 前台、权限与 UI 状态
+
+controller 在入口要求 React Native `AppState === active`，同一时刻只允许一个拍摄流程。probe 在前台分别
+读取 `CameraView.isAvailableAsync()` 与当前系统权限：可再次请求映射为 `permission_required`，永久拒绝或
+硬件不可用映射为 unavailable。远程 handler 不直接请求权限；权限只能由全屏相机流程或设置页的本地用户
+操作触发。
+
+`ApplicationRuntime.handleAppStateChange()` 一旦离开 `active` 就同步调用
+`cancelForForegroundLoss()`。controller 在取得照片、处理后和上传后也复检 foreground、取消和 deadline；
+因此等待权限/预览、拍摄、重编码或上传期间切后台都终止本次命令，不能转入后台或锁屏完成。
+
+descriptor 的 `confirmation: always` 不因 Direct call 改写。具体 UI 分支由本机 control mode 决定：
+
+- Ask every time / Trusted session：先经过通用本地确认；全屏可见预览中由用户按快门，随后可重拍或
+  “使用并上传”。
+- Direct call：本机全局策略跳过逐次确认；仍挂载全屏可见 `CameraView`，展示 caller、purpose、自动拍摄
+  提示和取消入口。`onCameraReady` 后延迟 300 ms 自动调用拍照，不提供用户快门，也不进入拍后复核。
+
+两条路径都设置 `exif: false`、`shutterSound: true`。系统相机指示、快门声和平台焦点顺序属于真机行为，
+不能由组件测试或配置推断。
+
+## 图像处理与临时文件
+
+系统产出的原始私有文件最大 30 MiB。处理层总是重编码 JPEG；low/medium/high 的最长边分别为
+1280/1920/2560，压缩系数分别为 0.55/0.75/0.9。输出最大 10 MiB，并复核 JPEG SOI/EOI 后计算
+SHA-256。已知的成功、失败、取消和重拍路径都对原始/处理文件 best-effort 删除，URI 不进入结果或日志。
+
+当前没有 App 崩溃后扫描相机孤儿文件的契约，不能把 best-effort 清理写成 crash-safe 生命周期保证。
+
+## SDK 对象上传
+
+移动端使用 `@tool-bridge/sdk/device@0.15.0` 的 `uploadContextObject` 和 `expo/fetch`：
+
+```text
+处理后的 JPEG Blob
+  -> POST camera/photos/create_upload（设备 HTTP Authorization）
+  -> PUT grant signed URL（二进制 body）
+  -> 严格核对稳定 node URI
+  -> capability result
+```
+
+上传参数固定为：
+
+- `contextPath = camera/photos`；
+- `contentType = image/jpeg`；
+- `entryPath = <deviceId>/<sha256(commandId)>.jpg`；
+- 不传 `overwrite: true`，因此 SDK 默认拒绝覆盖。
+
+uploader 只接受精确等于 `node://camera/photos/<entryPath>` 的 SDK 返回 URI，跨 context 或同 context
+错误 entry 都拒绝。Gateway 部署必须预挂载可写 `camera/photos` R2/S3 context，并给当前设备凭证写 scope。
+移动端确定性 entry path、10 MiB 上限与 overwrite=false 是 consumer 约束，不代表服务端 grant 已绑定
+commandId、最大大小、checksum/complete、单次消费或对象生命周期。
+
+transport 在 create-upload 前从 SecureStore 重新读取凭证，要求 HTTPS audience、deviceId、keyId 与 material
+都和本次开始时一致，Authorization 只进入 HTTP header。create-upload 返回 401/403 时，只清除仍与本次
+完全匹配的旧凭证，不能误删已经轮换的新值。signed URL 不进入 capability result。
+
+相机 call 的本地期限是 120 秒，普通 realtime command 是 30 秒；有权威 Gateway `expiresAt` 时仍取更早值，
+context 缺失的旧网关路径才完全使用本地 120 秒。
+
+## 验证边界
+
+当前可声明：本地相机实现与 SDK 0.15 object-upload consumer 已集成；专项自动化覆盖 schema、probe、两种
+UI 分支、前台丢失取消、图像/路径边界、真实 SDK helper 的 create-upload + Authorization + Blob PUT 与
+凭证精确失效；Android/iOS clean prebuild 和 production Metro bundle 已通过。
+
+当前不可声明：Android 原生 build 通过（Maven Central HTTP 403 阻塞）、iOS 原生 build 通过（缺 CocoaPods/
+完整 Xcode）、双端真机相机行为已验收、真实 Gateway + `camera/photos` storage 已兼容、通用 `objectRef`
+读取已完成，或服务端已经提供完整 U-7 强绑定。详细日期化证据见
+`docs/verification/2026-08-25-camera-local-implementation.md`。
+

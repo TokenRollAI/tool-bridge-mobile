@@ -5,6 +5,7 @@ relations:
   related:
     - runtime/architecture.mdx
     - capabilities/architecture.mdx
+    - capabilities/foreground-camera-capture.mdx
     - capabilities/local-device-inbox.mdx
     - integration/sdk-device-transport.mdx
 code:
@@ -83,10 +84,22 @@ code:
 - 媒体下载只落入 App 私有 cache，当前单源硬上限 25 MiB、本地解析时限 30 秒；失败、取消、停止和
   player 启动失败必须释放缓存，player 只接收解析后的 `file://` URI。
 - 媒体 metadata 最多等待 10 秒；直播、无效时长和超过 2 小时的来源必须在原生 `play()` 前拒绝。
-- 大对象必须使用上游受保护的 `objectRef` 流程；在该契约交付前不得用公开 URL 或 base64 冒充。
+- 大对象必须使用受保护对象流程，不得用公开 URL 或 base64 冒充。相机已通过 SDK 0.15 context object
+  upload 本地接入稳定 `node://` URI，但真实 Gateway/storage、受保护读取和完整 U-7 服务端强绑定尚未验收。
+- 相机照片、私有 `file://` URI、signed upload URL 与 EXIF 不得进入普通日志、audit 或 inline result；结果
+  只允许稳定对象 URI及 JPEG 大小/尺寸/SHA-256。移动端必须精确核对 Gateway 返回 URI，不能虚构对象
+  `expiresAt`，也不能把本地 path/大小/禁止覆盖当成服务端 grant 强绑定。
 
 ## 平台权限
 
+- 相机只允许 `AppState === active` 的全屏可见流程；权限、硬件 probe、用户拒绝和 foreground loss 优先于
+  远程命令。Direct call 只跳过逐次确认，预览就绪后自动拍摄且没有用户快门/复核；它不能隐藏拍摄、后台
+  完成或绕过系统指示。非 Direct 模式仍由用户按快门并复核上传。
+- 相机仅声明 Camera 权限，不声明麦克风、录音或图库；拍照配置关闭 EXIF，原始/输出分别限制 30/10 MiB，
+  按质量有界缩放并复核 JPEG。已知成功/失败/取消/重拍路径 best-effort 清理临时文件，但 crash 后孤儿清理
+  尚无契约。
+- 相机上传固定使用 `camera/photos` 和设备凭证 HTTP Authorization；Gateway 必须预挂载可写 context 并配置
+  scope。401/403 credential invalidation 只能删除仍与本次完全匹配的旧凭证，不得误删已轮换的新值。
 - 当前位置只使用逐次确认后的前台权限与一次性采集，不声明后台/Always/location foreground service。
 - 媒体只允许 App 自有、系统可见的播放会话；未声明录音权限。
 - attention 的 haptic 与固定本地 find-device sound 必须分别 probe、分别停止；sound 只使用 App 私有 cache
