@@ -115,6 +115,7 @@ import type { MediaSessionSnapshot } from '@/capabilities/media/controller'
 import type { TimerSnapshot } from '@/capabilities/productivity/timerController'
 import type {
   CapabilityContext,
+  CapabilityInvocationServices,
   CapabilitySnapshot,
   Reachability,
   RuntimeAppState,
@@ -235,9 +236,13 @@ export class ApplicationRuntime {
     return this.#initialization
   }
 
-  async executeLocalCommand(command: unknown, signal: AbortSignal): Promise<CommandOutcome> {
+  async executeLocalCommand(
+    command: unknown,
+    signal: AbortSignal,
+    invocationServices: CapabilityInvocationServices = {},
+  ): Promise<CommandOutcome> {
     if (this.#localCommandExecutor === null) throw new Error('运行时尚未初始化')
-    const outcome = await this.#localCommandExecutor.execute(command, signal)
+    const outcome = await this.#localCommandExecutor.execute(command, signal, invocationServices)
     // outcome 已是 executor 归一化的结果（成功或结构化失败）。刷新只更新本地 UI 快照，
     // 属于 executor 之外的副产物；它若抛错绝不能把命令 handler 变成裸 rejection——那会让网关只看到
     // 黑盒的 “device handler failed”，既隐藏真实 outcome，也让 Agent 无法判断命令是否已产生副作用。
@@ -691,7 +696,9 @@ export class ApplicationRuntime {
       this.#deviceTransport = new SdkDeviceTransport({
         baseUrl: storedCredential?.audienceOrigin ?? ExpoConfigHosts.gatewayOrigin(),
         credentialStore: this.#deviceCredentialStore,
-        executeCommand: (command, signal) => this.executeLocalCommand(command, signal),
+        executeCommand: (command, signal, invocationServices) => (
+          this.executeLocalCommand(command, signal, invocationServices)
+        ),
         onSnapshotChange: () => {
           this.#transportRevision += 1
           void this.refresh()
@@ -703,7 +710,7 @@ export class ApplicationRuntime {
         cameraCoordinator,
         new ExpoCameraPlatformAdapter(),
         new ExpoCameraPhotoProcessor(),
-        new SdkCameraObjectUploader(this.#deviceTransport),
+        new SdkCameraObjectUploader(),
       )
       cameraCoordinator.subscribe(() => {
         this.#cameraRevision += 1

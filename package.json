@@ -1,7 +1,7 @@
 {
   "name": "tool-bridge-mobile",
   "private": true,
-  "version": "0.0.10",
+  "version": "0.0.11",
   "type": "module",
   "main": "index.js",
   "packageManager": "pnpm@11.21.0",
@@ -18,7 +18,7 @@
     "prebuild:android": "expo prebuild --clean --platform android",
     "prebuild:ios": "expo prebuild --clean --platform ios",
     "build:android:debug": "NODE_ENV=development pnpm prebuild:android && cd android && NODE_ENV=development ./gradlew assembleDebug",
-    "build:android:preview": "APP_VARIANT=preview NODE_ENV=production pnpm prebuild:android && cd android && NODE_ENV=production ./gradlew assembleRelease",
+    "build:android:preview": "APP_VARIANT=preview NODE_ENV=production pnpm prebuild:android && cd android && APP_VARIANT=preview NODE_ENV=production ./gradlew assembleRelease",
     "build:ios:sim": "NODE_ENV=development pnpm prebuild:ios && NODE_ENV=development xcodebuild -workspace ios/ToolBridgeMobileDev.xcworkspace -scheme ToolBridgeMobileDev -configuration Debug -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "15.1.1",
-    "@tool-bridge/sdk": "0.15.0",
+    "@tool-bridge/sdk": "0.17.0",
     "expo": "57.0.16",
     "expo-application": "57.0.2",
     "expo-asset": "57.0.14",

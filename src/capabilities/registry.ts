@@ -6,6 +6,7 @@ import type {
   ConfirmationDetail,
   CapabilityDescriptor,
   CapabilityInvocation,
+  CapabilityInvocationServices,
   CapabilitySnapshot,
   MobileCapability,
 } from './types'
@@ -30,7 +31,10 @@ export type RegisteredCapability = Readonly<{
   outputSchema: z.ZodType
   parse(argumentsValue: unknown): ArgumentParseResult
   probe(context: CapabilityContext): Promise<CapabilityAvailability>
-  preflight(argumentsValue: unknown): Promise<void>
+  preflight(
+    argumentsValue: unknown,
+    invocationServices: CapabilityInvocationServices,
+  ): Promise<void>
 }>
 
 function capabilityKey(path: string, tool: string): string {
@@ -85,9 +89,9 @@ export class CapabilityRegistry {
           return { reason: 'probe_failed', status: 'unavailable' }
         }
       },
-      preflight: async argumentsValue => {
+      preflight: async (argumentsValue, invocationServices) => {
         const parsed = capability.inputSchema.parse(argumentsValue)
-        await capability.preflight?.(parsed)
+        await capability.preflight?.(parsed, invocationServices)
       },
     })
   }

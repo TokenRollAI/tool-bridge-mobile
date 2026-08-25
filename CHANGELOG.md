@@ -3,6 +3,35 @@
 本文件记录可发布版本中用户可感知的变化。最新版本必须位于最前，并与 `package.json`、
 `app.config.ts` 和发布 tag 保持一致；自动发布流水线只提取首个版本段作为 GitHub Release 正文。
 
+## [0.0.11] - 2026-08-26
+
+> Preview：修复真实远程拍照完成后无法交付对象，并升级 Tool Bridge device SDK；不是 production、
+> App Store 或 Google Play 正式版本。
+
+### 修复与变更
+
+- 将 `@tool-bridge/sdk` 精确升级到 0.17.0，移除已废弃的 `uploadContextObject` / `camera/photos` Context
+  假设，改用网关为每次 device call 注入的窄 `call.uploadObject` Store capability。
+- 相机结果改为稳定 `store://default/...` 引用；上传同时提交 JPEG size、SHA-256、脱敏文件名和基于
+  commandId 摘要的幂等键，并复核 Gateway 返回的对象描述。
+- 缺少本次调用的 Store upload capability 时，在本地确认、相机 probe 和打开预览前 fail closed。
+- Android Preview 构建在 prebuild 与 Gradle bundle 两阶段都保持 `APP_VARIANT=preview`，避免 native
+  package 是 Preview、内嵌 JS 配置却回落 Development。
+
+### 证据与已知限制
+
+- 旧 0.0.9 真机日志已证明远程命令实际打开相机、生成并重编码 JPEG；失败发生在旧 Context 上传，且照片
+  按设计只存在于 App 私有临时文件，不写入系统相册。
+- SDK 0.17 的 `call.uploadObject` 只使用 SDK 原始 call signal，不接受 App 的前台丢失 signal；上传开始后
+  切后台仍可能产生未返回的 Store 对象。当前会拒绝成功结果并清理本地文件，但完整中止需上游支持组合 signal。
+- Android Preview 0.0.11 已完成 APK native/JS variant 反查、ADB 覆盖安装和一次真实远程后摄调用；相机
+  日志记录 `takePictureInternal` / `onImageCaptured`，Store 对象为 `ready`，受保护读回的 JPEG MIME、
+  11,569 字节与 SHA-256 均和设备返回一致。
+- 同一源码随后在锁定 Node 22.23.1 下再次完成 release clean build；最终 APK 覆盖安装后恢复
+  active/online/direct_call。为避免重复副作用，没有在该重建 artifact 上再次拍照。
+- iOS simulator build 已尝试，但本机只有 Command Line Tools、缺少完整 Xcode/CocoaPods，尚未形成 iOS
+  build 或真机证据；未自动安装系统级工具链。
+
 ## [0.0.10] - 2026-08-25
 
 > Preview：修复 Android/iOS 前台相机硬件探测，不是 production、App Store 或
@@ -85,6 +114,7 @@
 
 - 首个内部 Preview，包含移动端脚手架、前台 device transport、本地安全执行链和基础能力。
 
+[0.0.11]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.11
 [0.0.10]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.10
 [0.0.9]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.9
 [0.0.8]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.8

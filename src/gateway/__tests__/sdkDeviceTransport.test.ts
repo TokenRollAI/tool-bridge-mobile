@@ -1,7 +1,9 @@
 import {
   decodeDeviceFrame,
   encodeDeviceFrame,
+  TBError,
 } from '@tool-bridge/sdk/device'
+import { fetch as expoFetch } from 'expo/fetch'
 import { z } from 'zod'
 
 import { CapabilityRegistry } from '@/capabilities/registry'
@@ -13,7 +15,7 @@ import {
   SdkDeviceTransport,
 } from '@/gateway/sdkDeviceTransport'
 
-import type { MobileCapability } from '@/capabilities/types'
+import type { CapabilityInvocationServices, MobileCapability } from '@/capabilities/types'
 import type { LocalCommand } from '@/commands/types'
 import type {
   DeviceCredentialEnvelope,
@@ -25,12 +27,20 @@ import type {
   DeviceWebSocketFactoryInput,
 } from '@tool-bridge/sdk/device'
 
+jest.mock('expo/fetch', () => ({ fetch: jest.fn() }))
+
+const mockedFetch = expoFetch as jest.MockedFunction<typeof expoFetch>
+
 const credential: DeviceCredentialEnvelope = {
   audienceOrigin: 'https://gateway.example.com',
   deviceId: 'device_01',
   keyId: 'device_key_01',
   material: 'opaque-device-secret',
   version: 1,
+}
+
+async function unavailableUploadObject(): Promise<never> {
+  throw new TBError('unavailable', 'fixture call has no upload capability', { retryable: false })
 }
 
 class MemoryCredentialStore implements DeviceCredentialStore {
@@ -152,6 +162,8 @@ async function eventually(assertion: () => void): Promise<void> {
 }
 
 describe('@tool-bridge/sdk/device mobile adapter', () => {
+  beforeEach(() => { mockedFetch.mockReset() })
+
   test('按最后一个斜杠拆分多层 device call path，并拒绝空路径段', () => {
     expect(parseDeviceCallPath('status/get')).toEqual({
       command: 'get',
@@ -191,6 +203,7 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       id: 'call_01',
       path: 'fixture/get',
       signal,
+      uploadObject: unavailableUploadObject,
     })).resolves.toEqual({ observed: true })
     expect(signals).toEqual([signal])
     expect(commands).toEqual([expect.objectContaining({
@@ -210,6 +223,7 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       id: 'call_01b',
       path: 'phone/fixture/get',
       signal: new AbortController().signal,
+      uploadObject: unavailableUploadObject,
     })
     expect(commands[1]).toMatchObject({ path: 'phone/fixture', tool: 'get' })
 
@@ -218,6 +232,7 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       id: 'call_camera',
       path: 'camera/capture_photo',
       signal: new AbortController().signal,
+      uploadObject: unavailableUploadObject,
     })
     expect(commands[2]).toMatchObject({
       expiresAt: new Date(
@@ -239,16 +254,19 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       id: 'call_02',
       path: 'fixture/get',
       signal: new AbortController().signal,
+      uploadObject: unavailableUploadObject,
     })).rejects.toMatchObject({ code: 'permission_denied', retryable: false })
   })
 
   test('优先消费网关 context，收紧期限，缺失时才降级为 credential principal', async () => {
     const commands: LocalCommand[] = []
+    const invocationServices: CapabilityInvocationServices[] = []
     const handler = createSdkDeviceCallHandler({
       callerSubjectId: 'credential_principal_01',
       clock: () => new Date('2026-08-19T10:00:00.000Z'),
-      executeCommand: async command => {
+      executeCommand: async (command, _signal, services) => {
         commands.push(command)
+        invocationServices.push(services)
         return { ok: true, value: null }
       },
     })
@@ -272,6 +290,7 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
       id: 'context_01',
       path: 'status/get',
       signal: new AbortController().signal,
+      uploadObject: unavailableUploadObject,
     })
     expect(commands[0]).toMatchObject({
       arguments: {
@@ -293,30 +312,40 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
         createdAt: '2026-08-19T09:59:59.000Z',
         expiresAt: '2026-08-19T10:05:00.000Z',
         traceId: 'trace_02',
+        upload: {
+          expiresAt: '2026-08-19T10:00:10.000Z',
+          maxBytes: 10 * 1024 * 1024,
+          maxObjects: 1,
+        },
       },
       id: 'context_02',
       path: 'runtime/commands/list',
       signal: new AbortController().signal,
+      uploadObject: unavailableUploadObject,
     })
     expect(commands[1]).toMatchObject({
       caller: { displayName: 'agent:planner', subjectId: 'gateway_caller_key_02' },
       createdAt: '2026-08-19T09:59:59.000Z',
-      expiresAt: '2026-08-19T10:00:30.000Z',
+      expiresAt: '2026-08-19T10:00:10.000Z',
       path: 'phone/runtime/commands',
       tool: 'list',
     })
+    expect(invocationServices[1]?.uploadObject).toEqual(expect.any(Function))
 
     await handler({
       arguments: {},
       id: 'context_fallback',
       path: 'status/get',
       signal: new AbortController().signal,
+      uploadObject: unavailableUploadObject,
     })
     expect(commands[2]).toMatchObject({
       caller: { displayName: 'Tool Bridge 网关', subjectId: 'credential_principal_01' },
       createdAt: '2026-08-19T10:00:00.000Z',
       expiresAt: '2026-08-19T10:00:30.000Z',
     })
+    expect(invocationServices[0]).toEqual({})
+    expect(invocationServices[2]).toEqual({})
   })
 
   test('真实 SDK supervisor 使用 RN header、hello/ready/call/result，仅在 Disabled 时 suspend', async () => {
@@ -453,6 +482,112 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     // 只有 Disabled/紧急停用才无条件 suspend。
     await transport.updateLifecycle('background', false)
     expect(transport.getSnapshot().state).toBe('suspended')
+    await transport.stopForLocalRevocation()
+  })
+
+  test('真实 SDK 用每次 call 的窄 capability 上传 Store 对象', async () => {
+    const harness = createWebSocketHarness()
+    const storeUri = 'store://default/AbCdEfGhIjKlMnOpQrStUv' as const
+    const checksum = 'd'.repeat(64)
+    const body = new Blob(['jpeg'], { type: 'image/jpeg' })
+    mockedFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        expiresAt: '2099-08-26T01:05:00.000Z',
+        headers: {},
+        maxBytes: 10 * 1024 * 1024,
+        method: 'PUT',
+        objectUri: storeUri,
+        transport: 'relay',
+        uploadId: 'upload_01',
+        uploadToken: 'relay-upload-token',
+        url: 'https://gateway.example.com/~store/uploads/upload_01',
+      }), { status: 200 }) as unknown as Awaited<ReturnType<typeof expoFetch>>)
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        checksum: { algorithm: 'sha256', value: checksum },
+        contentType: 'image/jpeg',
+        createdAt: '2026-08-26T01:00:00.000Z',
+        readyAt: '2026-08-26T01:00:01.000Z',
+        size: body.size,
+        uri: storeUri,
+      }), { status: 200 }) as unknown as Awaited<ReturnType<typeof expoFetch>>)
+
+    const transport = new SdkDeviceTransport({
+      baseUrl: 'https://gateway.example.com',
+      credentialStore: new MemoryCredentialStore(credential),
+      executeCommand: async (_command, _signal, invocationServices) => {
+        if (invocationServices.uploadObject === undefined) {
+          return {
+            error: { code: 'unavailable', message: '缺少上传能力', retryable: false },
+            ok: false,
+          }
+        }
+        const uploaded = await invocationServices.uploadObject({
+          body,
+          checksum: { algorithm: 'sha256', value: checksum },
+          contentType: 'image/jpeg',
+          filename: 'capture.jpg',
+          idempotencyKey: 'camera-call_01',
+          size: body.size,
+        })
+        return { ok: true, value: { objectRef: uploaded.uri } }
+      },
+      registry: createRegistry(),
+      webSocketFactory: harness.factory,
+    })
+
+    await transport.updateLifecycle('active', true)
+    await eventually(() => expect(harness.sockets).toHaveLength(1))
+    const socket = harness.sockets[0]
+    if (socket === undefined) throw new Error('missing SDK fixture WebSocket')
+    socket.open()
+    await eventually(() => expect(socket.sent).toHaveLength(1))
+    socket.receive({ type: 'ready', mountPath: 'device/phone/device_01' })
+    await eventually(() => expect(transport.getSnapshot().state).toBe('ready'))
+    socket.sent.length = 0
+
+    socket.receive({
+      arguments: {},
+      context: {
+        caller: { keyId: 'gateway_caller_key_04', owner: 'agent:camera' },
+        createdAt: '2026-08-26T01:00:00.000Z',
+        expiresAt: '2099-08-26T01:02:00.000Z',
+        traceId: 'trace_04',
+        upload: {
+          expiresAt: '2099-08-26T01:02:00.000Z',
+          maxBytes: 10 * 1024 * 1024,
+          maxObjects: 1,
+          token: 'call-upload-token',
+        },
+      },
+      id: 'call_upload_01',
+      path: 'fixture/get',
+      type: 'call',
+    })
+
+    await eventually(() => expect(socket.sent).toHaveLength(1))
+    expect(decodeDeviceFrame(socket.sent[0] ?? '')).toEqual({
+      id: 'call_upload_01',
+      ok: true,
+      type: 'result',
+      value: { objectRef: storeUri },
+    })
+    expect(mockedFetch).toHaveBeenCalledTimes(2)
+    const [grantUrl, grantInit] = mockedFetch.mock.calls[0] ?? []
+    expect(String(grantUrl)).toBe('https://gateway.example.com/system/store/create_upload')
+    expect(new Headers(grantInit?.headers).get('x-tb-store-capability'))
+      .toBe('call-upload-token')
+    expect(new Headers(grantInit?.headers).has('authorization')).toBe(false)
+    expect(JSON.parse(String(grantInit?.body))).toEqual({
+      checksum: { algorithm: 'sha256', value: checksum },
+      contentType: 'image/jpeg',
+      filename: 'capture.jpg',
+      idempotencyKey: 'camera-call_01',
+      size: body.size,
+    })
+    const [uploadUrl, uploadInit] = mockedFetch.mock.calls[1] ?? []
+    expect(String(uploadUrl)).toBe('https://gateway.example.com/~store/uploads/upload_01')
+    expect(new Headers(uploadInit?.headers).get('x-tb-store-upload')).toBe('relay-upload-token')
+    expect(uploadInit?.body).toBe(body)
     await transport.stopForLocalRevocation()
   })
 

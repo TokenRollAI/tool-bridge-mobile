@@ -28,10 +28,10 @@
 > 本地能力、活动命令与取消控制。
 > 当前还实现了仅前台的 `phone/camera.capture_photo`：Ask every time / Trusted session 会在可见预览中
 > 由用户按快门并复核，用户主动选择的 Direct call 会在可见预览就绪后自动拍摄；照片重编码为有界 JPEG，
-> 通过 SDK 上传到固定 `camera/photos` context，协议结果只含受保护的 `node://` 引用与元数据。
-> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.15.0`：Android/iOS transport 使用官方
+> 通过本次 call 的窄 Store capability 上传，协议结果只含受保护的 `store://default/...` 引用与元数据。
+> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.17.0`：Android/iOS transport 使用官方
 > hello/ready/call/result、心跳、重连与 cancel，支持命令叶子并入 path 的新 device wire 与网关签发
-> invocation context，并使用官方 context object upload；调用继续经过本地安全执行链，只有收到 gateway ready
+> invocation context，并使用官方 call-scoped Store upload；调用继续经过本地安全执行链，只有收到 gateway ready
 > 才显示 online。Android Preview 0.0.6 已通过当前 Railway Gateway 的单次真机
 > `status/get` 直连读调用；该证据不外推到其他能力、iOS、后台、弱网或完整 pairing。
 > 当前内测入口允许用户在本机填写 Gateway HTTPS URL 与 API key，secret 只进入
@@ -120,8 +120,9 @@ SDK `deviceId` 默认由设备硬件标识（Android ID / iOS IDFV）经单向�
 不变；也可在同一表单中自定义（字母、数字、`.`、`_`、`-`，最长 64 字符）。设备声明挂载到
 `device/phone/<deviceId>`。该 deviceId 不是网关签发身份，手工入口只是 pairing 交付前的内测通道。
 
-相机上传要求目标 Gateway 已把可写 R2/S3 context 挂载到 `camera/photos`，且当前 API key/设备凭证
-拥有该 context 的写权限。App 不接收或记录 signed upload URL，也不会把照片字节放进 HTBP JSON result。
+相机上传要求目标 Gateway 支持 SDK 0.17 Store，并为本次 device call 注入有界、短期 upload capability。
+App 不接收 capability token、signed upload URL，也不会把照片字节放进 HTBP JSON result；缺少该 capability
+时会在本地确认和打开相机前拒绝。
 
 原生构建命令：
 
@@ -139,7 +140,7 @@ APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，a
 
 ## 版本与 GitHub 预发布
 
-当前 App/package 版本为 `0.0.10`。版本变更合并到 `main` 后，[`verify`](.github/workflows/verify.yml)
+当前 App/package 版本为 `0.0.11`。版本变更合并到 `main` 后，[`verify`](.github/workflows/verify.yml)
 全绿会触发 [`auto-release-preview`](.github/workflows/auto-release.yml)：当 `package.json` 对应 tag 尚不存在时，
 它复用该次已通过双端门禁的 Android artifact，核对 package、Expo App 版本与 `CHANGELOG.md` 最新版本段，
 再创建版本 tag 和 GitHub Pre-release，并附带版本化 APK 与 SHA-256。版本已发布时幂等跳过；新的 main

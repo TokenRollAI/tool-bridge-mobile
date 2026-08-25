@@ -14,13 +14,17 @@ import type {
   CapabilityAvailability,
   CapabilityContext,
   CapabilityInvocation,
+  CapabilityObjectUploader,
 } from '@/capabilities/types'
 
 export interface CameraObjectUploader {
   upload(input: Readonly<{
     body: Blob
+    bytes: number
     commandId: string
+    sha256: string
     signal: AbortSignal
+    uploadObject: CapabilityObjectUploader
   }>): Promise<Readonly<{ objectRef: string }>>
 }
 
@@ -51,6 +55,13 @@ export class CameraCaptureController {
     if (this.#active !== null) {
       throw new ToolExecutionError('camera_busy', '相机正在处理另一条拍摄请求', true)
     }
+    if (invocation.uploadObject === undefined) {
+      throw new ToolExecutionError(
+        'camera_upload_unavailable',
+        'gateway 未提供本次相机调用所需的 Store 上传能力',
+        false,
+      )
+    }
 
     const active: ActiveCapture = {
       abortController: new AbortController(),
@@ -79,8 +90,11 @@ export class CameraCaptureController {
       this.#assertMayContinue(active, invocation.expiresAt)
       const uploaded = await this.uploader.upload({
         body: processed.body,
+        bytes: processed.bytes,
         commandId: invocation.commandId,
+        sha256: processed.sha256,
         signal: active.abortController.signal,
+        uploadObject: invocation.uploadObject,
       })
       this.#assertMayContinue(active, invocation.expiresAt)
       return {
@@ -135,7 +149,17 @@ export class CameraCaptureController {
     }
   }
 
-  async preflight(facing: CameraCaptureArguments['facing']): Promise<void> {
+  async preflight(
+    facing: CameraCaptureArguments['facing'],
+    hasUploadCapability: boolean,
+  ): Promise<void> {
+    if (!hasUploadCapability) {
+      throw new ToolExecutionError(
+        'camera_upload_unavailable',
+        'gateway 未提供本次相机调用所需的 Store 上传能力',
+        false,
+      )
+    }
     const facings = await this.platform.getAvailableFacings()
     if (!facings.includes(facing)) {
       throw new ToolExecutionError(

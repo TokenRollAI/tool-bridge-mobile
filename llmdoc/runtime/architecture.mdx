@@ -38,7 +38,7 @@ code:
 ## 目的
 
 本地安全执行边界独立于 transport：最初可由 fake dispatcher 驱动，现在也由
-`@tool-bridge/sdk/device@0.15.0` call adapter 驱动；重复投递、用户等待、崩溃和日志处理都不能因
+`@tool-bridge/sdk/device@0.17.0` call adapter 驱动；重复投递、用户等待、崩溃和日志处理都不能因
 transport 变化产生隐蔽副作用或泄漏敏感参数。
 
 ## 核心组件
@@ -47,8 +47,9 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
   transport 与 UI snapshot；AppState 变化时重新 probe 并 suspend/resume realtime。
 - `src/gateway/sdkDeviceTransport.ts`：只用上游公开 `/device` 入口，把 SDK call 归一为本地 command；
   负责按最后一个 `/` 拆分 wire node path/command、消费网关 caller 与权威时间、credential
-  audience、RN header、AppState lifecycle 和 ready-only online。context 缺失时才降级到 credential
-  principal + 本地 30 秒期限。
+  audience、RN header、AppState lifecycle 和 ready-only online；只把当前 call 的窄 Store uploader 作为
+  ephemeral invocation service 下传。context 缺失时才降级到 credential principal + 本地期限，且不提供
+  Store uploader。
 - `src/gateway/manualGatewayConfigurationController.ts`：协调首页手工 Gateway URL/API key 的配置切换；
   保存和清除都先停止旧 transport，SecureStore 失败时保持断开。
 - `src/runtime/localCommandExecutor.ts` (`LocalCommandExecutor`)：唯一的本地 command 执行入口和安全顺序。
@@ -61,8 +62,8 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
 - `src/ui/components/PendingConfirmationModal.tsx`：挂在 root runtime provider 下的全局裁决入口；无论当前
   tab 或首页滚动位置，都显示队列中最早一项并提供一次允许/拒绝。
 - `src/capabilities/camera/`：`CameraCaptureCoordinator` 只保存一个待处理 UI request，controller 维持
-  foreground/cancel/deadline 边界，processor 重编码并清理私有文件，object uploader 通过 SDK 0.15 写入
-  固定 `camera/photos`。
+  foreground/cancel/deadline 边界，processor 重编码并清理私有文件，object uploader 只消费本次调用的
+  SDK 0.17 `call.uploadObject` 并核对 `store://default/...` descriptor。
 - `src/ui/components/CameraCaptureModal.tsx`：挂在 root layout 的全屏可见相机流程；非 Direct 模式提供用户
   快门、重拍与上传复核，Direct call 在 preview ready 后自动拍摄并直接提交。
 - `src/storage/commandRepository.ts` (`SqliteCommandRepository`)：以 `commandId` 原子 claim、保存终态并
@@ -87,7 +88,7 @@ envelope schema
   -> existing/in-flight commandId 去重
   -> capability resolve + arguments schema
   -> expiry / cancellation
-  -> capability preflight
+  -> capability preflight（含当前 call 的 ephemeral service）
   -> caller/global admission
   -> live probe
   -> local policy
@@ -200,8 +201,9 @@ handler 内若存在“主持久化 + 外部提示”两个阶段，主操作必
 - timer 表只保存确定性 id、owner、来源 command、`firesAt` 与状态；确认用 `purpose` 不进入 DB、原生通知、
   command outcome 或普通 audit。
 - 相机照片和私有文件 URI不进入 SQLite、普通 audit、日志、accessibility announcement 或 inline result；
-  只有稳定 `node://camera/photos/...`、JPEG MIME、大小、尺寸与 SHA-256 可进入结果。signed upload URL
-  只在 SDK helper 内短暂使用，临时照片在已知路径 best-effort 清理，尚无 crash 后孤儿扫描保证。
+  只有稳定 `store://default/...`、JPEG MIME、大小、尺寸与 SHA-256 可进入结果。Store capability 与 relay
+  URL 只在 SDK 内短暂使用，不能持久化或写日志；临时照片在已知路径 best-effort 清理，尚无 crash 后孤儿
+  扫描保证，且不保存到系统相册。
 - opaque credential envelope 只由 SecureStore facade 管理；其结构不是上游 credential wire 契约。手工
   API key 不进入 SQLite、日志、审计、源码或 `EXPO_PUBLIC_*`；手工 credential 的 audience 优先于可选
   的非秘密 build origin。

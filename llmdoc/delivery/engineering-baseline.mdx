@@ -33,14 +33,14 @@ code:
   Modules API 暴露最小类型化 Kotlin/Swift 接口，不提供任意 Intent、selector 或原生对象入口。
 - SQLite 是 command、audit、timer、inbox 等持久域的事实真源；SecureStore/平台安全存储只保存身份与
   credential material；所有远端输入从 `unknown` 开始并经 Zod strict schema 校验。
-- 官方 `@tool-bridge/sdk/device` 提供 device wire、session 和 context object upload；移动仓库不复制
+- 官方 `@tool-bridge/sdk/device` 提供 device wire、session 和 call-scoped Store upload；移动仓库不复制
   `@tool-bridge/core` 私有协议源码，也不手写第二份 wire schema。
 - Android 先形成首个端到端切片，iOS 从第一天保持工程可构建和共有协议对等。
 
 ## 版本与平台
 
 当前锁定 Node 22.23.1、pnpm 11.21.0、Expo 57.0.16、React Native 0.86.2、React 19.2.3、TypeScript
-6.0.3 和 `@tool-bridge/sdk` 0.15.0。Android min/compile/target 是 24/36/36、Java 17；iOS deployment
+6.0.3 和 `@tool-bridge/sdk` 0.17.0。Android min/compile/target 是 24/36/36、Java 17；iOS deployment
 target 是 16.4。
 
 版本事实真源依次是 `package.json`、`.node-version`、`pnpm-lock.yaml`、`app.config.ts` 与生成配置。
@@ -59,6 +59,11 @@ SDK/bundler/native gate。
 `@tokenroll/tool-bridge`，slug `tool-bridge` 与 project id `378c7a3e-437a-49a6-ae20-fef5af6f6188`；项目
 身份不是 secret，也不替代 application id、transport 环境、签名或 production 配置隔离。
 
+Preview Android 构建必须在 clean prebuild 与 Gradle/Metro 两个 shell 阶段都显式传
+`APP_VARIANT=preview`；只在 prebuild 设置会生成“原生 package 是 Preview、内嵌 JS config 是 Development”
+的分裂 artifact。配置 gate 必须检查脚本的两次传递，产物验收还要同时反查 `aapt` package/version 与
+`assets/app.config` 的 name、scheme、appVariant 和 `productionTransport`。
+
 ## 代码与状态组织
 
 - `app/`：Expo Router 页面；`src/ui/`：共享 UI、accessibility 和用户确认；
@@ -76,7 +81,7 @@ React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/ret
 
 | 领域 | 选择与边界 |
 | --- | --- |
-| device transport / object upload | `@tool-bridge/sdk/device@0.15.0`；生产代码只导入 `/device`，包根 Node 入口不能进入手机 bundle。 |
+| device transport / object upload | `@tool-bridge/sdk/device@0.17.0`；生产代码只导入 `/device`，包根 Node 入口不能进入手机 bundle；对象上传只消费当前 call 的 `uploadObject`。 |
 | router / handoff | `expo-router`、`expo-linking`；URL 与 map 目标在业务层先受控，Linking 只做 probe/handoff。 |
 | credential | `expo-secure-store`；secret 不进入 SQLite、构建环境、日志或仓库。 |
 | persistence | `expo-sqlite`；事务承载幂等、crash recovery、有界保留和专用内容域。 |
@@ -98,7 +103,8 @@ React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/ret
 - 前台 realtime 使用官方 SDK 与 React Native WebSocket header adapter；当前手工 origin/API key 只是
   pairing/ticket 前 fallback。
 - HTTP 由受控 adapter 包装 timeout、错误与 redaction；有副作用请求不用通用自动重试。
-- 大对象通过 Gateway 签发的短期授权直传对象存储；相机已有 upload consumer，完整服务端强绑定和读取
+- 大对象通过 Gateway 为当前 call 签发的短期 Store capability 直传对象存储；相机已有 0.17 upload
+  consumer，并完成一次 Android 真实 Store 上传/stat/受保护回读。完整服务端强绑定、通用读取和其余矩阵
   仍待上游/联合验收。
 - 后台目标是 U-5 mailbox 的 pull/claim/result 配合 U-6 原生 APNs/FCM token 与 opaque wake hint；不把
   Expo Push Service 设为协议依赖，也不把本地 notification/timer 当作 push。

@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
@@ -16,9 +17,18 @@ const easProject = {
 }
 
 const releaseMetadata = {
-  androidVersionCode: 10,
-  iosBuildNumber: '10',
-  version: '0.0.10',
+  androidVersionCode: 11,
+  iosBuildNumber: '11',
+  version: '0.0.11',
+}
+
+const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+const previewBuild = packageJson.scripts?.['build:android:preview']
+if (
+  typeof previewBuild !== 'string'
+  || previewBuild.match(/APP_VARIANT=preview/g)?.length !== 2
+) {
+  throw new Error('Android Preview 构建必须在 prebuild 与 Gradle bundle 两阶段保持 APP_VARIANT=preview')
 }
 
 for (const [variant, expectedIdentifier] of Object.entries(variants)) {
@@ -62,7 +72,7 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   if (config.extra?.gatewayOrigin !== 'https://gateway.example.com') {
     throw new Error(`${variant}: gateway HTTPS origin 未规范化`)
   }
-  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.15.0') {
+  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.17.0') {
     throw new Error(`${variant}: production transport 版本标记不匹配`)
   }
   // 三个环境共用同一套品牌图标：安装标识虽然隔离，视觉标识不应分叉。
