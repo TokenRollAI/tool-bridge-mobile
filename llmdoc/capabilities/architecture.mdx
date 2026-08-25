@@ -71,18 +71,23 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 - descriptor 是 high-risk write、`confirmation: always`、foreground-only、`reject_offline`；Direct call
   由本机全局策略跳过逐次确认，但仍进入全屏可见预览，预览就绪后自动拍摄且没有用户快门/拍后复核。
   Ask every time / Trusted session 则在通用确认后由用户按快门，并允许重拍或确认上传。
-- strict 输入只有安全 `purpose`、前/后摄像头和 low/medium/high 质量；argument-aware preflight 在本地
-  确认前用原生只读枚举拒绝设备不存在的 requested facing。通用 probe 先检查前台，再要求原生枚举至少
-  存在一个 `front | back`，随后才读取系统 Camera 权限；native 异常或未知 facing 稳定映射为
-  `camera_probe_failed`，不向远端返回原始详情。等待预览、重编码或上传期间离开 `active` 都立即取消，
-  不允许后台或锁屏完成。
+- strict 输入只有安全 `purpose`、前/后摄像头和 low/medium/high 质量；argument-aware preflight 先要求
+  当前 SDK call 的 Store upload capability，再用原生只读枚举拒绝设备不存在的 requested facing。两项都
+  发生在 admission、通用 probe 和本地确认之前，缺上传能力时不会先弹确认或打开相机。通用 probe 先检查
+  前台，再要求原生枚举至少存在一个 `front | back`，随后才读取系统 Camera 权限；native 异常或未知
+  facing 稳定映射为 `camera_probe_failed`，不向远端返回原始详情。
 - 原图最大 30 MiB；本地移除 EXIF 并按质量重编码为最长边 1280/1920/2560 的 JPEG，输出最大 10 MiB，
   复核 JPEG 边界并计算 SHA-256。临时文件在已知成功/失败/取消/重拍路径 best-effort 清理。
-- 处理后对象固定上传到 `camera/photos/<deviceId>/<sha256(commandId)>.jpg`，禁止覆盖并严格核对 SDK 返回
-  的稳定 `node://` URI；inline result 只含 URI、MIME、大小、尺寸与 SHA-256，不含照片、signed URL、
-  私有文件 URI或虚构的对象过期时间。
-- 本地自动化覆盖相机 schema、状态机、处理和 SDK upload consumer；prebuild、Metro、原生 build、双端
-  真机、真实 Gateway/storage、系统指示/快门声与 crash 后孤儿清理必须按各自证据层单独判断。
+- 处理后对象经本次调用的 `call.uploadObject` 上传；consumer 提交 JPEG Blob、真实大小、SHA-256 checksum、
+  command hash 文件名和 idempotency key，并严格核对 SDK 返回的稳定 `store://default/...` descriptor。
+  inline result 只含 URI、MIME、大小、尺寸与 SHA-256，不含照片、Store capability、relay URL、私有文件 URI
+  或虚构的对象过期时间。
+- 离开 `active` 会取消本地相机/处理和结果提交；SDK 0.17 的 call-scoped upload 不能接收 controller 的本地
+  AbortSignal，因此上传已开始后不能保证终止 Store HTTP 副作用。当前 Gateway 的约 60 秒权威期限会收紧
+  相机 120 秒本地 ceiling。
+- 本地自动化覆盖相机 schema、状态机、处理和 SDK upload consumer；2026-08-26 的 Android Preview
+  后置 Direct call 已完成真实拍摄、Store 上传/stat/受保护回读。iOS、其余权限/镜头/生命周期矩阵、系统
+  指示/快门声和 crash 后孤儿清理仍必须按各自证据层单独判断。
 
 完整 schema、UI 状态、处理、上传、部署前置与证据上限见
 `llmdoc/capabilities/foreground-camera-capture.mdx`。
@@ -228,8 +233,8 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 - inbox image hostname：没有配置入口；media 与 App handoff 仍分别使用 `EXPO_PUBLIC_MEDIA_HOSTS` 和
   `EXPO_PUBLIC_LINK_HOSTS`，其 allowlist 语义没有因信箱图片 policy 放宽而改变
 - local timer persistence：`src/storage/migrations/0002_timers.ts` + `src/storage/timerRepository.ts`
-- camera upload context：固定 `camera/photos`，由 Gateway 部署预挂载可写 R2/S3 context 并授予设备凭证
-  写 scope，不提供构建时可改的 context path
+- camera Store upload：没有构建时 context path；只消费 Gateway 为当前 device call 下发的短期 upload
+  capability，能力缺失或已过期即 fail closed
 
 ## 证据上限
 

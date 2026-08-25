@@ -34,7 +34,61 @@ code:
 结果采用“已验证 / 未验证 / 受阻”三段式。受阻必须写清外部服务、工具链或上游契约缺口；失败和未运行
 不能归类为成功。日期化记录可以证明某个历史 commit/artifact，但不能作为当前工作树的持续事实。
 
-## 本次 2026-08-25：Android 前置相机 probe 修复
+## 2026-08-26：SDK 0.17 Android 后置相机与 Store 闭环
+
+### 已验证
+
+- 第一份 0.0.11 Android Preview APK 基于当前同一源码完成 clean prebuild + release Gradle build，但构建
+  Node 是不符合仓库锁定值的 v26.7.0。`aapt` 反查 APK 为
+  `ai.tokenroll.toolbridgemobile.preview`、versionName `0.0.11`、versionCode `11`；`assets/app.config` 同时
+  是 Preview、scheme `toolbridgemobile-preview`、`appVariant` 为 `preview`、`productionTransport` 为
+  `@tool-bridge/sdk/device@0.17.0`。这证明此前 native Preview / JS Development 的 artifact 分裂已在该
+  APK 修复；下述物理拍照与 Store 闭环只归属于这第一份 APK。
+- 第一份 APK 通过 `adb install -r` 覆盖安装到序列号 `4245df0c`、model `25102RKBEC` 的 Xiaomi 真机并
+  保留配置；调用时 App 为前台，Tool Bridge mount `device/phone/9daf921003a4` 为 online，control mode
+  是 `direct_call`。
+- 清空 logcat 后只发起一次新的副作用调用：
+
+  ```sh
+  tb call 'device/phone/9daf921003a4/camera/capture_photo' \
+    --args '{"purpose":"验证 SDK 0.17 远程拍照与 Store 上传","facing":"back","quality":"low"}'
+  ```
+
+  调用 exit 0，返回 JPEG `960x1280`、11,569 bytes、SHA-256
+  `ed963a13b1ebcc4b72b9fc73d8ff7243368419674dd4eb822a3f784da0b6371a` 与
+  `store://default/cLa2joV--mLdCxHKew74smc-`。同一清空后的窗口记录 camera 0，
+  `takePictureInternal` 为 02:23:31.157、`onImageCaptured` 为 02:23:31.380，并在 02:23:32.698 正常
+  disconnect；这些事件只归属于该 02:23 新调用，不借用旧窗口日志。
+- 对同一 Store URI 执行 `system/store/stat` 得到 `ready`、`image/jpeg`、11,569 bytes、producer
+  `device:9daf921003a4`；随后通过受保护读取实际得到 11,569 bytes，重新计算 SHA-256 与相机 result 完全
+  一致。照片不写入系统相册，因而 Gallery 没有新条目不构成失败。
+- 随后用仓库锁定的 Node 22.23.1 对同一源码重新 clean build 第二份 Preview APK，SHA-256 为
+  `94d2cf9d23a94368126f65c440a826b4a3eccb36ce4d8563ddef2c761a8b043d`；其 `aapt` package/version 与
+  `assets/app.config` 身份均与第一份完全一致，并再次 `adb install -r` 成功。安装后立即发起的第一次
+  `status/get` 因正常的短暂断连读取失败；3 秒后只读 `status/get` 恢复为 App `active`、mount online、
+  control mode `direct_call`。这证明最终 Node 22 artifact 可构建、身份一致、可覆盖安装并恢复在线，
+  不等于它已重复通过物理拍照/Store 闭环。
+
+### 受阻
+
+- `mise exec node@22.23.1 -- pnpm build:ios:sim` 已实际尝试；prebuild 创建 `ios/` 后，本机 PATH 没有
+  CocoaPods，Expo 尝试自动安装未继续，随后 `xcodebuild` 因 active developer directory 是
+  `/Library/Developer/CommandLineTools`、缺少完整 Xcode 而 exit 1。`command -v pod` 为空，Homebrew 也未
+  安装 CocoaPods；因此是环境阻塞，不是 iOS build 成功，也不是未尝试。
+
+### 未验证与限制
+
+- 这次闭环只覆盖 Android Preview、后置镜头、已授 Camera 权限、前台、Direct call 和单个 Store 对象；
+  不覆盖 iOS、前置镜头、首次授权/拒绝/撤销、Ask/Trusted UI、系统指示/快门声、后台/锁屏、弱网/重连、
+  Store 拒绝/过期/保留或完整 command/device/MIME/size/TTL/checksum/single-use 强绑定。
+- 最终 Node 22.23.1 APK 没有发起第二次相机副作用调用；不能把第一份同源码、同身份但由 Node 26.7.0 构建
+  的真机拍照/Store 成功直接记为最终 artifact 的物理能力验收。
+- SDK 0.17 `call.uploadObject` 的 options 不接收相机 controller 的本地 AbortSignal。前台丢失可阻止本地
+  相机/处理继续和成功结果提交，但不能保证已经开始的 Store HTTP 上传被终止；本次成功不能补足该证据。
+- 当前 Gateway 的约 60 秒 call authority 会收紧移动端相机 120 秒本地 ceiling；本次约 2 秒的成功不验证
+  接近 deadline 的确认、处理或上传行为。
+
+## 2026-08-25/26：旧 SDK 0.15 Preview artifact 与上传失败
 
 ### 已验证
 
@@ -43,22 +97,27 @@ code:
   0.0.9/versionCode 9。
 - ADB 现场确认 App 为 resumed 前台、manifest 声明 Camera、runtime permission 已授予、AppOps 为
   foreground，`dumpsys media.camera` 可见 back/front Camera ID `[0,1]`。
-- 题述真实 Gateway call 到达设备的 Direct call 真机路径后，原生枚举选择并打开前置 `CameraId-1`，完成
-  可见预览、预览就绪后的自动拍摄和本地图像处理。这个证据只覆盖 Android 前置镜头和上传前本地链路。
+- 2026-08-26 01:47 的另一个旧 APK camera 1 窗口含 `takePictureInternal`、非空
+  `onImageCaptured`、3264x2448 JPEG 编码及 1920x2560 重编码；它证明该 artifact 能完成 Android 前置
+  硬件成像和本地处理，但不是下述 01:57 调用的日志窗口。
+- 01:57 清空后的独立窗口只把下述真实 Gateway call 与 camera 0 open/close session 关联起来，没有
+  `takePictureInternal`；因此不能把 01:47 的详细成像日志归到 01:57 调用。
 - 相机专项 Jest 为 4 suites / 16 tests passed，TypeScript typecheck 与 ESLint passed；覆盖 native facing
   adapter、front/back preflight、权限映射、处理和上传 consumer 的本地边界。
 
 ### 受阻
 
-- 同一次真实 Gateway call 在 create-upload 阶段因 Gateway 未挂载可写 `camera/photos` context 而失败；
+- 2026-08-26 01:57（Asia/Shanghai）的旧 APK 真实 Gateway call 在 create-upload 阶段因 Gateway 未挂载
+  可写 `camera/photos` context 而失败；
   没有完成对象 PUT、稳定 `node://` result 或真实 Gateway/storage E2E，不能把此前的本地处理成功写成完整
-  `capture_photo` 成功。
+  `capture_photo` 成功。该失败属于 0.0.9 / SDK 0.15 artifact，不能描述当前 0.17 Store 契约。
 - iOS 只完成 clean prebuild。本机缺少 CocoaPods 和完整 Xcode，仅有
   `/Library/Developer/CommandLineTools`，因此未通过 `xcodebuild`，不能记为 iOS 原生 build。
 
 ### 未验证
 
-- iOS build/真机相机、Android 后置镜头、双端真机、真实 `camera/photos` 对象上传与受保护读取均未验证；
+- 在该旧 artifact 窗口中，iOS build/真机相机、Android 后置镜头、双端真机、真实 `camera/photos` 对象
+  上传与受保护读取均未验证；
   首次授权/拒绝/设置撤销、后台/锁屏、弱网、系统相机指示/快门声和 crash 后孤儿清理也不能从本次证据
   外推。
 
@@ -128,9 +187,9 @@ Gateway matrix 要逐能力验证 hello/expose/call/cancel/result、schema/error
 拒绝/revoke、断线重连和脱敏，不能用另一个能力的成功外推。`status/get` 的单次 Android 路径不覆盖 inbox、
 camera、iOS、后台、弱网或长期稳定。
 
-对象上传另需验证预挂载 context、device scope、create-upload、PUT、禁止覆盖、checksum/size/MIME/TTL/
-single-use、稳定 URI、受保护读取与保留；SDK helper 的 mocked fetch 或本地确定性 path 不等价于服务端强
-绑定。
+Store 对象上传另需验证 call-scoped capability、create-upload、relay PUT、checksum/size/MIME/TTL/
+single-use、稳定 URI、受保护读取与保留；SDK mocked fetch、本地 filename/idempotency key 或一次真实对象
+闭环都不等价于服务端完整强绑定。
 
 push/mailbox 需验证 enqueue/claim/lease/cancel/expiry/result、token rotation/revoke、opaque wake hint、
 未送达与进程终止恢复；本地 notification、timer、SQLite inbox 或前台长连不构成该证据。

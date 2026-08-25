@@ -27,7 +27,7 @@ code:
 ## 背景
 
 当前 `trusted_session` 只是 SQLite `settings` 中的全局 control mode 字符串，没有生产 UI、TTL、
-capability scope 或 credential-instance binding。0.15.0 SDK call 已提供网关签发的 caller 与权威期限，
+capability scope 或 credential-instance binding。0.17.0 SDK call 已提供网关签发的 caller 与权威期限，
 移动端以 `caller.keyId` 作为稳定调用主体；该字段仍不是当前 device credential identity/generation。
 
 产品方向已经明确：用户信任的是与设备建立认证关系的 Gateway Credential，而不是经该 Gateway 发起调用的
@@ -67,7 +67,7 @@ expiresAt/deadline。动态 capability profile、mailbox/push 和 `objectRef` �
 
 ## 未实现与实现约束
 
-- **未实现**：当前代码和上游 `@tool-bridge/sdk/device@0.15.0` 仍没有 credential-instance binding 与
+- **未实现**：当前代码和上游 `@tool-bridge/sdk/device@0.17.0` 仍没有 credential-instance binding 与
   trusted grant；不能因 caller/deadline context 已交付就声称 trusted grant 已可用。
 - 实现后，同一 Gateway Credential 下的多个 Agent 共享本地 grant；若需要 per-Agent 限制，应由 Gateway 权限体系
   承担，移动端不复制 Agent ACL。

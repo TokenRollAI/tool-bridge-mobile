@@ -100,7 +100,8 @@ notification 和 timer 能力。
 - App/map handoff：通用入口只接受配置 allowlist 内的 HTTPS；地图入口只接受结构化 coordinate/query 并
   由本地构造平台目标；成功只表示系统接受 handoff。
 - 相机：仅前台、全屏可见。Ask/Trusted 由用户确认、按快门和复核；用户主动选择 Direct call 后仍显示
-  预览和取消入口，只省略逐次确认、快门及拍后复核。结果只含稳定 `node://` URI 与有界 JPEG 元数据。
+  预览和取消入口，只省略逐次确认、快门及拍后复核。结果只含稳定 `store://default/...` URI 与有界 JPEG
+  元数据；照片不保存到系统相册。
 - 位置：MVP 只有逐次确认后的单次 foreground fix 与地图 handoff；持续/后台定位不在 MVP。
 - 设备信箱：在线 direct call 到达后才写入有界 SQLite 内容域；Markdown 用 RN 白名单组件，图片必须用户
   逐图授权后有界加载；清除内容不清 command 防重放。本地信箱不等于离线 mailbox/push。
