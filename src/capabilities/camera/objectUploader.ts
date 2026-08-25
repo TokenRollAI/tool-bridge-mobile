@@ -3,47 +3,49 @@ import * as Crypto from 'expo-crypto'
 
 import { ToolExecutionError } from '@/capabilities/types'
 
-import { CAMERA_UPLOAD_CONTEXT_PATH } from './schema'
-
 import type { CameraObjectUploader } from './controller'
-import type { SdkDeviceTransport } from '@/gateway/sdkDeviceTransport'
+import type { CapabilityObjectUploader } from '@/capabilities/types'
 
 export class SdkCameraObjectUploader implements CameraObjectUploader {
-  constructor(private readonly transport: Pick<
-    SdkDeviceTransport,
-    'getSnapshot' | 'uploadContextObject'
-  >) {}
-
   async upload(input: Readonly<{
     body: Blob
+    bytes: number
     commandId: string
+    sha256: string
     signal: AbortSignal
+    uploadObject: CapabilityObjectUploader
   }>): Promise<Readonly<{ objectRef: string }>> {
     if (input.signal.aborted) throw cancelledError()
-    const deviceId = this.transport.getSnapshot().deviceId
-    if (deviceId === null) {
-      throw new ToolExecutionError('camera_upload_unavailable', '设备连接身份不可用', true)
-    }
     const commandHash = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       input.commandId,
     )
     if (input.signal.aborted) throw cancelledError()
-    const entryPath = `${deviceId}/${commandHash}.jpg`
-    const expectedUri = `node://${CAMERA_UPLOAD_CONTEXT_PATH}/${entryPath}`
 
     try {
-      const uploaded = await this.transport.uploadContextObject({
+      const uploaded = await input.uploadObject({
         body: input.body,
+        checksum: { algorithm: 'sha256', value: input.sha256 },
         contentType: 'image/jpeg',
-        contextPath: CAMERA_UPLOAD_CONTEXT_PATH,
-        entryPath,
-        signal: input.signal,
+        filename: `${commandHash}.jpg`,
+        idempotencyKey: `camera-${commandHash}`,
+        size: input.bytes,
       })
-      if (uploaded.uri !== expectedUri) {
+      if (
+        !/^store:\/\/default\/[A-Za-z0-9_-]{22,64}$/.test(uploaded.uri)
+        || uploaded.contentType !== 'image/jpeg'
+        || uploaded.size !== input.bytes
+        || (
+          uploaded.checksum !== undefined
+          && (
+            uploaded.checksum.algorithm !== 'sha256'
+            || uploaded.checksum.value !== input.sha256
+          )
+        )
+      ) {
         throw new ToolExecutionError(
           'camera_upload_invalid',
-          'gateway 返回的对象引用与本次相机上传路径不匹配',
+          'gateway 返回的 Store 对象描述与本次照片不匹配',
           false,
         )
       }
@@ -60,7 +62,14 @@ export class SdkCameraObjectUploader implements CameraObjectUploader {
         if (error.code === 'not_found') {
           throw new ToolExecutionError(
             'camera_upload_unavailable',
-            `gateway 未挂载可写 context ${CAMERA_UPLOAD_CONTEXT_PATH}`,
+            'gateway Store 上传能力不可用',
+            false,
+          )
+        }
+        if (error.code === 'unavailable' && !error.retryable) {
+          throw new ToolExecutionError(
+            'camera_upload_unavailable',
+            'gateway 未为本次调用提供可用的 Store 上传能力',
             false,
           )
         }

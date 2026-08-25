@@ -8,7 +8,11 @@ import { localCommandSchema } from '@/commands/types'
 import { LocalAdmissionController } from './localAdmissionController'
 
 import type { CapabilityRegistry, RegisteredCapability } from '@/capabilities/registry'
-import type { CapabilityContext, CapabilityDescriptor } from '@/capabilities/types'
+import type {
+  CapabilityContext,
+  CapabilityDescriptor,
+  CapabilityInvocationServices,
+} from '@/capabilities/types'
 import type { CommandRepository } from '@/commands/repository'
 import type { CommandOutcome, LocalCommand, StoredCommand, ToolError } from '@/commands/types'
 import type {
@@ -105,7 +109,11 @@ export class LocalCommandExecutor {
     this.#idGenerator = dependencies.idGenerator ?? Crypto.randomUUID
   }
 
-  async execute(input: unknown, signal: AbortSignal): Promise<CommandOutcome> {
+  async execute(
+    input: unknown,
+    signal: AbortSignal,
+    invocationServices: CapabilityInvocationServices = {},
+  ): Promise<CommandOutcome> {
     const parsedCommand = localCommandSchema.safeParse(input)
     if (!parsedCommand.success) {
       return failure({
@@ -131,7 +139,7 @@ export class LocalCommandExecutor {
       tool: command.tool,
     })
     this.#abortControllers.set(command.commandId, abortController)
-    const execution = this.#executeCommand(command, abortController.signal)
+    const execution = this.#executeCommand(command, abortController.signal, invocationServices)
     this.#inFlight.set(command.commandId, execution)
     try {
       return await execution
@@ -175,7 +183,11 @@ export class LocalCommandExecutor {
       ))
   }
 
-  async #executeCommand(command: LocalCommand, signal: AbortSignal): Promise<CommandOutcome> {
+  async #executeCommand(
+    command: LocalCommand,
+    signal: AbortSignal,
+    invocationServices: CapabilityInvocationServices,
+  ): Promise<CommandOutcome> {
     const existing = await this.dependencies.commandRepository.get(command.commandId)
     if (existing !== null) {
       const outcome = replayOutcome(existing)
@@ -218,7 +230,7 @@ export class LocalCommandExecutor {
     }
 
     try {
-      await capability.preflight(parsed.data)
+      await capability.preflight(parsed.data, invocationServices)
     } catch (error) {
       if (error instanceof ToolExecutionError) {
         return this.#completeWithoutHandler(command, capability, 'rejected', failure({
@@ -315,6 +327,7 @@ export class LocalCommandExecutor {
         commandId: command.commandId,
         createdAt: command.createdAt,
         expiresAt: command.expiresAt,
+        ...invocationServices,
       }, signal)
       const jsonValue = z.json().safeParse(value)
       if (!jsonValue.success) {

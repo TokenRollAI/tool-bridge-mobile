@@ -16,7 +16,10 @@ const invocation: CapabilityInvocation = {
   commandId: 'command_01',
   createdAt: '2026-08-25T08:00:00.000Z',
   expiresAt: '2099-08-25T08:02:00.000Z',
+  uploadObject: jest.fn(),
 }
+
+const STORE_OBJECT_REF = 'store://default/AbCdEfGhIjKlMnOpQrStUv'
 
 const baseContext: CapabilityContext = {
   appState: 'active',
@@ -57,7 +60,7 @@ function harness() {
     process: jest.fn(async () => processed),
   }
   const uploader: CameraObjectUploader = {
-    upload: jest.fn(async () => ({ objectRef: 'node://camera/photos/device/shot.jpg' })),
+    upload: jest.fn(async () => ({ objectRef: STORE_OBJECT_REF })),
   }
   const controller = new CameraCaptureController(coordinator, platform(), processor, uploader)
   return { cleanup, controller, coordinator, processor, uploader }
@@ -87,7 +90,7 @@ describe('CameraCaptureController', () => {
       bytes: 4,
       height: 1080,
       mimeType: 'image/jpeg',
-      objectRef: 'node://camera/photos/device/shot.jpg',
+      objectRef: STORE_OBJECT_REF,
       sha256: 'a'.repeat(64),
       width: 1920,
     })
@@ -96,7 +99,12 @@ describe('CameraCaptureController', () => {
       'medium',
       expect.any(AbortSignal),
     )
-    expect(uploader.upload).toHaveBeenCalledWith(expect.objectContaining({ commandId: 'command_01' }))
+    expect(uploader.upload).toHaveBeenCalledWith(expect.objectContaining({
+      bytes: 4,
+      commandId: 'command_01',
+      sha256: 'a'.repeat(64),
+      uploadObject: invocation.uploadObject,
+    }))
     expect(cleanup).toHaveBeenCalledTimes(1)
   })
 
@@ -121,6 +129,20 @@ describe('CameraCaptureController', () => {
     }, { ...baseContext, appState: 'background', controlMode: 'direct_call' }, invocation, new AbortController().signal))
       .rejects.toMatchObject({ code: 'foreground_required' })
     expect(coordinator.getRequest()).toBeNull()
+  })
+
+  test('call 未携带 Store 上传能力时在打开相机前拒绝', async () => {
+    const { controller, coordinator, processor, uploader } = harness()
+    const { uploadObject: _uploadObject, ...withoutUpload } = invocation
+    await expect(controller.capture({
+      facing: 'back',
+      purpose: '验证旧网关降级',
+      quality: 'medium',
+    }, { ...baseContext, controlMode: 'direct_call' }, withoutUpload, new AbortController().signal))
+      .rejects.toMatchObject({ code: 'camera_upload_unavailable', retryable: false })
+    expect(coordinator.getRequest()).toBeNull()
+    expect(processor.process).not.toHaveBeenCalled()
+    expect(uploader.upload).not.toHaveBeenCalled()
   })
 
   test('处理中切到后台会取消上传并清理临时文件', async () => {
@@ -199,11 +221,15 @@ describe('CameraCaptureController', () => {
       {} as CameraObjectUploader,
     )
 
-    await expect(controller.preflight('front')).rejects.toMatchObject({
+    await expect(controller.preflight('front', true)).rejects.toMatchObject({
       code: 'camera_facing_unavailable',
       retryable: false,
     })
-    await expect(controller.preflight('back')).resolves.toBeUndefined()
+    await expect(controller.preflight('back', true)).resolves.toBeUndefined()
+    await expect(controller.preflight('back', false)).rejects.toMatchObject({
+      code: 'camera_upload_unavailable',
+      retryable: false,
+    })
   })
 
   test('capability 使用 high/write/always 并有 strict 默认参数', () => {

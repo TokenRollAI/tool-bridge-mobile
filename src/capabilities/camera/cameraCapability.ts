@@ -42,7 +42,10 @@ export function createCameraCaptureCapability(
     ),
     inputSchema: cameraCaptureArgumentsSchema,
     outputSchema: cameraCaptureResultSchema,
-    preflight: argumentsValue => controller.preflight(argumentsValue.facing),
+    preflight: (argumentsValue, invocationServices) => controller.preflight(
+      argumentsValue.facing,
+      invocationServices.uploadObject !== undefined,
+    ),
     probe: context => controller.probe(context.appState),
   }
 }

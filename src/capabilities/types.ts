@@ -6,6 +6,10 @@ import type {
   QueuePolicy,
   Risk,
 } from '@/commands/types'
+import type {
+  CallUploadObjectOptions,
+  StoreObjectDescriptor,
+} from '@tool-bridge/sdk/device'
 import type { z } from 'zod'
 
 
@@ -24,12 +28,21 @@ export type CapabilityContext = Readonly<{
   reachability: Reachability
 }>
 
+export type CapabilityObjectUploader = (
+  options: CallUploadObjectOptions,
+) => Promise<StoreObjectDescriptor>
+
+export type CapabilityInvocationServices = Readonly<{
+  /** 只在当前远程 call 有窄 Store capability 时提供；不得持久化或写入日志。 */
+  uploadObject?: CapabilityObjectUploader
+}>
+
 export type CapabilityInvocation = Readonly<{
   caller: LocalCommand['caller']
   commandId: string
   createdAt: string
   expiresAt: string
-}>
+}> & CapabilityInvocationServices
 
 export type ConfirmationDetail = Readonly<{
   label: string
@@ -69,7 +82,10 @@ export interface MobileCapability<Arguments, Result> {
     signal: AbortSignal,
   ): Promise<Result>
   probe(context: CapabilityContext): Promise<CapabilityAvailability>
-  preflight?(argumentsValue: Arguments): Promise<void> | void
+  preflight?(
+    argumentsValue: Arguments,
+    invocationServices: CapabilityInvocationServices,
+  ): Promise<void> | void
 }
 
 export type CapabilitySnapshot = Readonly<{
