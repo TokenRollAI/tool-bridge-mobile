@@ -17,9 +17,9 @@ const easProject = {
 }
 
 const releaseMetadata = {
-  androidVersionCode: 11,
-  iosBuildNumber: '11',
-  version: '0.0.11',
+  androidVersionCode: 12,
+  iosBuildNumber: '12',
+  version: '0.0.12',
 }
 
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
