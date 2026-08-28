@@ -18,8 +18,15 @@ class ToolBridgeForegroundService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     ensureChannel()
     startForeground(NOTIFICATION_ID, buildNotification())
-    // START_STICKY: 进程若被系统回收后在资源允许时尝试重建服务。
-    return START_STICKY
+    // 服务本身不能重建 JS runtime 或 device 连接，被回收后自动重启只会留下空服务。
+    // dataSync 配额耗尽时，sticky 重启还会让 startForeground() 再次抛异常。
+    return START_NOT_STICKY
+  }
+
+  override fun onTimeout(startId: Int, fgsType: Int) {
+    // Android 15+ 会在 dataSync 后台额度耗尽时回调。必须在系统的宽限期内停止，
+    // 否则系统会以 ForegroundServiceDidNotStopInTimeException 终止进程。
+    stopSelf()
   }
 
   private fun ensureChannel() {
