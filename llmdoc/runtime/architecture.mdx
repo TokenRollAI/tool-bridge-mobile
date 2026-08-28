@@ -14,6 +14,13 @@ relations:
 code:
   paths:
     - src/runtime/applicationRuntime.ts
+    - modules/tool-bridge-system/android/src/main/java/ai/tokenroll/toolbridge/system/ToolBridgeForegroundService.kt
+    - modules/tool-bridge-system/android/src/main/java/ai/tokenroll/toolbridge/system/ToolBridgeSystemModule.kt
+    - plugins/withBackgroundRuntimeService.cjs
+    - plugins/__tests__/withBackgroundRuntimeService.test.ts
+    - src/capabilities/system/systemAdapter.ts
+    - src/storage/backgroundRuntimeRepository.ts
+    - test/contract/android-background-runtime.contract.test.ts
     - src/runtime/localCommandExecutor.ts
     - src/gateway/sdkDeviceTransport.ts
     - src/gateway/manualGatewayConfigurationController.ts
@@ -44,7 +51,7 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
 ## 核心组件
 
 - `src/runtime/applicationRuntime.ts` (`ApplicationRuntime`)：组装 registry、SQLite、策略、确认、SDK
-  transport 与 UI snapshot；AppState 变化时重新 probe 并 suspend/resume realtime。
+  transport 与 UI snapshot；AppState 变化时刷新 probe、UI 与策略输入，但 transport 不会因此主动断连。
 - `src/gateway/sdkDeviceTransport.ts`：只用上游公开 `/device` 入口，把 SDK call 归一为本地 command；
   负责按最后一个 `/` 拆分 wire node path/command、消费网关 caller 与权威时间、credential
   audience、RN header、AppState lifecycle 和 ready-only online；只把当前 call 的窄 Store uploader 作为
@@ -80,6 +87,24 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
 - `src/ui/components/SafeMarkdown.tsx` 与 `src/inbox/imageSource.ts`：不可信 Markdown 的 React Native 白名单
   投影，以及只在用户逐图点按后进入 HTTPS 结构 policy/有界下载/私有 cache 的图片路径；没有 inbox image
   hostname config 或 runtime set。
+
+## Android 后台运行服务
+
+当前 Android 后台运行开关保存的是用户意图；`ApplicationRuntime` 经 system adapter 请求启动或停止
+`dataSync` 前台服务，config plugin 只负责 manifest 声明。该服务用可见通知辅助提高进程优先级，不承载
+WebSocket、SDK lifecycle 或命令执行，也不能重建 JS runtime/device connection。Android 与 JS 之间没有
+服务实况回传：平台停服不会清除持久化开关，因此 UI 意图、原生服务状态和设备是否后台可达可能彼此脱节。
+
+本项目 targetSdk 36，适用 Android 15+/targetSdk 35+ 的 `dataSync` 限制：应用在后台时，同类型所有服务
+共享滚动 24 小时内 6 小时配额；用户把应用带到前台会重置计时预算。预算耗尽后，系统通过 `onTimeout`
+给出短暂退出窗口；当前服务立即 `stopSelf()`，并返回 `START_NOT_STICKY`，因为被回收后重建空服务既不能
+恢复 JS 连接，也可能在额度仍耗尽时再次启动失败。这些退出策略只切断超时与 sticky 重启故障链，不增加
+后台预算，也不证明锁屏、Doze、OEM 省电、force-stop 或进程回收后仍可达。
+
+`test/contract/android-background-runtime.contract.test.ts` 只静态检查 Kotlin 源码包含
+`onTimeout -> stopSelf()` 与 `START_NOT_STICKY`；它不是 Android framework 行为、6 小时额度或真机后台
+可达证据。持久 command mailbox 与只携带不透明引用的 APNs/FCM wake 仍是上游未实现能力；当前本地服务、
+本地信箱和本地通知都不能冒充这条服务端投递链路。
 
 ## 执行顺序
 
