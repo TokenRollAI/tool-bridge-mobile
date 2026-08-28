@@ -3,6 +3,29 @@
 本文件记录可发布版本中用户可感知的变化。最新版本必须位于最前，并与 `package.json`、
 `app.config.ts` 和发布 tag 保持一致；自动发布流水线只提取首个版本段作为 GitHub Release 正文。
 
+## [0.0.12] - 2026-08-28
+
+> Preview：修复 Android 15+ 后台 `dataSync` 前台服务超时后的崩溃与重启循环；不是 production、
+> App Store 或 Google Play 正式版本。
+
+### 修复与维护
+
+- Android 在 `dataSync` 后台配额耗尽时通过 `onTimeout` 立即停止前台服务，避免
+  `ForegroundServiceDidNotStopInTimeException` 终止进程。
+- 服务改为 `START_NOT_STICKY`；系统回收后不再重建一个无法恢复 JS runtime/device connection 的空服务，
+  也避免在配额仍耗尽时再次触发 `ForegroundServiceStartNotAllowedException`。
+- 将 Expo SDK 57、React Native 及相关测试/构建依赖对齐到当前官方兼容 patch 版本，恢复 release verify
+  的版本一致性门禁。
+
+### 证据与已知限制
+
+- 锁定 Node 22.23.1 下完整 `pnpm verify`、79 个 Jest suites/367 个 tests 与 Android Preview release
+  clean build 已通过；新增静态契约锁定 `onTimeout -> stopSelf()` 和非 sticky 重启策略。
+- 本机没有完整 Xcode，当前也没有在线 ADB 设备，因此本版本尚未形成 iOS build 或 Android 锁屏、Doze、
+  6 小时配额耗尽的真机回归证据。
+- 修复只切断超时崩溃链，不增加 Android 后台预算，也不承诺息屏或进程回收后仍在线。可靠后台投递仍依赖
+  上游 durable mailbox 与仅携带不透明引用的 APNs/FCM wake。
+
 ## [0.0.11] - 2026-08-26
 
 > Preview：修复真实远程拍照完成后无法交付对象，并升级 Tool Bridge device SDK；不是 production、
@@ -114,6 +137,7 @@
 
 - 首个内部 Preview，包含移动端脚手架、前台 device transport、本地安全执行链和基础能力。
 
+[0.0.12]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.12
 [0.0.11]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.11
 [0.0.10]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.10
 [0.0.9]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.9
