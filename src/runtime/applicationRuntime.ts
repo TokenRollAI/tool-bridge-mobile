@@ -74,6 +74,7 @@ import {
 } from '@/capabilities/system/systemCapabilities'
 import { LOCAL_COMMAND_RETENTION_LIMIT } from '@/commands/repository'
 import { ManualGatewayConfigurationController } from '@/gateway/manualGatewayConfigurationController'
+import { SdkDeviceMailboxTransport } from '@/gateway/sdkDeviceMailboxTransport'
 import { SdkDeviceTransport } from '@/gateway/sdkDeviceTransport'
 import { SecureDeviceCredentialStore } from '@/identity/deviceCredentialStore'
 import { resolveDefaultDeviceId } from '@/identity/deviceIdentity'
@@ -100,6 +101,7 @@ import { SqliteBackgroundRuntimeRepository } from '@/storage/backgroundRuntimeRe
 import { SqliteCommandRepository } from '@/storage/commandRepository'
 import { SqliteControlModeRepository } from '@/storage/controlModeRepository'
 import { MobileDatabase } from '@/storage/database'
+import { SqliteDeviceOperationJournal } from '@/storage/deviceMailboxJournalRepository'
 import { SqliteInboxRepository } from '@/storage/inboxRepository'
 import { SqliteTimerRepository } from '@/storage/timerRepository'
 
@@ -207,6 +209,7 @@ export class ApplicationRuntime {
   #controlModeRepository: SqliteControlModeRepository | null = null
   #defaultDeviceId: string | null = null
   #deviceCredentialStore: SecureDeviceCredentialStore | null = null
+  #deviceMailboxTransport: SdkDeviceMailboxTransport | null = null
   #deviceTransport: SdkDeviceTransport | null = null
   #gatewayConfigurationController: ManualGatewayConfigurationController | null = null
   #initialization: Promise<void> | null = null
@@ -411,26 +414,28 @@ export class ApplicationRuntime {
   async saveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void> {
     if (
       this.#gatewayConfigurationController === null
+      || this.#deviceMailboxTransport === null
       || this.#deviceTransport === null
       || this.#controlModeRepository === null
     ) throw new Error('运行时尚未初始化')
 
     await this.#gatewayConfigurationController.save(input)
     const disabled = (await this.#controlModeRepository.get()) === 'disabled'
-    await this.#deviceTransport.updateLifecycle(currentRuntimeAppState(), !disabled)
+    await this.#updateTransportLifecycle(currentRuntimeAppState(), !disabled)
     await this.refresh()
   }
 
   async clearGatewayConfiguration(): Promise<void> {
     if (
       this.#gatewayConfigurationController === null
+      || this.#deviceMailboxTransport === null
       || this.#deviceTransport === null
       || this.#controlModeRepository === null
     ) throw new Error('运行时尚未初始化')
 
     await this.#gatewayConfigurationController.clear()
     const disabled = (await this.#controlModeRepository.get()) === 'disabled'
-    await this.#deviceTransport.updateLifecycle(currentRuntimeAppState(), !disabled)
+    await this.#updateTransportLifecycle(currentRuntimeAppState(), !disabled)
     await this.refresh()
   }
 
@@ -442,7 +447,7 @@ export class ApplicationRuntime {
       if (appState === 'active' && this.#timerController !== null) {
         await this.#timerController.reconcile(disabled)
       }
-      await this.#deviceTransport?.updateLifecycle(appState, !disabled)
+      await this.#updateTransportLifecycle(appState, !disabled)
       await this.refresh()
     }).catch(async () => { await this.refresh() })
     return this.#timerReconciliation
@@ -455,7 +460,7 @@ export class ApplicationRuntime {
       return
     }
     await this.#controlModeRepository.set(controlMode, new Date().toISOString())
-    await this.#deviceTransport?.updateLifecycle(currentRuntimeAppState(), true)
+    await this.#updateTransportLifecycle(currentRuntimeAppState(), true)
     await this.refresh()
   }
 
@@ -489,6 +494,7 @@ export class ApplicationRuntime {
       this.#mediaController?.stop(),
       this.#timerController?.stopAll(),
       this.#deviceTransport?.updateLifecycle(currentRuntimeAppState(), false),
+      this.#deviceMailboxTransport?.updateLifecycle(currentRuntimeAppState(), false),
       this.#systemAdapter?.stopBackgroundRuntime(),
     ])
     await this.refresh()
@@ -586,6 +592,8 @@ export class ApplicationRuntime {
       this.#commandRepository = new SqliteCommandRepository(database)
       this.#controlModeRepository = new SqliteControlModeRepository(database)
       const inboxRepository = new SqliteInboxRepository(database)
+      const deviceOperationJournal = new SqliteDeviceOperationJournal(database)
+      await deviceOperationJournal.garbageCollectExpired(new Date().toISOString())
       this.#inboxRepository = inboxRepository
       this.#inboxImageResolver = new BoundedInboxImageSourceResolver(
         (url, init) => expoFetch(url, init),
@@ -703,6 +711,17 @@ export class ApplicationRuntime {
           this.#transportRevision += 1
           void this.refresh()
         },
+        onCredentialInvalid: () => this.#deviceMailboxTransport?.stopForLocalRevocation(),
+        registry: this.#registry,
+      })
+      this.#deviceMailboxTransport = new SdkDeviceMailboxTransport({
+        baseUrl: storedCredential?.audienceOrigin ?? ExpoConfigHosts.gatewayOrigin(),
+        credentialStore: this.#deviceCredentialStore,
+        executeCommand: (command, signal, invocationServices) => (
+          this.executeLocalCommand(command, signal, invocationServices)
+        ),
+        journal: deviceOperationJournal,
+        onCredentialInvalid: () => this.#deviceTransport?.stopForLocalRevocation(),
         registry: this.#registry,
       })
       const cameraCoordinator = new CameraCaptureCoordinator()
@@ -722,9 +741,16 @@ export class ApplicationRuntime {
         credentialStore: this.#deviceCredentialStore,
         defaultDeviceId: this.#defaultDeviceId,
         installationId: this.#installationId,
-        transport: this.#deviceTransport,
+        transport: {
+          updateConfiguration: async baseUrl => {
+            await Promise.all([
+              this.#deviceTransport?.updateConfiguration(baseUrl),
+              this.#deviceMailboxTransport?.updateConfiguration(baseUrl),
+            ])
+          },
+        },
       })
-      await this.#deviceTransport.updateLifecycle(
+      await this.#updateTransportLifecycle(
         currentRuntimeAppState(),
         initialControlMode !== 'disabled',
       )
@@ -749,6 +775,13 @@ export class ApplicationRuntime {
       installationId: this.#installationId,
       reachability: this.#reachability(controlMode),
     }
+  }
+
+  async #updateTransportLifecycle(appState: string, enabled: boolean): Promise<void> {
+    await Promise.all([
+      this.#deviceTransport?.updateLifecycle(appState, enabled),
+      this.#deviceMailboxTransport?.updateLifecycle(appState, enabled),
+    ])
   }
 
   #reachability(controlMode: ControlMode): Reachability {

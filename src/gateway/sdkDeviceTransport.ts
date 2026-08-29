@@ -113,6 +113,7 @@ type SdkDeviceTransportDependencies = Readonly<{
   connect?: DeviceConnect
   credentialStore: DeviceCredentialStore
   executeCommand: ExecuteCommand
+  onCredentialInvalid?: () => Promise<void> | void
   onSnapshotChange?: () => void
   registry: CapabilityRegistry
   webSocketFactory?: DeviceWebSocketFactory
@@ -176,15 +177,18 @@ function sdkErrorFor(outcome: Extract<CommandOutcome, { ok: false }>): TBError {
 export function createSdkDeviceCallHandler(options: Readonly<{
   callerSubjectId: string
   clock?: () => Date
+  delivery?: 'mailbox' | 'realtime'
   executeCommand: ExecuteCommand
 }>): DeviceCallHandler {
   const clock = options.clock ?? (() => new Date())
   return async call => {
     const receivedAt = clock()
     const { command, nodePath } = parseDeviceCallPath(call.path)
-    const localTtlMs = nodePath === 'camera' && command === 'capture_photo'
-      ? LOCAL_CAMERA_COMMAND_TTL_MS
-      : LOCAL_REALTIME_COMMAND_TTL_MS
+    const localTtlMs = options.delivery === 'mailbox'
+      ? Number.POSITIVE_INFINITY
+      : nodePath === 'camera' && command === 'capture_photo'
+        ? LOCAL_CAMERA_COMMAND_TTL_MS
+        : LOCAL_REALTIME_COMMAND_TTL_MS
     const localExpiresAtMs = receivedAt.getTime() + localTtlMs
     let caller: LocalCommand['caller']
     let createdAt: string
@@ -198,7 +202,11 @@ export function createSdkDeviceCallHandler(options: Readonly<{
         subjectId: options.callerSubjectId,
       }
       createdAt = receivedAt.toISOString()
-      expiresAt = new Date(localExpiresAtMs).toISOString()
+      expiresAt = new Date(
+        Number.isFinite(localExpiresAtMs)
+          ? localExpiresAtMs
+          : receivedAt.getTime() + LOCAL_REALTIME_COMMAND_TTL_MS,
+      ).toISOString()
     } else {
       const gatewayCreatedAtMs = Date.parse(call.context.createdAt)
       const gatewayExpiresAtMs = Date.parse(call.context.expiresAt)
@@ -520,6 +528,11 @@ export class SdkDeviceTransport {
   }
 
   async #invalidateCredential(connection: DeviceConnection): Promise<void> {
+    try {
+      void Promise.resolve(this.dependencies.onCredentialInvalid?.()).catch(() => {})
+    } catch {
+      // mailbox stop 已尝试触发；无论其是否收敛，都继续清凭证。
+    }
     try {
       await this.dependencies.credentialStore.clear()
       if (this.#connection === connection) {

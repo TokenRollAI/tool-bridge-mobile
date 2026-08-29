@@ -31,16 +31,17 @@ code:
   React 组件不直接发送协议帧或调用任意原生对象。
 - 平台 API 优先使用成熟 Expo 模块。Expo SDK 不提供所需 probe/生命周期/系统能力时，才通过 Expo
   Modules API 暴露最小类型化 Kotlin/Swift 接口，不提供任意 Intent、selector 或原生对象入口。
-- SQLite 是 command、audit、timer、inbox 等持久域的事实真源；SecureStore/平台安全存储只保存身份与
-  credential material；所有远端输入从 `unknown` 开始并经 Zod strict schema 校验。
-- 官方 `@tool-bridge/sdk/device` 提供 device wire、session 和 call-scoped Store upload；移动仓库不复制
-  `@tool-bridge/core` 私有协议源码，也不手写第二份 wire schema。
+- SQLite 是 command、audit、timer、inbox 与 device operation journal 等持久域的事实真源；SecureStore/
+  平台安全存储只保存身份与 credential material；所有远端输入从 `unknown` 开始并经 Zod strict schema
+  校验。
+- 官方 `@tool-bridge/sdk/device` 提供 device wire、realtime session、durable mailbox processor 和
+  call-scoped Store upload；移动仓库不复制 `@tool-bridge/core` 私有协议源码，也不手写第二份 wire schema。
 - Android 先形成首个端到端切片，iOS 从第一天保持工程可构建和共有协议对等。
 
 ## 版本与平台
 
-当前锁定 Node 22.23.1、pnpm 11.21.0、Expo 57.0.17、React Native 0.86.3、React 19.2.3、TypeScript
-6.0.3 和 `@tool-bridge/sdk` 0.17.0。Android min/compile/target 是 24/36/36、Java 17；iOS deployment
+当前锁定 Node 22.23.1、pnpm 11.21.0、Expo 57.0.18、React Native 0.86.3、React 19.2.3、TypeScript
+6.0.3 和 `@tool-bridge/sdk` 0.20.1。Android min/compile/target 是 24/36/36、Java 17；iOS deployment
 target 是 16.4。
 
 版本事实真源依次是 `package.json`、`.node-version`、`pnpm-lock.yaml`、`app.config.ts` 与生成配置。
@@ -81,7 +82,7 @@ React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/ret
 
 | 领域 | 选择与边界 |
 | --- | --- |
-| device transport / object upload | `@tool-bridge/sdk/device@0.17.0`；生产代码只导入 `/device`，包根 Node 入口不能进入手机 bundle；对象上传只消费当前 call 的 `uploadObject`。 |
+| device transport / mailbox / object upload | `@tool-bridge/sdk/device@0.20.1`；生产代码只导入 `/device`，包根 Node 入口不能进入手机 bundle；mailbox 只组装公开 processor/journal，object upload 只消费当前 call 的 `uploadObject`。 |
 | router / handoff | `expo-router`、`expo-linking`；URL 与 map 目标在业务层先受控，Linking 只做 probe/handoff。 |
 | credential | `expo-secure-store`；secret 不进入 SQLite、构建环境、日志或仓库。 |
 | persistence | `expo-sqlite`；事务承载幂等、crash recovery、有界保留和专用内容域。 |
@@ -102,12 +103,18 @@ React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/ret
 
 - 前台 realtime 使用官方 SDK 与 React Native WebSocket header adapter；当前手工 origin/API key 只是
   pairing/ticket 前 fallback。
+- durable mailbox 使用官方 0.20.1 pull processor。宿主只在初始化/配置完成且 App active 或回到 active 时
+  显式执行最多 20 项的 drain；后台/inactive、Disabled、换配置和 credential 失效会中止。没有轮询 timer、
+  push 或后台自启动。
 - HTTP 由受控 adapter 包装 timeout、错误与 redaction；有副作用请求不用通用自动重试。
 - 大对象通过 Gateway 为当前 call 签发的短期 Store capability 直传对象存储；相机已有 0.17 upload
   consumer，并完成一次 Android 真实 Store 上传/stat/受保护回读。完整服务端强绑定、通用读取和其余矩阵
   仍待上游/联合验收。
-- 后台目标是 U-5 mailbox 的 pull/claim/result 配合 U-6 原生 APNs/FCM token 与 opaque wake hint；不把
-  Expo Push Service 设为协议依赖，也不把本地 notification/timer 当作 push。
+- SQLite v5 operation journal 在副作用前 durable 写 `executing` barrier，只保存 operation id、状态、
+  completion 与时间，不保存 arguments/正文/credential；crash 后提交 `result_unknown` 而不重放 handler。
+- U-5 当前只有移动 consumer 接入，仍缺真实 Gateway/双端联合验收；后台目标还需要 U-6 原生 APNs/FCM
+  token 与 opaque wake hint。不把 Expo Push Service 设为协议依赖，也不把本地 notification/timer 当作
+  push。
 - P2 实时媒体可评估 WebRTC，但必须由上游 session broker 和能力专用安全评审支撑。
 
 ## CNG、权限与资产
@@ -127,7 +134,7 @@ APNs/FCM 及不需要的 badge/remote transport。每次 Expo 模块升级都要
 | 纯逻辑 | Jest：policy、状态机、schema、redaction。 |
 | React UI | React Native Testing Library：确认、权限、错误和 accessibility 语义。 |
 | 原生模块 | Android native test / XCTest：平台 adapter；JS mock 不替代。 |
-| consumer contract | 官方 SDK + fake WebSocket/fetch：公共入口和本地适配；不等于真实 Gateway。 |
+| consumer contract | 官方 SDK + fake WebSocket/fetch：realtime 公共入口、mailbox claim/complete/journal barrier 和本地适配；不等于真实 Gateway。 |
 | UI E2E | Maestro 或仓库 smoke：驱动界面；不证明硬件真实发声、拍照、后台或 push。 |
 | 真机矩阵 | Android/iOS 设备 + 脱敏日志：权限、后台、锁屏、DND、弱网、系统物理效果。 |
 

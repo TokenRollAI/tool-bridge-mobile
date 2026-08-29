@@ -46,15 +46,17 @@ development build 面向 Android 和 iOS。它让 Agent 在用户明确授权、
 - `src/capabilities/`、`modules/`：类型化设备能力及必要的 Expo 原生模块；
 - `test/contract/`：本地执行边界的注入式契约测试，不是 Gateway wire 或真机端到端测试。
 
-本仓库不拥有 HTBP 通用协议、Tool Bridge Gateway、跨运行时公共 SDK、异步 command mailbox、push
-registration/dispatch、动态 capability profile、对象存储或浏览器扩展。缺失的通用能力必须在上游交付，
-不能复制 `@tool-bridge/core` 私有源码建立长期分叉。
+本仓库不拥有 HTBP 通用协议、Tool Bridge Gateway、跨运行时公共 SDK、服务端异步 command mailbox、push
+registration/dispatch、动态 capability profile、对象存储或浏览器扩展；只拥有正式 SDK mailbox API 的
+移动 consumer wiring 与 installation-local operation journal。缺失的通用能力必须在上游交付，不能复制
+`@tool-bridge/core` 私有源码建立长期分叉。
 
 ## 整体数据流
 
 ```text
-官方 SDK device call / 本地测试 dispatcher
+官方 SDK realtime device call / durable mailbox claim / 本地测试 dispatcher
   -> transport adapter 归一化 command
+  -> mailbox 路径先持久化 operation execution barrier
   -> LocalCommandExecutor
   -> schema / deadline / cancellation / admission / live probe / policy / confirmation
   -> SQLite claim 与防重放
@@ -70,20 +72,23 @@ deadline/cancel、逐次确认和 emergency disable 始终高于远程命令或 
 
 ## 现状
 
-- P0 本地安全运行时、官方 `@tool-bridge/sdk/device@0.17.0` 前台 consumer wiring、手工 Gateway
-  HTTPS origin/API key 内测入口和若干能力纵向切片已经实现。
+- P0 本地安全运行时、官方 `@tool-bridge/sdk/device@0.20.1` realtime 与 durable mailbox consumer wiring、
+  手工 Gateway HTTPS origin/API key 内测入口和若干能力纵向切片已经实现。
 - `phone/camera.capture_photo` 已形成仅前台的本地纵向切片：非 Direct 模式由用户拍摄并复核，Direct call
-  仍展示可见预览但在相机就绪后自动拍摄；处理后的 JPEG 通过 SDK 0.17 每次调用下发的 Store capability
-  上传，成功结果只返回稳定 `store://default/...` URI 与脱敏元数据。缺少该 capability 时会在确认和相机
-  probe 前 fail closed。
+  仍展示可见预览但在相机就绪后自动拍摄；处理后的 JPEG 通过 0.17 首次交付、当前 0.20.1 继续提供的
+  每次调用 Store capability 上传，成功结果只返回稳定 `store://default/...` URI 与脱敏元数据。缺少该
+  capability 时会在确认和相机 probe 前 fail closed。
 - 只有 SDK `ready` 可投影为 online；手工长期 API key 不等于 pairing credential，也不证明真实 Gateway
   的完整兼容矩阵。
-- 设备本地信箱只保存已经在线到达 executor 的 direct call；它不是上游 U-5 command mailbox，也没有
-  离线 enqueue、push 唤醒或最终送达语义。
+- `phone/inbox.deliver` 声明 `delivery: both`：既可 realtime 直调，也可由官方 processor 在 App 初始化/
+  配置完成且 active 或回到 active 时显式有界 drain。SQLite v5 operation journal 让 executing crash
+  保守恢复为 `result_unknown`；它没有 timer 驱动的新 drain、后台轮询或 push 唤醒，不提供后台必达或
+  最终送达语义。
 - Android 已有一次 SDK 0.17 Preview 后置相机 Direct call 完成拍摄、Store 上传、stat 和受保护回读校验；
   该日期化证据不能外推到 iOS、其他镜头/权限状态、后台/弱网、长期稳定性或 pairing。
-- 当前仍未达到 MVP；pairing、credential 生命周期 binding、动态 profile、mailbox/push、通用受保护对象
-  读取与完整 U-7、真实 Gateway/storage 兼容矩阵、完整双端构建/真机矩阵与 production 发布证据仍未完成。
+- 当前仍未达到 MVP；pairing、credential 生命周期 binding、动态 profile、U-5 真实 Gateway/双端联合验收、
+  U-6 push、通用受保护对象读取与完整 U-7、真实 Gateway/storage 兼容矩阵、完整双端构建/真机矩阵与
+  production 发布证据仍未完成。
 
 ## 已决定
 
@@ -97,9 +102,10 @@ deadline/cancel、逐次确认和 emergency disable 始终高于远程命令或 
 
 ## 未实现与未验证
 
-上游 U-2 至 U-7、真实 Gateway 能力矩阵、iOS 原生/真机、双端权限/后台/锁屏、production signing、
-商店合规、rollout 与 rollback 都必须保持明确的“未实现”或“未验证”标签。历史日期化快照不作为 V3
-持续事实；证据应按 `delivery/verification-evidence.mdx` 回到对应 commit/artifact 和当前命令结果。
+上游 U-2/U-3/U-4/U-6、U-5 剩余联合验收、完整 U-7、真实 Gateway 能力矩阵、iOS 原生/真机、双端权限/
+后台/锁屏、production signing、商店合规、rollout 与 rollback 都必须保持明确的“未实现”或“未验证”
+标签。历史日期化快照不作为 V3 持续事实；证据应按 `delivery/verification-evidence.mdx` 回到对应
+commit/artifact 和当前命令结果。
 
 ## 主题路由
 

@@ -19,6 +19,9 @@ code:
   paths:
     - src/capabilities/**
     - src/inbox/**
+    - src/gateway/sdkDeviceMailboxTransport.ts
+    - src/storage/deviceMailboxJournalRepository.ts
+    - src/storage/migrations/0005_device_mailbox_journal.ts
     - modules/**
     - app.config.ts
 ---
@@ -82,9 +85,9 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
   command hash 文件名和 idempotency key，并严格核对 SDK 返回的稳定 `store://default/...` descriptor。
   inline result 只含 URI、MIME、大小、尺寸与 SHA-256，不含照片、Store capability、relay URL、私有文件 URI
   或虚构的对象过期时间。
-- 离开 `active` 会取消本地相机/处理和结果提交；SDK 0.17 的 call-scoped upload 不能接收 controller 的本地
-  AbortSignal，因此上传已开始后不能保证终止 Store HTTP 副作用。当前 Gateway 的约 60 秒权威期限会收紧
-  相机 120 秒本地 ceiling。
+- 离开 `active` 会取消本地相机/处理和结果提交；当前 SDK 0.20.1 的 call-scoped upload 仍不能接收
+  controller 的本地 AbortSignal，因此上传已开始后不能保证终止 Store HTTP 副作用。当前 Gateway 的约
+  60 秒权威期限会收紧相机 120 秒本地 ceiling。
 - 本地自动化覆盖相机 schema、状态机、处理和 SDK upload consumer；2026-08-26 的 Android Preview
   后置 Direct call 已完成真实拍摄、Store 上传/stat/受保护回读。iOS、其余权限/镜头/生命周期矩阵、系统
   指示/快门声和 crash 后孤儿清理仍必须按各自证据层单独判断。
@@ -141,8 +144,14 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 
 ### `phone/inbox.deliver`
 
-- 设备本地内容信箱只处理已通过在线 SDK direct-call session 到达 executor 的消息；`queuePolicy` 是
-  `reject_offline`，它不是 U-5 gateway command mailbox，也没有离线 enqueue 或 push 唤醒。
+- 设备本地内容信箱的 `queuePolicy` 是 `enqueue`，registry 只为它投影 `delivery: both`：既支持 realtime
+  direct call，也允许 Gateway durable mailbox operation 在 App 显式前台 drain 时到达 executor。
+- Gateway operation mailbox 与本地 `inbox_messages` 内容信箱是不同层。前者由官方 SDK processor 和
+  SQLite v5 `device_operation_journal` 管理 claim/lease/complete 恢复，后者保存用户可见正文与已读状态；
+  journal 不保存 arguments、正文或 credential，恢复 `executing` 时提交 `result_unknown` 而不重放。
+- drain 只在初始化/配置完成且 App active 或回到 active 时显式触发，单次最多 20 项；后台/inactive、
+  Disabled、换配置和 credential 失效会中止。没有 timer 驱动的新 drain、push、后台轮询或进程终止后的
+  自启动。
 - strict schema 接受 `title/Markdown body/category/format/urgency/sentAt/sourceLabel/notify`；format 固定
   `markdown`，urgency 是四值枚举，可选 sentAt 必须为 canonical UTC。sourceLabel/urgency/sentAt 只是 Agent
   内容元数据，不能冒充 invocation caller 或本机 receivedAt。
@@ -186,9 +195,11 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
   channel importance 为 NONE 则映射 channel disabled/settings。
 - 成功 result 只报告确定性 notification id、`status: scheduled`、`presentation: system_determined` 与本地
   scheduledAt。它不声称通知已呈现、送达或点击，普通 audit/command outcome 不保存 purpose/message。
+- SDK expose 中 `phone/productivity.notify` 没有 `delivery` metadata，保持 realtime-only；信箱的
+  `notify: true` 只是 `inbox.deliver` commit 后的固定本地提醒，不会把 notify capability 变成 mailbox。
 - final Expo config 移除 APNs `aps-environment`；Android blocked permissions 移除 boot/exact、C2DM 与厂商
   badge，custom plugin 移除 FCM/Firebase service/receiver/provider 和 transport scheduler，只保留不可导出
-  的本地 event receiver 与 forwarder。该切片不满足 U-5 mailbox 或 U-6 push。
+  的本地 event receiver 与 forwarder。该切片不支持 mailbox，也不满足 U-6 push。
 
 详细权限映射、native 内容与最终配置边界见 `llmdoc/capabilities/local-notifications.mdx`。
 
@@ -230,6 +241,9 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 - local device inbox：`src/inbox/` + `src/storage/migrations/0003_inbox.ts` +
   `src/storage/migrations/0004_inbox_metadata.ts` +
   `src/storage/inboxRepository.ts`
+- durable mailbox consumer：`src/gateway/sdkDeviceMailboxTransport.ts` +
+  `src/storage/migrations/0005_device_mailbox_journal.ts` +
+  `src/storage/deviceMailboxJournalRepository.ts`
 - inbox image hostname：没有配置入口；media 与 App handoff 仍分别使用 `EXPO_PUBLIC_MEDIA_HOSTS` 和
   `EXPO_PUBLIC_LINK_HOSTS`，其 allowlist 语义没有因信箱图片 policy 放宽而改变
 - local timer persistence：`src/storage/migrations/0002_timers.ts` + `src/storage/timerRepository.ts`
@@ -241,13 +255,13 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 unit/component/local contract 证明的是本地边界。registry 将单项 probe 异常隔离为
 `unavailable: probe_failed`。任何 clean build 只证明对应 commit/artifact 的原生依赖与配置能编译；prebuild
 或 Metro 不可写成 Android/iOS 原生 build，它们也不证明 production gateway、storage 或真机前台/后台/
-锁屏行为。信箱还必须把本地自动化、真实
-Gateway `inbox/deliver`、双端真机与 U-5/U-6 离线 mailbox/push 分为四层，不得互相替代。
+锁屏行为。信箱还必须把本地内容自动化、SDK 0.20.1 mailbox consumer contract、真实 Gateway operation
+path、双端真机与 U-6 push/后台唤醒分层，不得互相替代；当前只能称 U-5 consumer 接入，不能称完整验收。
 
 ## 产品阶段映射
 
 - P0 先提供真实 probe、policy、confirmation、幂等、审计、撤销和可达性地基；没有正式 pairing、动态
-  profile、mailbox/push 与双端真机前，不把单个本地 handler 称为 MVP。
+  profile、U-5 真实 Gateway 联合验收、U-6 push 与双端真机前，不把单个本地 handler 称为 MVP。
 - P1-A 以 attention 为首个物理设备 golden slice；P1-B 覆盖媒体和受控 handoff；P1-C 覆盖仅前台相机
   与受保护对象；P1-D 覆盖位置、inbox、notification、timer、accessibility 和发布准备。
 - P2/P3 候选能力进入 registry 前必须先补用户用例、平台/权限/商店矩阵、abuse case 和独立 DOD；能力

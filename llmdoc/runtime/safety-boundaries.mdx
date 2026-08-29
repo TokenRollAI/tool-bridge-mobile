@@ -42,10 +42,12 @@ code:
 
 - 设备凭证、私钥和 push token 只进入系统安全存储，不进入 SQLite、普通日志、崩溃报告或仓库。
 - SDK device credential 的 `audienceOrigin` 必须与当前选中的 HTTPS gateway origin 完全一致；secret 只进
-  SecureStore 与 RN WebSocket Authorization header，不进 URL/`EXPO_PUBLIC_*`。缺失、损坏或 gateway
-  拒绝都 fail closed。
-- 手工 URL/API key fallback 保存时必须先停止旧 transport，再写 SecureStore、连接新 audience；清除时
-  必须先停 transport 再删 key。存储结果未知时保持关闭，不得重新使用旧 secret。
+  SecureStore、RN WebSocket Authorization header 与显式 mailbox HTTP drain 的 Authorization header，
+  不进 URL/`EXPO_PUBLIC_*`。缺失、损坏、audience/deviceId 不一致或 gateway 拒绝都 fail closed。
+- 手工 URL/API key fallback 保存时必须先停止旧 realtime/mailbox transports，再写 SecureStore、连接新
+  audience；清除时必须先停两个 transport 再删 key。存储结果未知时保持关闭，不得重新使用旧 secret。
+- realtime 或 mailbox 任一通道收到 401 时必须联动停止 sibling transport 并清 credential；即使 sibling
+  停止失败，也不得继续保留或复用已被 Gateway 拒绝的 bearer。
 - 手工模式的客户端 SDK deviceId（硬件标识单向摘要派生或用户自定义）只是路由标识，
   `manual_api_key_<uuid>` 只是 gateway principal；
   两者不能冒充网关签发身份、具体 Agent caller、最小权限、rotation 或 revoke。
@@ -62,6 +64,10 @@ code:
 - 清空信箱只能删除 `inbox_messages`，不得删除 command 防重放、audit、timer、设置、identity 或
   credential；保留 command 终态，确保清空后 replay 不会重建已删除内容。Agent 提供的 sourceLabel 不能
   冒充 invocation caller。
+- SQLite v5 `device_operation_journal` 与 `inbox_messages` 是不同数据域。journal 只允许
+  `operation_id/state/completion_json/expires_at/updated_at`，不得保存 operation arguments、消息正文或
+  credential；进入 handler 前必须 durable 写 `executing` barrier，crash 后恢复为 `result_unknown` 而非
+  重放可能已发生的副作用。
 - accessibility label/announcement 也是数据出口：不得包含 message、purpose、地址、坐标、URL、完整
   outcome 或 confirmation detail；倒计时和媒体进度不得形成高频自动公告。
 - 进入确认页或系统媒体 metadata 的远端显示文本必须拒绝 control 与 bidi override/isolate 字符，
@@ -84,9 +90,9 @@ code:
 - 媒体下载只落入 App 私有 cache，当前单源硬上限 25 MiB、本地解析时限 30 秒；失败、取消、停止和
   player 启动失败必须释放缓存，player 只接收解析后的 `file://` URI。
 - 媒体 metadata 最多等待 10 秒；直播、无效时长和超过 2 小时的来源必须在原生 `play()` 前拒绝。
-- 大对象必须使用受保护对象流程，不得用公开 URL 或 base64 冒充。相机已通过 SDK 0.17 当前调用的窄 Store
-  capability 接入稳定 `store://default/...` URI，并完成一次 Android 真实上传/stat/受保护回读；这不等于
-  通用读取或完整 U-7 服务端强绑定已经验收。
+- 大对象必须使用受保护对象流程，不得用公开 URL 或 base64 冒充。相机已通过当前 SDK 0.20.1 调用的窄
+  Store capability 接入稳定 `store://default/...` URI；2026-08-26 的 SDK 0.17 Android 真实上传/stat/
+  受保护回读是历史现场，不等于 0.20.1 真实 Gateway 回归、通用读取或完整 U-7 服务端强绑定已经验收。
 - 相机照片、私有 `file://` URI、Store capability、relay upload URL 与 EXIF 不得进入普通日志、audit 或
   inline result；结果只允许稳定对象 URI及 JPEG 大小/尺寸/SHA-256。移动端必须精确核对 Gateway 返回
   descriptor，不能虚构对象 `expiresAt`，也不能把本地 filename/idempotency key/大小当成服务端完整强绑定。
@@ -101,9 +107,9 @@ code:
   尚无契约。
 - 相机上传只消费当前 device call 的 `uploadObject`；Gateway 的 Store capability、upload token 和 relay URL
   不得离开 SDK 安全层、持久化或写日志。缺少/过期 capability 必须在确认与相机 probe 前 fail closed。
-- 前台丢失会取消本地相机、处理和结果提交，但 SDK 0.17 的 call-scoped `uploadObject` 不能接收 controller
-  的额外 AbortSignal；Store HTTP 上传已经开始时不能声称其副作用一定被中止。Gateway call signal 仍由 SDK
-  自己传播，移动端不得用 `Promise.race` 冒充网络取消。
+- 前台丢失会取消本地相机、处理和结果提交，但当前 SDK 0.20.1 的 call-scoped `uploadObject` 仍不能接收
+  controller 的额外 AbortSignal；Store HTTP 上传已经开始时不能声称其副作用一定被中止。Gateway call
+  signal 仍由 SDK 自己传播，移动端不得用 `Promise.race` 冒充网络取消。
 - 当前位置只使用逐次确认后的前台权限与一次性采集，不声明后台/Always/location foreground service。
 - 媒体只允许 App 自有、系统可见的播放会话；未声明录音权限。
 - attention 的 haptic 与固定本地 find-device sound 必须分别 probe、分别停止；sound 只使用 App 私有 cache
@@ -126,8 +132,12 @@ code:
   presented、clicked 或 on-time；不得为它增加 boot receiver、exact alarm、FCM 或 APNs。
 - timer 的 SQLite 意图与 caller ownership 高于原生 pending 快照。启动恢复必须先恢复中断 command，再
   reconcile timer，最后 prune command；emergency disable 必须用撤销 epoch 隔离迟到的 native schedule。
-- 设备本地信箱只接收已经在线到达 executor 的 direct call，不是 U-5 gateway command mailbox；本地
-  notification 或 Android 后台服务不能充当离线队列、push wake hint 或最终送达证据。
+- 只有 `phone/inbox.deliver` 可投影为 `delivery: both`；`phone/productivity.notify` 与其他 capability 保持
+  realtime-only。mailbox processor 只在初始化/配置完成且 App active 或回到 active 时显式执行有界 drain；
+  background/inactive、Disabled、换配置或 credential 失效必须中止。它不以 timer 触发新 drain，也没有
+  push 或后台轮询；本地 notification 或 Android 后台服务不能充当 push wake hint 或最终送达证据。
+- 本地 `inbox_messages` 是用户内容域，Gateway operation mailbox 是投递/执行恢复层；U-5 当前只能称移动
+  consumer 接入，真实 Gateway/双端联合验收仍缺失，U-6 仍未实现。
 - 信箱搜索必须在全部最多 1,000 条保留行上参数化过滤和本地枚举排序后才限制到 100 条 UI 投影；搜索
   wildcard 必须转义，排序不得拼接用户字符串。全局未读和全部已读不得被当前搜索或显示上限截断。
 

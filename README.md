@@ -16,7 +16,8 @@
 > 25 MiB 流式下载与 2 小时播放时长上限约束且支持 seek 的 App 自有媒体会话，
 > 受控 HTTPS App handoff、只接受结构化目标的地图 handoff、逐次确认的一次性前台位置、由用户在
 > App 内主动授权的即时本地通知、以 SQLite 为真源的单次 App 内计时器、可解释且可由用户单独清除的
-> 本机活动审计，以及由 Agent 通过在线 direct call 投递、在 SQLite 中保留最近 1,000 条并可选发出
+> 本机活动审计，以及由 Agent 通过在线 direct call，或由 Gateway durable mailbox 入队并在
+> App 启动/回到前台后显式拉取投递、在 SQLite 中保留最近 1,000 条并可选发出
 > 固定隐私提醒的设备本地信箱；单条正文支持最多 64,000 字符的 Markdown、用户主动安全加载的 HTTPS
 > 图片、紧急程度、可选 Agent 发送时间、全文搜索、六种排序、单条/全部已读。App 现有六个本地页面的
 > 无障碍语义自动化基线
@@ -29,14 +30,17 @@
 > 当前还实现了仅前台的 `phone/camera.capture_photo`：Ask every time / Trusted session 会在可见预览中
 > 由用户按快门并复核，用户主动选择的 Direct call 会在可见预览就绪后自动拍摄；照片重编码为有界 JPEG，
 > 通过本次 call 的窄 Store capability 上传，协议结果只含受保护的 `store://default/...` 引用与元数据。
-> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.17.0`：Android/iOS transport 使用官方
+> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.20.1`：Android/iOS realtime transport 使用官方
 > hello/ready/call/result、心跳、重连与 cancel，支持命令叶子并入 path 的新 device wire 与网关签发
-> invocation context，并使用官方 call-scoped Store upload；调用继续经过本地安全执行链，只有收到 gateway ready
+> invocation context，并使用官方 call-scoped Store upload。`phone/inbox.deliver` 另声明
+> `delivery: both`，并通过官方 mailbox processor 执行 claim/lease/complete；调用继续经过本地安全
+> 执行链，只有收到 gateway ready
 > 才显示 online。Android Preview 0.0.6 已通过当前 Railway Gateway 的单次真机
 > `status/get` 直连读调用；该证据不外推到其他能力、iOS、后台、弱网或完整 pairing。
 > 当前内测入口允许用户在本机填写 Gateway HTTPS URL 与 API key，secret 只进入
-> SecureStore；这不等于 pairing、最小权限设备凭证或短期 ticket。设备本地信箱不是网关 command
-> mailbox；离线队列、远程 push 和通用 object 读取/生命周期契约仍等待
+> SecureStore；这不等于 pairing、最小权限设备凭证或短期 ticket。设备本地信箱是正文存储域，
+> Gateway command mailbox 是 durable operation 投递域；当前只在 App 启动/回到前台时有界拉取，
+> 没有远程 push、隐式后台轮询或后台必达。通用 object 读取/生命周期契约仍等待
 > [上游交付](llmdoc/integration/upstream-and-platform-gaps.mdx)。
 
 ## 它解决什么问题
@@ -120,7 +124,7 @@ SDK `deviceId` 默认由设备硬件标识（Android ID / iOS IDFV）经单向�
 不变；也可在同一表单中自定义（字母、数字、`.`、`_`、`-`，最长 64 字符）。设备声明挂载到
 `device/phone/<deviceId>`。该 deviceId 不是网关签发身份，手工入口只是 pairing 交付前的内测通道。
 
-相机上传要求目标 Gateway 支持 SDK 0.17 Store，并为本次 device call 注入有界、短期 upload capability。
+相机上传要求目标 Gateway 支持 SDK 0.20.1 兼容的 call-scoped Store，并为本次 device call 注入有界、短期 upload capability。
 App 不接收 capability token、signed upload URL，也不会把照片字节放进 HTBP JSON result；缺少该 capability
 时会在本地确认和打开相机前拒绝。
 
@@ -140,7 +144,7 @@ APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，a
 
 ## 版本与 GitHub 预发布
 
-当前 App/package 版本为 `0.0.11`。版本变更合并到 `main` 后，[`verify`](.github/workflows/verify.yml)
+当前 App/package 版本为 `0.0.13`。版本变更合并到 `main` 后，[`verify`](.github/workflows/verify.yml)
 全绿会触发 [`auto-release-preview`](.github/workflows/auto-release.yml)：当 `package.json` 对应 tag 尚不存在时，
 它复用该次已通过双端门禁的 Android artifact，核对 package、Expo App 版本与 `CHANGELOG.md` 最新版本段，
 再创建版本 tag 和 GitHub Pre-release，并附带版本化 APK 与 SHA-256。版本已发布时幂等跳过；新的 main

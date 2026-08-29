@@ -24,8 +24,10 @@ code:
 ## 范围
 
 本文记录 `phone/productivity.notify` 以及 `phone/inbox.deliver` 的可选固定提醒，如何使用
-`expo-notifications 57.0.15` 创建即时本地通知。它们都不注册 push token、不接收 remote notification，
-也不提供 mailbox/background reachability；信箱正文存储契约另见
+`expo-notifications 57.0.15` 创建即时本地通知。`phone/productivity.notify` 在 SDK expose 中保持
+realtime-only；只有 `phone/inbox.deliver` 是 `delivery: both`，但 mailbox 投递的仍是信箱写入 operation，
+不是把 notify capability 变成异步通知命令。两者都不注册 push token、不接收 remote notification，也不
+提供 background reachability；信箱正文存储契约另见
 `llmdoc/capabilities/local-device-inbox.mdx`。
 
 ## 输入、确认与内容
@@ -106,12 +108,14 @@ Expo Notifications 默认包含远程通知相关原生资产，声明“local-o
   `NotificationForwarderActivity`。
 
 Android 仍声明 `POST_NOTIFICATIONS`，因为本地通知需要系统授权。这套配置证明“没有 remote push 入口”，
-不证明本地通知真机呈现，也不满足 U-5/U-6。
+不证明本地通知真机呈现，也不满足 U-5 真实 Gateway/双端联合验收或 U-6 push。
 
 ## 证据边界
 
 - unit/local contract 覆盖 strict schema、固定 request/channel/id、权限映射、commit race、zero schedule、
   脱敏和 `scheduled` 语义；信箱另覆盖 commit 后提醒与失败不回滚。它们使用注入 adapter，不是系统 UI E2E。
+- registry contract 明确只有 `phone/inbox.deliver` 投影 `delivery: both`，`phone/productivity.notify` 没有
+  `delivery` metadata；这不证明 mailbox Gateway path 或本地通知已在真机呈现。
 - Android clean build 与 merged manifest 只能证明对应 commit 的 local-only final config 可生成；emulator
   smoke 只证明 fresh permission 映射和 capability 投影，未请求权限、调度、呈现或点击通知。
 - iOS/Android 的 simulator、native build 与真机结果必须按当前 evidence 记录判断；APNs entitlement 静态

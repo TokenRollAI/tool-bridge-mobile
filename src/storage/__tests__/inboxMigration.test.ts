@@ -35,7 +35,7 @@ describe('inbox schema migration', () => {
     expect(INBOX_METADATA_SCHEMA_SQL).toContain('inbox_messages_sent_at_idx')
   })
 
-  test('v2 顺序执行 v3/v4，v3 只执行 v4', async () => {
+  test('v2 顺序执行 v3/v4/v5，v3 执行 v4/v5', async () => {
     const database = {
       closeAsync: jest.fn(async () => undefined),
       execAsync: jest.fn(async (_sql: string) => undefined),
@@ -45,7 +45,7 @@ describe('inbox schema migration', () => {
 
     await MobileDatabase.open()
 
-    expect(database.execAsync).toHaveBeenCalledTimes(2)
+    expect(database.execAsync).toHaveBeenCalledTimes(3)
     expect(database.execAsync).toHaveBeenCalledWith(INBOX_SCHEMA_SQL)
     expect(database.execAsync).toHaveBeenCalledWith(INBOX_METADATA_SCHEMA_SQL)
 
@@ -56,7 +56,7 @@ describe('inbox schema migration', () => {
     }
     openDatabase.mockResolvedValueOnce(v3 as never)
     await MobileDatabase.open()
-    expect(v3.execAsync).toHaveBeenCalledTimes(1)
+    expect(v3.execAsync).toHaveBeenCalledTimes(2)
     expect(v3.execAsync).toHaveBeenCalledWith(INBOX_METADATA_SCHEMA_SQL)
   })
 })

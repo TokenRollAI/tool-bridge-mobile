@@ -61,7 +61,7 @@ handler 与 probe/preflight 都不请求权限；权限只能由全屏相机流�
 `ApplicationRuntime.handleAppStateChange()` 一旦离开 `active` 就同步调用
 `cancelForForegroundLoss()`。controller 在取得照片、处理后和上传后也复检 foreground、取消和 deadline；
 因此等待权限/预览、拍摄和重编码期间切后台会终止本地流程，上传返回后也不会提交成功结果。已知限制是
-SDK 0.17 的 call-scoped `uploadObject` 不接受 controller 的额外 AbortSignal：如果 Store HTTP 上传已经
+当前 SDK 0.20.1 的 call-scoped `uploadObject` 仍不接受 controller 的额外 AbortSignal：如果 Store HTTP 上传已经
 开始，前台丢失不能保证终止该网络副作用，不能把本地失败结果表述为“对象一定未上传”。
 
 descriptor 的 `confirmation: always` 不因 Direct call 改写。具体 UI 分支由本机 control mode 决定：
@@ -83,10 +83,11 @@ SHA-256。已知的成功、失败、取消和重拍路径都对原始/处理文
 当前没有 App 崩溃后扫描相机孤儿文件的契约，不能把 best-effort 清理写成 crash-safe 生命周期保证。
 照片从不写入系统相册；相册中没有新照片是设计事实，不能作为“没有触发硬件拍照”的证据。
 
-## SDK 0.17 Store 对象上传
+## 当前 SDK 0.20.1 Store 对象上传
 
-移动端只消费 `@tool-bridge/sdk/device@0.17.0` 为当前 `DeviceCallHandler` 提供的 `call.uploadObject`；
-`expo/fetch` 作为 SDK connection fetcher 支撑 React Native Blob 上传：
+移动端只消费 `@tool-bridge/sdk/device@0.20.1` 为当前 `DeviceCallHandler` 提供的 `call.uploadObject`；该
+入口由 0.17 首次交付，0.20.1 继续提供。`expo/fetch` 作为 SDK connection fetcher 支撑 React Native Blob
+上传：
 
 ```text
 处理后的 JPEG Blob
@@ -122,9 +123,10 @@ upload service，相机会在 preflight fail closed。
 
 ## 验证边界
 
-可声明的稳定实现事实：本地相机流程与 SDK 0.17 call-scoped Store consumer 已集成；专项自动化覆盖 schema、
-缺 upload capability 在确认/probe 前拒绝、两种 UI 分支、前台丢失的本地取消、图像/descriptor 边界，以及
-真实 SDK supervisor 的 `system/store/create_upload` + `x-tb-store-capability` + relay Blob PUT。
+可声明的稳定实现事实：本地相机流程与当前 SDK 0.20.1 call-scoped Store consumer 已集成；专项自动化覆盖
+schema、缺 upload capability 在确认/probe 前拒绝、两种 UI 分支、前台丢失的本地取消、图像/descriptor
+边界，以及真实 SDK supervisor 的 `system/store/create_upload` + `x-tb-store-capability` + relay Blob
+PUT。
 
 2026-08-26 的 0.0.11 Preview APK 已在 Android 后置镜头 Direct call 下完成一次真实拍照、Store 上传、
 stat 和受保护回读的 size/SHA-256 闭环；这只证明记录中的 artifact、设备、Gateway 和调用条件。iOS、其他

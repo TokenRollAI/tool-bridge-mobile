@@ -30,25 +30,30 @@ code:
 这些层级不能互相替代。尤其不能把 fake/injected adapter 的 contract test 写成网关端到端证据，
 也不能把 generated native 配置写成后台、锁屏、DND、位置精度或音频中断已经在真机有效。
 
-## 设备信箱的四层证据
+## 设备信箱的五层证据
 
-1. **本地自动化**：schema/migration/repository/controller/component/local runtime contract 只能证明在线
+1. **本地内容自动化**：schema/migration/repository/controller/component/local runtime contract 只能证明
    call 已到达 executor 后的 v4 内容保存、全保留集搜索/六排序/已读、幂等、clear/replay、revision、
    RN Markdown 白名单、点击前零网络、任意结构合规 HTTPS 与安全跨 hostname redirect 的注入式 resolver
    边界；不证明 DNS 私网/rebinding 防护或最终 redirect hostname 对用户可见。
-2. **真实 Gateway path**：必须单独验证当前 gateway 的 `inbox/deliver` expose/call/result、重复 id 与
+2. **SDK 0.20.1 mailbox consumer**：真实 SDK processor + fake `expo/fetch` 可证明 `delivery: both` 投影、
+   有界 claim/complete、SQLite v5 journal barrier、正文不入 journal、`executing -> result_unknown`、前后台/
+   Disabled/换配置中止和 401 credential 联动；不能写成真实 Gateway 或设备 E2E。
+3. **真实 Gateway path**：必须单独验证当前 gateway 的 `inbox/deliver`
+   expose/enqueue/claim/renew/complete、取消/过期/结果、重复 id 与
    正文脱敏；其他 capability（包括 Android 真机 `status/get`）成功不能替代。
-3. **双端真机**：必须分别留下 Android/iOS build 与真机证据，覆盖重启持久化、Markdown 布局、长列表/
+4. **双端真机**：必须分别留下 Android/iOS build 与真机证据，覆盖重启持久化、Markdown 布局、长列表/
    搜索/排序/全部已读、真实图片下载/解码/取消/清理、前后台内存与无障碍，以及权限/channel/锁屏提醒；
    Metro、prebuild、模拟器或注入 adapter 都不能替代。
-4. **离线 mailbox/push**：必须有 U-5 enqueue/claim/cancel/expiry/result 和 U-6 token/opaque wake hint 的
-   正式契约与端到端未送达/撤销证据；本地 SQLite 信箱、`scheduled` 通知或前台长连不构成这一层。
+5. **后台唤醒与端到端**：U-5 当前只能称移动 consumer 接入，完整验收仍需真实 Gateway 与双端证据；
+   U-6 token/opaque wake hint 仍未实现。显式前台 drain、本地 SQLite 信箱、`scheduled` 通知或前台长连
+   都不构成后台必达证据。
 
 ## 相机与对象上传的证据层级
 
 1. **本地相机实现**：schema/controller/component/processor/uploader 自动化可证明前台取消、Direct/非
    Direct UI 分支、JPEG/大小/路径/URI 边界和临时文件已知路径清理。
-2. **SDK 0.17 Store consumer**：使用发布的 `DeviceCallHandler.uploadObject`，且真实 SDK supervisor + mocked
+2. **当前 SDK Store consumer**：使用 0.20.1 发布的 `DeviceCallHandler.uploadObject`，且真实 SDK supervisor + mocked
    `expo/fetch` 覆盖 `system/store/create_upload`、`x-tb-store-capability`、relay Blob PUT 与
    `StoreObjectDescriptor` 核对；这不等于真实 Gateway/storage。
 3. **原生配置与 bundle**：双端 clean prebuild/autolinking 和 production Metro 成功只证明生成配置与 JS
@@ -59,27 +64,31 @@ code:
 5. **双端真机**：需覆盖权限首次请求/拒绝/撤销、前后台/锁屏、真实预览、Direct call 自动物理拍摄、系统
    指示/快门声、上传取消与临时文件；组件测试、prebuild 和 Metro 不能替代。
 
-前台丢失的取消证据必须再区分“本地相机/处理/结果停止”和“已开始的 Store HTTP 上传被终止”。SDK 0.17
+前台丢失的取消证据必须再区分“本地相机/处理/结果停止”和“已开始的 Store HTTP 上传被终止”。SDK 0.20.1
 call-scoped options 不接受 controller 的额外 AbortSignal，未取得服务端/网络证据时只能声明前者，不能由
 失败结果推断对象一定不存在。
 
 ## 当前可用措辞
 
-- 可写：`@tool-bridge/sdk/device@0.17.0 consumer wiring 已集成`、`新 device call path/context 本地适配已实现`、
+- 可写：`@tool-bridge/sdk/device@0.20.1 realtime/mailbox consumer wiring 已集成`、
+  `phone/inbox.deliver 已投影为 delivery: both，App active 时可显式有界 drain`、
+  `新 device call path/context 本地适配已实现`、
   `相机 call-scoped Store URI upload consumer 本地已集成`、
   `本机 URL/API key fallback 已实现`、
   `本地 executor 已实现持久化去重`、`当前 commit 的双端 clean prebuild 与 production Metro 已成功`、
-  `设备在线且 direct call 已到达本地 executor 后，本机可安全保存并查询富内容消息；图片需用户逐图点按后
-  按本地 policy 有界加载，并可 best-effort 请求固定本地提醒`。
+  `设备在线 direct call，或 Gateway operation 在 App 显式前台 drain 中被 consumer claim 并到达本地
+  executor 后，本机可安全保存并查询富内容消息；图片需用户逐图点按后按本地 policy 有界加载，并可
+  best-effort 请求固定本地提醒`。
 - 当前真机 `status/get` 成功后只可限定到记录中的 SDK/Gateway 版本、设备、平台、build、command path 和
   运行条件；不外推到所有能力、iOS、后台、弱网、长期连接或完整 pairing。
 - 当前相机 Store 成功后只可限定到对应 APK、设备、镜头、control mode、Gateway/Store 与一次调用；stat/
   readback 的 size/checksum 闭环不外推到其他对象、平台、拒绝/过期、保留或完整服务端强绑定。
+- 2026-08-26 相机真实 Gateway/Store 证据属于 SDK 0.17 历史现场，不能外推为 0.20.1 的真实回归结果。
 - 需限定：`SDK ready 时 online`，不把进程存活外推为后台可达；没有 origin 时可写
   `transport 为 unconfigured`。
 - 需限定：`Android/iOS 已配置某权限或 background mode`，后接“尚无双端真机行为证据”。
 - 不可写：`手工 API key 等于已配对`、`已接通 production gateway`、`Agent 可随时给离线手机发信`、
-  `本地信箱已经实现后台 push/mailbox`、
+  `本地信箱已经实现 push/后台必达`、`U-5 已完整验收`、
   `当前双端原生构建已通过`、`已通过双端真机验收`、`完整 Gateway/storage 矩阵已兼容`、
   `通用 objectRef 读写已完成`、`服务端已强绑定 command/size/TTL/single-use`。
 

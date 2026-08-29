@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises'
 const packageRoot = new URL('../node_modules/@tool-bridge/sdk/', import.meta.url)
 const packageJson = JSON.parse(await readFile(new URL('package.json', packageRoot), 'utf8'))
 
-if (packageJson.version !== '0.17.0') {
-  throw new Error(`@tool-bridge/sdk 必须精确锁定 0.17.0，当前为 ${packageJson.version}`)
+if (packageJson.version !== '0.20.1') {
+  throw new Error(`@tool-bridge/sdk 必须精确锁定 0.20.1，当前为 ${packageJson.version}`)
 }
 const deviceExport = packageJson.exports?.['./device']
 if (
@@ -115,8 +115,18 @@ if (
 ) {
   throw new Error('@tool-bridge/sdk/device 缺少已验收的 call-scoped uploadObject/StoreObjectDescriptor 类型契约')
 }
+if (
+  !/interface\s+DeviceNodeCmd\s*\{[\s\S]*?\bdelivery\?:\s*DeviceCommandDelivery;[\s\S]*?\}/.test(declarationGraph)
+  || !/type\s+DeviceCommandDelivery\s*=\s*'realtime'\s*\|\s*'mailbox'\s*\|\s*'both';/.test(declarationGraph)
+  || !/interface\s+DeviceOperationJournal\s*\{[\s\S]*?get\(operationId:\s*string\):\s*Promise<DeviceOperationJournalEntry\s*\|\s*null>;[\s\S]*?put\(entry:\s*DeviceOperationJournalEntry\):\s*Promise<void>;[\s\S]*?remove\(operationId:\s*string\):\s*Promise<void>;[\s\S]*?\}/.test(deviceTypes)
+  || !/declare\s+function\s+createDeviceMailboxProcessor\(opts:\s*DeviceMailboxProcessorOptions\):\s*DeviceMailboxProcessor;/.test(deviceTypes)
+  || !/export\s*\{[^}]*\bcreateDeviceMailboxProcessor\b[^}]*\};/.test(deviceTypes)
+  || !/export\s*\{[^}]*\btype\s+DeviceOperationJournal\b[^}]*\};/.test(deviceTypes)
+) {
+  throw new Error('@tool-bridge/sdk/device 缺少已验收的 mailbox processor/journal/delivery 类型契约')
+}
 if (/\buploadContextObject\b/.test(deviceTypes)) {
   throw new Error('@tool-bridge/sdk/device 仍暴露旧 uploadContextObject 类型契约')
 }
 
-console.log('@tool-bridge/sdk/device@0.17.0 入口验证通过：递归 RN import 图仅依赖 partysocket/ws，call-scoped uploadObject/Store URI 类型存在，无旧 uploadContextObject 或 Node ws/process.env 泄漏。')
+console.log('@tool-bridge/sdk/device@0.20.1 入口验证通过：递归 RN import 图仅依赖 partysocket/ws，call-scoped uploadObject/Store URI 与 mailbox processor/journal/delivery 类型存在，无旧 uploadContextObject 或 Node ws/process.env 泄漏。')

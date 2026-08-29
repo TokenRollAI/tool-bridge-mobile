@@ -56,13 +56,14 @@ notification 和 timer 能力。
 
 现状是 P0 本地运行时与多项 P1 本地纵向切片已经实现，但产品仍未达到 MVP：
 
-- 已有 SecureStore installation identity、手工 Gateway HTTPS origin/API key 内测入口、官方 SDK 前台
-  consumer、ready-only online、本地 registry/policy/confirmation、SQLite command/audit/timer/inbox、
-  emergency disable 和 Activity/能力/信箱/设置界面；
+- 已有 SecureStore installation identity、手工 Gateway HTTPS origin/API key 内测入口、官方 SDK 0.20.1
+  realtime 与 durable mailbox consumer、ready-only online、本地 registry/policy/confirmation、SQLite
+  command/audit/timer/inbox/device operation journal、emergency disable 和 Activity/能力/信箱/设置界面；
 - 已有 `phone/status.get`、attention、受控 media、HTTPS/map handoff、foreground location、local-only
   notification、local timer、device inbox 和 foreground camera 的本地实现；
-- 正式 pairing、短期 ticket、动态 profile、durable mailbox、push、完整对象授权/读取、真实 Gateway
-  能力矩阵、完整双端原生 build/真机以及 production/store 发布仍未完成。
+- 正式 pairing、短期 ticket、动态 profile、U-5 真实 Gateway/双端联合验收、U-6 push、完整对象授权/读取、
+  真实 Gateway 能力矩阵、完整双端原生 build/真机以及 production/store 发布仍未完成。当前 U-5 只能称
+  移动 consumer 接入。
 
 “本地已实现”、SDK consumer、原生构建、真实 Gateway 与平台验收必须按
 `delivery/evidence-language.mdx` 分层；任何历史机器、commit、run 或单次调用记录都不是持续产品状态。
@@ -76,7 +77,8 @@ notification 和 timer 能力。
 - pairing session 必须短期、单次并向用户显示目标 Gateway；凭证正文不能进入日志或 UI。
 - 手工 HTTPS origin/API key 仅是 pairing 前内测 fallback；其客户端 deviceId/principal 不冒充网关签发
   身份、具体 Agent、最小 scope、rotation 或 revoke。
-- 只有 SDK `ready` 可称 online；未来 background-reachable 必须由 mailbox/push 契约和设备证据支撑。
+- 只有 SDK `ready` 可称 online；active-only mailbox drain 不等于 background-reachable，后者必须由 U-5
+  真实 Gateway 联合验收、U-6 push 契约和设备证据支撑。
 - disabled 不连接、不接收后续工作并停止本地活动；完整服务端 revoke 需单独验收。
 
 ### 能力发现与命令生命周期
@@ -86,8 +88,9 @@ notification 和 timer 能力。
 - 所有命令有全局唯一 `commandId`、创建/过期时间、取消信号和稳定错误；同一 ID 最多产生一次外部副作用，
   重试只回放首次终态。
 - 目标生命周期覆盖 `queued -> delivered -> awaiting_user -> running -> final`，其中 final 可为
-  succeeded/rejected/expired/cancelled/failed/result_unknown。当前前台 direct-call 只实现到达 executor 后的
-  本地部分，不冒充上游 mailbox 状态机。
+  succeeded/rejected/expired/cancelled/failed/result_unknown。当前 `phone/inbox.deliver` 已消费官方
+  claim/lease/complete processor 和本地 crash journal，但只有本地 consumer contract；不能据此冒充真实
+  Gateway 生命周期或 U-5 完整验收。
 - 过期或取消后不得开始新副作用；确认等待结束后必须重新检查 deadline、cancel、probe 与 policy。
 
 ### 首批能力
@@ -103,8 +106,10 @@ notification 和 timer 能力。
   预览和取消入口，只省略逐次确认、快门及拍后复核。结果只含稳定 `store://default/...` URI 与有界 JPEG
   元数据；照片不保存到系统相册。
 - 位置：MVP 只有逐次确认后的单次 foreground fix 与地图 handoff；持续/后台定位不在 MVP。
-- 设备信箱：在线 direct call 到达后才写入有界 SQLite 内容域；Markdown 用 RN 白名单组件，图片必须用户
-  逐图授权后有界加载；清除内容不清 command 防重放。本地信箱不等于离线 mailbox/push。
+- 设备信箱：`phone/inbox.deliver` 为 `delivery: both`，可由 realtime direct call，或 Gateway operation 在
+  App 初始化/配置完成且 active、之后回到 active 时的单次有界 drain 中到达 executor。Markdown 用 RN
+  白名单组件，图片必须用户逐图授权后有界加载；清除内容不清 command 防重放。本地 `inbox_messages`
+  内容域不等于 Gateway operation mailbox，也没有 push、后台轮询或后台必达。
 - Local-only notification：远程命令只在已有授权且前台时调度固定内容；不请求权限、不注册 push token，
   `scheduled` 不等于 presented/clicked。
 - Local timer：只接受未来 10 秒至 24 小时内的 canonical UTC 时间；SQLite 状态高于系统 pending 快照，
@@ -150,8 +155,9 @@ MVP 质量目标包括：在线低风险命令测试成功率至少 99%；已送
 
 ## 路线与优先级
 
-- **P0 运行时地基**：完成工程/身份/前台 SDK consumer、动态能力、本地策略、持久化与可达性；出口要求
-  双端真机可正式配对、注册状态能力并在 revoke 后失效。当前仅本地地基与内测 fallback 部分完成。
+- **P0 运行时地基**：完成工程/身份/realtime 与 mailbox SDK consumer、动态能力、本地策略、持久化与
+  可达性；出口要求双端真机可正式配对、注册状态能力并在 revoke 后失效。当前仅本地地基、U-5 移动
+  consumer 与内测 fallback 部分完成。
 - **P1-A 找手机**：完成真实声/振动/闪光、停止、幂等、限流、mailbox/push、DND/后台/锁屏/弱网与
   Agent/CLI golden scenario。
 - **P1-B 媒体与交接**：完成受控 HTTPS/object source、App player、系统媒体控制、map/link handoff 和

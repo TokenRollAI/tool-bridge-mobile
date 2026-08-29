@@ -3,6 +3,31 @@
 本文件记录可发布版本中用户可感知的变化。最新版本必须位于最前，并与 `package.json`、
 `app.config.ts` 和发布 tag 保持一致；自动发布流水线只提取首个版本段作为 GitHub Release 正文。
 
+## [0.0.13] - 2026-08-29
+
+> Preview：让设备本地信箱可经 Tool Bridge durable mailbox 投递；不是 production、
+> App Store 或 Google Play 正式版本。
+
+### 新增与变更
+
+- 将 `@tool-bridge/sdk` 精确升级到 0.20.1，消费正式 `createDeviceMailboxProcessor`、
+  `DeviceOperationJournal` 和 command `delivery` metadata，不复制上游协议源码。
+- `phone/inbox.deliver` 对 Gateway 宣告 `delivery: both`，保留 realtime 直调并允许 caller 显式
+  选择 mailbox/fallback；`phone/productivity.notify` 仍是 realtime-only。
+- 新增 SQLite v5 installation-local operation journal。`discovered/executing/terminal` barrier 先持久化
+  再进入副作用；崩溃恢复时不重放已进入 executing 的命令，而是保守提交
+  `result_unknown`。journal 不保存命令 arguments、消息正文或凭证。
+- App 在初始化、Gateway 配置完成和回到前台时执行一次有界 mailbox drain；
+  切到后台、Disabled、换配置或凭证被拒绝会中止拉取并联动 realtime transport。
+
+### 安全与验证边界
+
+- mailbox 不自启 timer、不注册 APNs/FCM token，也不提供 push 或后台必达；用户未重新打开
+  App 时，设备不会因此发起新的拉取。本版本没有新增系统权限或远程通知入口。
+- consumer contract 覆盖 delivery 投影、claim/complete、journal barrier、正文脱敏、崩溃后
+  `result_unknown`、前后台中止与 401 凭证联动；它们不替代真实 Gateway、真机、弱网、
+  锁屏或系统终止进程证据。
+
 ## [0.0.12] - 2026-08-28
 
 > Preview：修复 Android 15+ 后台 `dataSync` 前台服务超时后的崩溃与重启循环；不是 production、
@@ -137,6 +162,7 @@
 
 - 首个内部 Preview，包含移动端脚手架、前台 device transport、本地安全执行链和基础能力。
 
+[0.0.13]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.13
 [0.0.12]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.12
 [0.0.11]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.11
 [0.0.10]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.10

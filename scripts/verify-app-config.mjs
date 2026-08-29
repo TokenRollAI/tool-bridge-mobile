@@ -17,9 +17,9 @@ const easProject = {
 }
 
 const releaseMetadata = {
-  androidVersionCode: 12,
-  iosBuildNumber: '12',
-  version: '0.0.12',
+  androidVersionCode: 13,
+  iosBuildNumber: '13',
+  version: '0.0.13',
 }
 
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
@@ -72,7 +72,7 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   if (config.extra?.gatewayOrigin !== 'https://gateway.example.com') {
     throw new Error(`${variant}: gateway HTTPS origin 未规范化`)
   }
-  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.17.0') {
+  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.20.1') {
     throw new Error(`${variant}: production transport 版本标记不匹配`)
   }
   // 三个环境共用同一套品牌图标：安装标识虽然隔离，视觉标识不应分叉。
