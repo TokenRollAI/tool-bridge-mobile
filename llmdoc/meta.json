@@ -6,79 +6,79 @@
   },
   "documents": {
     "architecture.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "capabilities/architecture.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "capabilities/bounded-linking-handoffs.mdx": {
-      "validatedRevision": "7b3aa5cb27b86188379f9c8bf7ebd4af7f569952"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "capabilities/bounded-media-source.mdx": {
-      "validatedRevision": "7b3aa5cb27b86188379f9c8bf7ebd4af7f569952"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "capabilities/foreground-camera-capture.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "capabilities/local-device-inbox.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "capabilities/local-notifications.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "capabilities/local-timers.mdx": {
-      "validatedRevision": "7b3aa5cb27b86188379f9c8bf7ebd4af7f569952"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "delivery/eas-project-binding.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "delivery/evidence-language.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "delivery/github-preview-release.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "delivery/verification-and-claims.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "integration/manual-gateway-configuration.mdx": {
-      "validatedRevision": "7b3aa5cb27b86188379f9c8bf7ebd4af7f569952"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "integration/sdk-device-transport.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "integration/trusted-grants.mdx": {
-      "validatedRevision": "7b3aa5cb27b86188379f9c8bf7ebd4af7f569952"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "integration/upstream-and-platform-gaps.mdx": {
-      "validatedRevision": "9d0a9c96309e924f6e7a56c4b0c595d1d5173a31"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "runtime/accessibility-semantics.mdx": {
-      "validatedRevision": "7b3aa5cb27b86188379f9c8bf7ebd4af7f569952"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "runtime/activity-history.mdx": {
-      "validatedRevision": "7b3aa5cb27b86188379f9c8bf7ebd4af7f569952"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "runtime/architecture.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "runtime/command-retention.mdx": {
-      "validatedRevision": "7b3aa5cb27b86188379f9c8bf7ebd4af7f569952"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "runtime/safety-boundaries.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "product/requirements-and-roadmap.mdx": {
-      "validatedRevision": "9d0a9c96309e924f6e7a56c4b0c595d1d5173a31"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "delivery/engineering-baseline.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "delivery/definition-of-done.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     },
     "delivery/verification-evidence.mdx": {
-      "validatedRevision": "df8734944c7f860a681d0c6a873d9cd84e957182"
+      "validatedRevision": "6344abd0b4c7ad95e7553eaccb2c4a56f6b56ca5"
     }
   },
   "convergence": {
