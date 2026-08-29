@@ -15,8 +15,8 @@ importers:
         specifier: 15.1.1
         version: 15.1.1(expo-font@57.0.1)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
       '@tool-bridge/sdk':
-        specifier: 0.17.0
-        version: 0.17.0(react@19.2.3)
+        specifier: 0.20.1
+        version: 0.20.1(react@19.2.3)
       expo:
         specifier: 57.0.17
         version: 57.0.17(d3be61da77f691b935e9cd777f5b33d8)
@@ -1336,8 +1336,8 @@ packages:
       jest:
         optional: true
 
-  '@tool-bridge/sdk@0.17.0':
-    resolution: {integrity: sha512-BhhZr/0R/v7pA6ODAN9nXdRePk5xIy+M3jv2BXL5vZubOu8LpTxy4TXhRaTeSG+zhb3NTjlEP5v00W9/U/DEdg==}
+  '@tool-bridge/sdk@0.20.1':
+    resolution: {integrity: sha512-EniPFBCWalX76Cmdc7VL5qnv8Qhu+iOFG5T+TsdjXvQ/zgfbK0yB/r+eNBiHMlUNcEgZHfDzNp0dUOwIPWyTGw==}
     engines: {node: '>=22'}
 
   '@tootallnate/once@2.0.1':
@@ -6551,7 +6551,7 @@ snapshots:
     optionalDependencies:
       jest: 29.7.0(@types/node@26.2.0)(supports-color@8.1.1)
 
-  '@tool-bridge/sdk@0.17.0(react@19.2.3)':
+  '@tool-bridge/sdk@0.20.1(react@19.2.3)':
     dependencies:
       '@cfworker/json-schema': 4.1.1
       aws4fetch: 1.0.20

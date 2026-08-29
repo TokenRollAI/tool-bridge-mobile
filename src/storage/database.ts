@@ -7,9 +7,13 @@ import {
   INBOX_METADATA_SCHEMA_SQL,
   INBOX_METADATA_SCHEMA_VERSION,
 } from './migrations/0004_inbox_metadata'
+import {
+  DEVICE_MAILBOX_JOURNAL_SCHEMA_SQL,
+  DEVICE_MAILBOX_JOURNAL_SCHEMA_VERSION,
+} from './migrations/0005_device_mailbox_journal'
 
 const DATABASE_NAME = 'tool-bridge-mobile.db'
-const LATEST_SCHEMA_VERSION = INBOX_METADATA_SCHEMA_VERSION
+const LATEST_SCHEMA_VERSION = DEVICE_MAILBOX_JOURNAL_SCHEMA_VERSION
 
 const MIGRATIONS = [{
   sql: INITIAL_SCHEMA_SQL,
@@ -23,6 +27,9 @@ const MIGRATIONS = [{
 }, {
   sql: INBOX_METADATA_SCHEMA_SQL,
   version: INBOX_METADATA_SCHEMA_VERSION,
+}, {
+  sql: DEVICE_MAILBOX_JOURNAL_SCHEMA_SQL,
+  version: DEVICE_MAILBOX_JOURNAL_SCHEMA_VERSION,
 }] as const
 
 export class MobileDatabase {

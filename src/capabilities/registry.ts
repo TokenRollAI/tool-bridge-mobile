@@ -110,6 +110,7 @@ export class CapabilityRegistry {
           confirm: descriptor.confirmation !== 'never'
             || descriptor.risk === 'high'
             || descriptor.effect !== 'read',
+          ...(descriptor.queuePolicy === 'enqueue' ? { delivery: 'both' as const } : {}),
           description: descriptor.description,
           effect: descriptor.effect,
           inputSchema: z.toJSONSchema(capability.inputSchema),

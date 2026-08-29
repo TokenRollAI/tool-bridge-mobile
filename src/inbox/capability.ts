@@ -33,7 +33,7 @@ export function createInboxDeliveryCapability(
         rate: { maxGlobal: 60, maxPerCaller: 30, windowSeconds: 3_600 },
       },
       path: 'phone/inbox',
-      queuePolicy: 'reject_offline',
+      queuePolicy: 'enqueue',
       risk: 'medium',
       tool: 'deliver',
     },

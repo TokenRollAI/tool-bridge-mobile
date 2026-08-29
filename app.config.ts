@@ -12,9 +12,9 @@ type VariantConfig = Readonly<{
 export const EXPO_OWNER = 'tokenroll'
 export const EAS_PROJECT_ID = '378c7a3e-437a-49a6-ae20-fef5af6f6188'
 export const EXPO_PROJECT_SLUG = 'tool-bridge'
-export const APP_VERSION = '0.0.12'
-export const ANDROID_VERSION_CODE = 12
-export const IOS_BUILD_NUMBER = '12'
+export const APP_VERSION = '0.0.13'
+export const ANDROID_VERSION_CODE = 13
+export const IOS_BUILD_NUMBER = '13'
 
 export const APP_VARIANTS: Readonly<Record<AppVariant, VariantConfig>> = {
   development: {
@@ -212,7 +212,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       gatewayOrigin: parseGatewayOrigin(process.env.EXPO_PUBLIC_GATEWAY_ORIGIN),
       linkHosts: parseLinkHosts(process.env.EXPO_PUBLIC_LINK_HOSTS),
       mediaHosts: parseMediaHosts(process.env.EXPO_PUBLIC_MEDIA_HOSTS),
-      productionTransport: '@tool-bridge/sdk/device@0.17.0',
+      productionTransport: '@tool-bridge/sdk/device@0.20.1',
     },
   }
 }

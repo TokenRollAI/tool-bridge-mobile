@@ -697,6 +697,39 @@ describe('@tool-bridge/sdk/device mobile adapter', () => {
     expect(harness.sockets).toHaveLength(0)
   })
 
+  test('realtime 鉴权拒绝时即使 mailbox 停止不收敛也会清除凭证', async () => {
+    const harness = createWebSocketHarness()
+    const credentialStore = new MemoryCredentialStore(credential)
+    const onCredentialInvalid = jest.fn(() => new Promise<void>(() => {}))
+    const transport = new SdkDeviceTransport({
+      baseUrl: 'https://gateway.example.com',
+      credentialStore,
+      executeCommand: async () => ({ ok: true, value: null }),
+      onCredentialInvalid,
+      registry: createRegistry(),
+      webSocketFactory: harness.factory,
+    })
+
+    await transport.updateLifecycle('active', true)
+    await eventually(() => expect(harness.sockets).toHaveLength(1))
+    const socket = harness.sockets[0]
+    if (socket === undefined) throw new Error('missing auth rejection fixture WebSocket')
+    socket.open()
+    await eventually(() => expect(socket.sent).toHaveLength(1))
+    socket.receive({
+      error: {
+        code: 'permission_denied',
+        message: '设备凭证已失效',
+        retryable: false,
+      },
+      type: 'error',
+    })
+
+    await eventually(() => expect(credentialStore.value).toBeNull())
+    expect(onCredentialInvalid).toHaveBeenCalledTimes(1)
+    await transport.stopForLocalRevocation()
+  })
+
   test('SecureStore 读取等待期间 Disabled 会使旧 lifecycle 失效，不短暂创建连接', async () => {
     const harness = createWebSocketHarness()
     let releaseCredential!: (value: DeviceCredentialEnvelope | null) => void

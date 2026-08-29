@@ -1,7 +1,7 @@
 {
   "name": "tool-bridge-mobile",
   "private": true,
-  "version": "0.0.12",
+  "version": "0.0.13",
   "type": "module",
   "main": "index.js",
   "packageManager": "pnpm@11.21.0",
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "15.1.1",
-    "@tool-bridge/sdk": "0.17.0",
+    "@tool-bridge/sdk": "0.20.1",
     "expo": "57.0.17",
     "expo-application": "57.0.2",
     "expo-asset": "57.0.15",

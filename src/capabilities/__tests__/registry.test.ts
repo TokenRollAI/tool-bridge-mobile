@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { createInboxDeliveryCapability } from '../../inbox/capability'
 import { inboxDeliveryArgumentsSchema, inboxDeliveryResultSchema } from '../../inbox/schema'
 import {
   appCanOpenResultSchema,
@@ -20,6 +21,7 @@ import {
   mediaSessionArgumentsSchema,
   mediaSessionResultSchema,
 } from '../media/schema'
+import { createLocalNotificationCapability } from '../productivity/notificationCapability'
 import {
   localNotificationArgumentsSchema,
   localNotificationResultSchema,
@@ -156,6 +158,48 @@ describe('CapabilityRegistry', () => {
         path: 'phone/fixture',
       }],
     })
+  })
+
+  test('只把 enqueue capability 投影为 realtime 与 mailbox 都可用', () => {
+    const registry = new CapabilityRegistry()
+    registry.register({
+      descriptor: {
+        confirmation: 'never',
+        description: 'mailbox fixture capability',
+        effect: 'write',
+        limits: {
+          maxResultBytes: 1_024,
+          rate: { maxGlobal: 10, maxPerCaller: 5, windowSeconds: 60 },
+        },
+        path: 'phone/mailbox-fixture',
+        queuePolicy: 'enqueue',
+        risk: 'medium',
+        tool: 'deliver',
+      },
+      execute: async () => ({ stored: true }),
+      inputSchema: z.strictObject({}),
+      outputSchema: z.strictObject({ stored: z.boolean() }),
+      probe: async () => ({ status: 'available' }),
+    })
+
+    expect(registry.deviceExpose().nodes[0]?.cmds?.[0]).toMatchObject({
+      delivery: 'both',
+      name: 'deliver',
+    })
+  })
+
+  test('只有设备本地信箱支持 mailbox，即时通知保持 realtime-only', () => {
+    const registry = new CapabilityRegistry()
+    registry.register(createInboxDeliveryCapability({} as never))
+    registry.register(createLocalNotificationCapability({} as never))
+
+    const expose = registry.deviceExpose()
+    const inbox = expose.nodes.find(node => node.path === 'phone/inbox')?.cmds?.[0]
+    const notification = expose.nodes
+      .find(node => node.path === 'phone/productivity')?.cmds?.[0]
+    expect(inbox).toMatchObject({ delivery: 'both', name: 'deliver' })
+    expect(notification).toMatchObject({ name: 'notify' })
+    expect(notification).not.toHaveProperty('delivery')
   })
 
   test('不把静态未配置的能力注册给 SDK，但仍保留本机 snapshot', async () => {
