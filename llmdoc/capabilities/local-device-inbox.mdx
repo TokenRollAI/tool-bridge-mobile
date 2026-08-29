@@ -1,5 +1,5 @@
 ---
-description: 在线 direct-call 设备本地信箱的 schema、SQLite 内容域、检索、Markdown 图片、提醒和清除语义。
+description: 可经 realtime 或显式 durable mailbox drain 投递的设备本地信箱、内容域与提醒语义。
 kind: reference
 relations:
   requires:
@@ -13,9 +13,12 @@ relations:
 code:
   paths:
     - src/inbox/**
+    - src/gateway/sdkDeviceMailboxTransport.ts
     - src/storage/migrations/0003_inbox.ts
     - src/storage/migrations/0004_inbox_metadata.ts
+    - src/storage/migrations/0005_device_mailbox_journal.ts
     - src/storage/inboxRepository.ts
+    - src/storage/deviceMailboxJournalRepository.ts
     - src/runtime/applicationRuntime.ts
     - src/ui/screens/InboxScreen.tsx
     - src/ui/components/SafeMarkdown.tsx
@@ -28,13 +31,18 @@ code:
 
 ## 定义与边界
 
-`phone/inbox.deliver` 是面向用户的设备本地内容信箱。只有现有 SDK direct-call session 在线、调用已到达
-`LocalCommandExecutor` 并通过本地安全链后，消息才会写入本机 SQLite；descriptor 的 queue policy 是
-`reject_offline`。
+`phone/inbox.deliver` 是面向用户的设备本地内容信箱。它既可由现有 SDK realtime session 直调，也可由
+Gateway durable mailbox 入队，并在 App 启动/配置完成或回到前台后的显式有界 drain 中到达
+`LocalCommandExecutor`；descriptor 的 queue policy 是 `enqueue`，SDK expose 为 `delivery: both`。
 
-这里的“信箱”不等于 U-5 gateway command mailbox：本地信箱没有 enqueue、claim/lease、cancel/expiry、
-result cursor 或离线拉取状态机，也不注册 APNs/FCM token。设备离线、App 被挂起或进程终止时，当前实现
-不会自行收件或用 push 唤醒。U-5/U-6 仍由上游协议与 gateway 拥有。
+这里的“信箱”与 Gateway operation mailbox 是不同层：`inbox_messages` 拥有用户可见的标题、Markdown
+正文和已读状态；`device_operation_journal` 只为 SDK claim/lease/complete 的 crash recovery 保存最小
+operation 状态。移动端只消费上游正式 mailbox API，不拥有通用协议或 Gateway 队列实现。
+
+当前 consumer 不注册 APNs/FCM token，不以 timer 触发新 drain，也不在后台轮询。App 处于
+background/inactive、
+Disabled、换 Gateway 配置或 credential 失效时会中止 drain；进程被挂起或终止后不会自行收件或用 push
+唤醒。因此不能把 `delivery: both` 写成后台必达、最终送达或 U-5/U-6 完整验收。
 
 ## `phone/inbox.deliver` 契约
 
@@ -82,7 +90,7 @@ inline result 最大 2 KiB。`confirmation: never` 只表示 capability 不额�
 
 `scheduled` 不表示 presented、delivered、clicked、read 或 on-time；其余提醒状态也不改变 `stored`。
 
-## SQLite v4、时间事实与内容所有权
+## SQLite v4 内容域、v5 operation journal 与时间事实
 
 SQLite schema v4 重建专用 `inbox_messages` 表并保留 v3 内容：
 
@@ -103,6 +111,13 @@ SQLite schema v4 重建专用 `inbox_messages` 表并保留 v3 内容：
 title/body/sourceLabel/urgency/sentAt 是独立的用户内容域，只进入 `inbox_messages`。它们不能进入 command
 outcome、普通 `audit_records`、普通日志、自动 accessibility announcement 或系统通知 payload。command
 outcome 只保存 message id、本机收到时间和提醒尝试状态。
+
+SQLite schema v5 另增 `device_operation_journal`，字段只有
+`operation_id/state/completion_json/expires_at/updated_at`。SDK 在 handler 副作用前依次持久化
+`discovered`、`executing` barrier，完成后保存 terminal completion；complete 成功才移除 journal。journal
+不保存 arguments、title/body/sourceLabel 或 credential。crash 后恢复到 `executing` 时提交
+`result_unknown`，不重放本地写入；初始化只按 `expiresAt` 清理过期 journal。该表不替代或合并
+`inbox_messages`，用户清除本地内容也不删除 operation journal。
 
 ## 全保留集检索、排序与已读
 
@@ -176,23 +191,29 @@ push token，不是 remote notification 或 U-6 wake hint。
 
 ## 证据分层
 
-1. **本地自动化**：schema、migration、repository、controller、registry、component 与 local runtime
+1. **本地内容自动化**：schema、migration、repository、controller、registry、component 与 local runtime
    contract 证明 strict rich schema、64,000 字符接受/64,001 字符拒绝、Agent 可发现的
    `maxLength: 64000`、64,000 字符 runtime 落盘、v4 migration、正文域、1,000 cap、全保留集参数化搜索、六种排序、
    单条/全部已读、确定性幂等、commit 后提醒、clear/replay、revision、RN Markdown 白名单、点击前零网络、
    任意结构合规 HTTPS、安全跨 hostname redirect、inbox hostname 配置链缺失且 media/link 配置未变；注入
    adapter/fake transport 不是系统或 gateway E2E。
-2. **真实 Gateway wire**：必须单独验证 `inbox/deliver` 的 expose/call/result、duplicate id 与正文脱敏；
+2. **SDK 0.20.1 mailbox consumer contract**：真实 SDK processor + fake `expo/fetch` 证明
+   `delivery: both` 投影、有界 claim/complete、v5 journal barrier、正文不入 journal、crash 后
+   `result_unknown`、前后台/Disabled/换配置中止和 401 credential 联动；这不是 Gateway wire 或设备 E2E。
+3. **真实 Gateway wire**：必须单独验证 `inbox/deliver` 的 expose/enqueue/claim/renew/complete、取消/过期/
+   结果、duplicate id 与正文脱敏；
    其他 capability 的 Gateway 或真机结果不能替代。
-3. **平台与双端真机**：必须为当前 commit/artifact 验证原生构建、重启持久化、前后台、锁屏、Markdown
+4. **平台与双端真机**：必须为当前 commit/artifact 验证原生构建、重启持久化、前后台、锁屏、Markdown
    布局、长列表/搜索/排序、全部已读、图片真实下载/解码/取消/清理、跨 hostname redirect、代理/DNS
    rebinding/private network、内存/无障碍、权限/channel 变化与提醒呈现。
-4. **离线 mailbox + push**：U-5 enqueue/claim/cancel/expiry/result 与 U-6 token registration/opaque wake
-   hint 尚未交付；离线、挂起、进程终止、未送达、弱网和 credential revoke 都没有端到端证据。
+5. **后台唤醒与端到端**：U-5 当前只有移动 consumer 接入，没有真实 Gateway 与双端真机联合验收；U-6
+   token registration/opaque wake hint 仍未实现。离线、挂起、进程终止、未送达、弱网和 credential revoke
+   都没有端到端证据。
 
-在没有更高层当前证据时，只能表述为：“设备在线且 direct call 已到达本地 executor 后，本机可安全保存并查询富内容消息；
-图片需用户逐图点按后按本地 policy 有界加载，并可 best-effort 请求一条固定本地提醒。”不能表述为“Agent 可
-随时给离线手机发信”“Markdown 图片必定显示”“后台必达”或“已实现 mailbox/push”。
+在没有更高层当前证据时，只能表述为：“设备在线 direct call，或 Gateway operation 在 App 显式前台
+drain 中被 SDK consumer claim 并到达本地 executor 后，本机可安全保存并查询富内容消息；图片需用户逐图
+点按后按本地 policy 有界加载，并可 best-effort 请求一条固定本地提醒。”不能表述为“Agent 可随时给离线
+手机发信”“Markdown 图片必定显示”“后台必达”“U-5 已完整验收”或“已实现 push”。
 
 ## 事实真源
 
@@ -200,6 +221,8 @@ push token，不是 remote notification 或 U-6 wake hint。
 - `src/inbox/controller.ts`、`src/inbox/identifiers.ts`：commit/notify 顺序、状态与确定性 id。
 - `src/storage/migrations/0003_inbox.ts`、`src/storage/migrations/0004_inbox_metadata.ts`、
   `src/storage/inboxRepository.ts`：SQLite v3→v4、幂等、retention、搜索/排序、read-all/clear。
+- `src/gateway/sdkDeviceMailboxTransport.ts`、`src/storage/migrations/0005_device_mailbox_journal.ts`、
+  `src/storage/deviceMailboxJournalRepository.ts`：显式前台 drain、SDK operation barrier 与最小 v5 journal。
 - `src/inbox/imagePolicy.ts`、`src/inbox/imageSource.ts`、`src/inbox/expoInboxImageCacheStore.ts`：逐图点击后的
   HTTPS 结构 policy、有界解析、跨 hostname redirect 和私有 cache 生命周期。
 - `src/runtime/applicationRuntime.ts`、`src/ui/screens/InboxScreen.tsx`、`src/ui/components/SafeMarkdown.tsx`：

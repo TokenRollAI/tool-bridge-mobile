@@ -13,9 +13,12 @@ relations:
 code:
   paths:
     - package.json
+    - src/gateway/sdkDeviceMailboxTransport.ts
     - src/gateway/sdkDeviceTransport.ts
     - src/gateway/deviceTransportDiagnostic.ts
     - src/identity/**
+    - src/storage/deviceMailboxJournalRepository.ts
+    - src/storage/migrations/0005_device_mailbox_journal.ts
     - scripts/verify-sdk-device-entry.mjs
 ---
 
@@ -23,14 +26,15 @@ code:
 
 ## 已发布事实
 
-- 移动端精确依赖 `@tool-bridge/sdk@0.17.0`，生产代码只从 `@tool-bridge/sdk/device` 导入。
+- 移动端精确依赖正式发布的 `@tool-bridge/sdk@0.20.1`，生产代码只从 `@tool-bridge/sdk/device` 导入。
 - `/device` 导出 `connectDevice`、`createReactNativeWebSocketFactory`、DeviceExpose/frame/TBError 类型与
-  codec；0.17.0 为每个 `DeviceCallHandler` call 提供 `uploadObject`，并导出
-  `CallUploadObjectOptions`、`StoreObjectDescriptor` 和 `store://default/...` URI 类型。包根仍是 Node 入口。
+  codec；0.20.1 继续为每个 `DeviceCallHandler` call 提供 `uploadObject`，并正式导出
+  `createDeviceMailboxProcessor`、`DeviceOperationJournal` 与 command `delivery` metadata。包根仍是 Node
+  入口。
 - package `engines.node >=22` 由仓库 Node 22.23.1 构建环境满足，不代表手机运行 Node。
 - `scripts/verify-sdk-device-entry.mjs` 递归遍历 `/device` JS import 图，只允许外部依赖 `partysocket/ws`，
-  拒绝 Node `ws`/`process.env`；同时递归检查 `.d.ts` 图存在 call-scoped upload/Store URI 契约，且旧
-  `uploadContextObject` 不再暴露。
+  拒绝 Node `ws`/`process.env`；同时递归检查 `.d.ts` 图存在 call-scoped upload/Store URI 与 mailbox
+  processor/journal/delivery 契约，且旧 `uploadContextObject` 不再暴露。
 - React Native 目标运行时缺失浏览器完整 `MessageEvent` 与 `AbortSignal.throwIfAborted()`；App 入口在加载
   router/SDK 前只补齐缺失成员，避免 ready 后的 message/cancel 路径因运行时差异抛出 `internal`。
 
@@ -63,9 +67,32 @@ code:
 `ManualGatewayConfigurationController` 按“停止旧连接 -> 写/清 SecureStore -> 应用新 origin”切换，失败时
 保持断开。输入、身份、存储与证据边界见 `llmdoc/integration/manual-gateway-configuration.mdx`。
 
+## Durable mailbox consumer wiring
+
+`src/gateway/sdkDeviceMailboxTransport.ts` 只组装 0.20.1 的公开 `createDeviceMailboxProcessor`，不复制
+claim/lease/renew/complete 协议。registry 只把 `queuePolicy: enqueue` 的 `phone/inbox.deliver` 投影为
+`delivery: both`；`phone/productivity.notify` 和其他 command 没有 `delivery` metadata，继续是
+realtime-only。
+
+processor 本身和移动宿主都不启动轮询 timer。`ApplicationRuntime` 仅在初始化/配置完成时且 App 已
+`active`，以及 App 之后回到 `active` 时显式触发一次 drain；单次最多处理 20 个 operation。后台或
+inactive、Disabled、Gateway 配置切换和本地 credential revoke 都 abort 当前 drain；没有 timer 驱动的新
+drain、push、后台轮询或进程终止后的自启动路径。mailbox 失败不改变 realtime 的
+ready-only reachability。
+
+SQLite schema v5 的 `device_operation_journal` 是 installation-local SDK 恢复日志，只保存
+`operation_id/state/completion_json/expires_at/updated_at`。它不保存 operation arguments、信箱标题/正文或
+credential；`put()` 必须在进入副作用前 durable resolve。crash 后发现 `executing` 时，SDK 提交
+`result_unknown` 而不重放本地 handler；terminal completion 在 Gateway complete 成功后移除，初始化时
+按 `expiresAt` 清理过期项。它与用户可见的 `inbox_messages` 内容域是两层不同的数据所有权。
+
+realtime 或 mailbox 任一通道收到 401 都先联动停止 sibling transport，再清 SecureStore credential；即使
+sibling 停止失败，也继续清除已被拒绝的 bearer。配置 audience 或 drain 中 deviceId 发生变化时 fail
+closed。
+
 ## Call 归一化
 
-0.17.0 的 `DeviceCallHandler` call 包含 `id/path/arguments/signal/context?/uploadObject`；命令不再单列
+0.20.1 的 `DeviceCallHandler` call 包含 `id/path/arguments/signal/context?/uploadObject`；命令不再单列
 `tool`，而是
 `path` 的最后一段。当前 adapter：
 
@@ -76,9 +103,11 @@ code:
 - context 存在时，本地 caller `subjectId` 优先使用网关签发的 `caller.keyId`，
   display name 只来自 `caller.displayName/owner`；`createdAt` 使用网关值，`expiresAt` 取
   网关期限、本地期限与可选 upload capability expiry 的较早值；相机 `camera/capture_photo` 本地 ceiling
-  是 120 秒，其他 realtime command 是 30 秒；当前 Gateway 0.17 的约 60 秒 authority 不会被本地延长；
+  是 120 秒，其他 realtime command 是 30 秒。mailbox operation 使用 Gateway `expiresAt`，不再额外套用
+  realtime 30 秒 ceiling；当前 Gateway 0.17 的约 60 秒 realtime authority 也不会被本地延长；
 - context 缺失时是旧网关兼容降级：用 device credential 非秘密 `keyId` 作为
-  gateway principal，用本地接收时间以及同一 120/30 秒能力上限；它不冒充具体 Agent 或网关权威时间；
+  gateway principal，用本地接收时间以及同一 realtime 120/30 秒能力上限；mailbox 缺失权威 context 时也
+  保守回退 30 秒，而不制造无限期限。它不冒充具体 Agent 或网关权威时间；
 - context 缺失、upload capability 缺失/已过期时不下传 Store service；无效 context 时间戳直接映射
   `invalid_argument`。前述无 service 的相机 preflight 会在 admission、probe 和本地确认之前 fail closed；
 - `arguments` 只作为 capability 参数，不能覆盖 caller/context/deadline；
@@ -91,7 +120,7 @@ device credential 的调用继续共享 caller bucket 和 timer ownership。
 
 ## Call-scoped Store upload
 
-0.17.0 的 `call.uploadObject(options)` 接收 body、content type、size、可选 checksum/filename/
+0.20.1 的 `call.uploadObject(options)` 接收 body、content type、size、可选 checksum/filename/
 idempotency key；SDK 用当前 call 的窄 capability 请求 `system/store/create_upload`，再把 body PUT 到 relay，
 成功返回 `StoreObjectDescriptor`。公开稳定引用是 `store://default/...`，移动端不再选择 context/entry path。
 
@@ -129,27 +158,32 @@ suspend、配置切换、local revoke 和 credential invalidation 在调用 SDK 
 不信任远端可伪造的 close reason 来判断“主动关闭”。重连期间保留最近失败，SDK `ready`、新配置、
 `unconfigured` 与 `credentials_required` 清除旧诊断。
 
-U-1 已由该子入口交付并被消费。0.17.0 的 call-scoped Store upload 已解除移动端 U-7 上传入口缺口；
+U-1 已由该子入口交付并被消费。0.17.0 首次交付、0.20.1 继续提供的 call-scoped Store upload 已解除移动端
+U-7 上传入口缺口；
 2026-08-26 已在 Android Preview 对单个相机对象完成真实 Gateway 上传、stat 与受保护回读，但完整
 command/device/MIME/大小/TTL/checksum/single-use 服务端强绑定和通用读取仍未完成。
 手工 URL/API key fallback 不完成 U-2 或 U-3。仍未完成：U-2
 pairing/credential issuance、U-3 短期 ticket、完整真实 gateway compatibility matrix、绑定 device
-credential generation 的 invocation 身份、U-4 动态 profile、U-5 mailbox、U-6 push、通用受保护对象读取
-和完整 U-7。
+credential generation 的 invocation 身份、U-4 动态 profile、U-5 真实 Gateway/取消/过期/结果联合验收、
+U-6 push、通用受保护对象读取和完整 U-7。0.20.1 的 U-5 移动 consumer 接口与本地接线已完成，不能据此
+写成 U-5 端到端验收完成。
 
 ## 证据边界
 
-仓库 consumer contract 覆盖真实 SDK supervisor + fake WebSocket、新 call path/context 归一化、双向
+仓库 consumer contract 覆盖 0.20.1 真实 SDK supervisor + fake WebSocket、新 call path/context 归一化、双向
 schema registry expose、错误映射、credential fail-closed、手工配置事件顺序、raw close 脱敏/旧连接隔离
-与 secret 不回显。相机上传以真实 0.17 SDK supervisor + mocked `expo/fetch` 覆盖
+与 secret 不回显；另以真实 0.20.1 mailbox processor + mocked `expo/fetch` 覆盖有界 claim/complete、
+journal barrier、正文不入 journal、`executing -> result_unknown`、前后台中止和 401 联动。相机上传的
+consumer contract 以当前 SDK + mocked `expo/fetch` 覆盖
 `system/store/create_upload`、`x-tb-store-capability`、relay Blob PUT 和 Store descriptor 核对；这本身仍是
-consumer contract。另有一次日期化 Android 真实 Gateway/Store E2E，证据范围见验证文档。
+consumer contract。另有一次日期化的 SDK 0.17 Android 真实 Gateway/Store E2E，证据范围见验证文档；它
+不能替代 0.20.1 的真实 Gateway 回归。
 
 原生 build、Metro、真机和真实 Gateway/storage 的完成状态必须从当前 commit/artifact 的有效记录判断。
 任何历史单次 Android `status/get` 或相机成功都不能外推到全部能力、iOS、后台、弱网、长连、pairing 或
 完整 Store 语义；需要按 `llmdoc/delivery/verification-evidence.mdx` 重跑目标矩阵。
 
-这些不证明真实 gateway 对空 command node 的删除语义、真机 header/diagnostic、弱网/重连、前后台 OS
-行为、credential revoke、mailbox 或 push。诊断 UI 出现固定分类也不等于对应根因已经由真机日志或
-服务端日志确认。
+这些不证明真实 gateway 对空 command node 的删除语义、mailbox claim/renew/complete 与取消/过期结果、
+真机 header/diagnostic、弱网/重连、前后台 OS 行为、credential revoke 或 push。诊断 UI 出现固定分类也
+不等于对应根因已经由真机日志或服务端日志确认。
 升级版本时必须重跑 frozen install、SDK entry gate、consumer contract、双端 Metro 与真实 gateway matrix。

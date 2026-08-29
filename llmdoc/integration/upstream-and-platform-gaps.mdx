@@ -21,9 +21,9 @@ code:
 
 ## 现状：上游
 
-U-1 已解阻：`@tool-bridge/sdk/device@0.17.0` 是正式 React Native / Hermes device client 入口，移动仓库
-已消费官方 supervisor、frame/TBError、RN WebSocket header adapter 与 AppState lifecycle。精确用法与
-证据边界见 `llmdoc/integration/sdk-device-transport.mdx`。
+U-1 已解阻：当前正式入口是 `@tool-bridge/sdk/device@0.20.1`，移动仓库已消费官方 realtime supervisor、
+frame/TBError、RN WebSocket header adapter、durable mailbox processor/journal/delivery metadata 与 AppState
+lifecycle。精确用法与证据边界见 `llmdoc/integration/sdk-device-transport.mdx`。
 
 自 0.14.1 起已交付命令叶子并入 `path` 的新 device call frame，以及网关签发的
 `caller/createdAt/expiresAt/traceId` context。移动 adapter 已消费该 context 并对缺失情况明确降级；
@@ -34,7 +34,7 @@ U-1 已解阻：`@tool-bridge/sdk/device@0.17.0` 是正式 React Native / Hermes
 移动端相机 consumer 已迁移并在 2026-08-26 完成一次 Android 真实 Gateway 上传、stat 和受保护回读；这
 解除的是上传入口并证明该单一现场路径，不是完整 U-7、通用读取或全平台 Gateway/storage 兼容证明。
 
-0.17.0 的 `CallUploadObjectOptions` 没有 caller-provided `signal`。SDK 只传播原始 device call signal，
+0.20.1 的 `CallUploadObjectOptions` 仍没有 caller-provided `signal`。SDK 只传播原始 device call signal，
 相机 controller 因前台丢失创建的本地 AbortSignal 无法中止已经开始的 Store HTTP 上传；combined signal
 支持仍是上游缺口。当前 Gateway 0.17 的 device call authority 约 60 秒，会收紧移动端相机 120 秒本地
 ceiling。
@@ -45,7 +45,8 @@ ceiling。
 - U-3 单次短期 WebSocket ticket；当前原生 RN 使用既有 device SK header；
 - 调用 context 与当前已认证 device credential/session 的可验证 identity/generation 绑定；
 - U-4 动态 capability profile/version/change report；
-- U-5 异步 command mailbox/claim/cancel/expiry/awaiting_user/result；
+- U-5 真实 Gateway enqueue/claim/renew/complete、cancel/expiry/awaiting_user/result 与移动端联合验收；SDK
+  0.20.1 的移动 consumer API 和本仓库接线已经交付，但不能替代该端到端证据；
 - U-6 APNs/FCM token registration 与不含敏感参数的 wake hint；
 - U-7 剩余服务端 grant 对 device/command/MIME/大小/TTL/checksum/single-use 的完整强绑定、通用受保护
   对象读取、生命周期、上传 caller signal 与其余 Gateway/storage 联合验收；
@@ -56,9 +57,15 @@ ceiling。
 credential 的签发、最小 scope、rotation、revoke 或短期 ticket。没有 origin 为 `unconfigured`；有
 origin 无 credential 为 `credentials_required`；只有收到真实 SDK ready 才是 online。
 
-移动端已实现的 `phone/inbox.deliver` 是设备本地内容信箱：它复用现有在线 call/result，把已到达设备的
-有界正文写入本机 SQLite，并可在 commit 后请求固定本地提醒。它没有 enqueue/claim/lease/cursor 状态机，
-不获取 push token，也不会在设备离线或进程终止时自行收件，因此不构成 U-5/U-6 的部分交付。
+移动端已把 `phone/inbox.deliver` 声明为 `delivery: both`：realtime 直调保持不变，Gateway operation 可由
+官方 processor 在 App 初始化/配置完成且 active 或回到 active 时显式有界 drain。SQLite v5
+`device_operation_journal` 只保存 SDK crash recovery 所需的最小 operation 状态，`executing` crash 恢复为
+`result_unknown`，不保存 arguments、正文或 credential。realtime/mailbox 任一通道 401 会联动停止另一
+通道并清 credential。
+
+用户可见的 `inbox_messages` 内容信箱与 Gateway operation mailbox 是不同层。当前没有 timer 驱动的新
+drain、后台轮询、APNs/FCM token 或进程终止后的唤醒；只有本地 consumer contract，没有真实 Gateway/
+双端真机 mailbox 证据。因此 U-5 只能称“移动 consumer 接入”，不能称完整验收；U-6 仍未实现。
 
 U-1 至 U-7 的当前责任、依赖和验收边界由本文维护；已发布 API 与 schema 仍以上游正式 SDK/规范为事实
 真源，不能用本仓库目标设计替代。
@@ -67,9 +74,10 @@ U-1 至 U-7 的当前责任、依赖和验收边界由本文维护；已发布 A
 
 - [TokenRollAI/tool-bridge#68](https://github.com/TokenRollAI/tool-bridge/issues/68) 是 mobile-grade device
   control plane 的上游 tracking issue；其实时状态应到上游核对，不在本文固化。
-- issue 中 invocation caller/权威期限的 wire 部分已由 0.14.1 交付；仍待上游交付的是
-  Gateway Credential 实例/generation 绑定、versioned dynamic capability profile、durable mailbox +
-  opaque push wake hint 与完整 command-bound protected object 生命周期。
+- issue 中 invocation caller/权威期限的 wire 部分已由 0.14.1 交付，durable mailbox 移动 consumer API 已
+  由 0.20.1 交付；仍待上游或联合验收的是 Gateway Credential 实例/generation 绑定、versioned dynamic
+  capability profile、真实 Gateway mailbox 全生命周期、opaque push wake hint 与完整 command-bound
+  protected object 生命周期。
 - A 组剩余最低需求是让调用可验证地绑定当前 Gateway Credential 实例/generation；
   0.14.1 `caller.keyId` 是本次调用所用 SK id，不是这一 binding 的替代。
 - issue 的创建只代表需求已进入上游跟踪，不代表任一契约已发布或已通过移动端联合验收；本仓库仍须按
@@ -83,8 +91,10 @@ U-1 至 U-7 的当前责任、依赖和验收边界由本文维护；已发布 A
   Android `status/get` 单次结果不能外推。
 - 音频、位置、深链、权限、后台与锁屏按项目 DOD 需要双端真机；本地 contract、生成配置或模拟器不能
   替代。
-- push、mailbox、弱网/未送达、撤销后远端失效依赖上游和双端真机联合验证。
-- local inbox/notification/timer 不实现 mailbox、push 或后台可达；timer 也没有 boot/exact 入口。
+- mailbox 的真实 Gateway path、弱网/未送达、撤销后远端失效依赖上游和双端真机联合验证；当前 fake fetch
+  consumer contract 不能替代。
+- local inbox 可消费显式前台 mailbox drain，但 local notification/timer 不支持 mailbox，且三者都没有
+  push 或后台可达；timer 也没有 boot/exact 入口。
 - `phone/inbox.deliver` 的本地自动化不替代真实 Gateway path、双端原生构建与真机前后台/锁屏/通知证据；
   其他 command 的成功不能替代它。
 - `phone/camera.capture_photo` 的本地自动化与单次 Android Store E2E 不替代 iOS build/真机、其余镜头与
@@ -99,8 +109,8 @@ U-1 至 U-7 的当前责任、依赖和验收边界由本文维护；已发布 A
 - P1-B 的 HTTPS media/handoff 可先本地完成，但 object source/read 依赖 U-7，后台播放另需平台真机。
 - P1-C 相机已有 U-7 call-scoped Store upload consumer 和一次 Android 上传/readback 闭环，仍依赖完整
   服务端 grant 强绑定、通用读取、上传取消语义与双端真机。
-- P1-D 的 inbox/notify/timer 是本地切片；动态变化上报依赖 U-4，后台必达依赖 U-5/U-6，商店发布依赖
-  完整平台与 delivery DOD。
+- P1-D 的 inbox 已有 U-5 移动 consumer 接线，notify/timer 仍是 realtime-only 本地切片；动态变化上报依赖
+  U-4，后台必达依赖 U-5 真实 Gateway 联合验收与 U-6，商店发布依赖完整平台与 delivery DOD。
 
 阶段定义与优先级见 `product/requirements-and-roadmap.mdx`；缺口被交付后仍须按
 `delivery/definition-of-done.mdx` 留下联合兼容和平台证据，不能仅凭版本发布声明完成。
@@ -110,13 +120,14 @@ U-1 至 U-7 的当前责任、依赖和验收边界由本文维护；已发布 A
 1. 先以用户提供的真实 gateway HTTPS origin/API key 验证当前 fallback 的
    hello/expose/call/cancel/result、重复 id、拒绝和弱网重连；
 2. U-2 pairing 产生真实、最小 scope credential，并验证 audience/rotation/revoke，替换手工长期 key；
-3. 用 0.17.0 正式 invocation context 验证 caller attribution 与权威 expiry，再等待 Gateway
+3. 用 0.20.1 正式 invocation context 验证 caller attribution 与权威 expiry，再等待 Gateway
    Credential 实例/generation 绑定后验证 credential-bound grant；
 4. 完成 Android/iOS clean build与双端真机前台连接；
-5. 单独验证当前 Gateway 的 `inbox/deliver` 和双端真机本地保存/固定提醒，不从 `status/get` 外推；
+5. 单独验证当前 Gateway 的 `inbox/deliver` expose/enqueue/claim/renew/complete、取消/过期/结果，以及双端
+   真机本地保存/固定提醒，不从 fake fetch 或 `status/get` 外推；
 6. 扩展已通过的相机 Store 路径，验证拒绝/过期、重复 id、权限、保留、上传中取消和不同设备/平台，再补齐
    服务端 command/device/MIME/size/TTL/checksum/single-use 强绑定与媒体/其他 consumer 的受保护对象读取；
-7. 再接 U-5/U-6 mailbox/push 并验收离线、后台、锁屏、未送达和撤销。
+7. 在 U-5 真实 Gateway consumer matrix 通过后再接 U-6 push，并验收离线、后台、锁屏、未送达和撤销。
 
 任一步未完成都要保留对应层级限定语。
 
@@ -124,8 +135,8 @@ U-1 至 U-7 的当前责任、依赖和验收边界由本文维护；已发布 A
 
 以下是需要外部证据后补强的知识入口，不代表已承诺的时间表：
 
-- 上游 pairing、ticket、credential identity/generation binding、profile、mailbox、push 与完整 U-7
-  发布后，补充正式版本、schema/fixture 入口和兼容矩阵；
+- 上游 pairing、ticket、credential identity/generation binding、profile、Gateway mailbox、push 与完整 U-7
+  发布或可验收后，补充正式版本、schema/fixture 入口和兼容矩阵；
 - 取得真实 Gateway HTTPS origin/API key 后，补 hello/expose/call/cancel/result、权限拒绝、弱网重连与
   secret 服务端兼容证据，不能用 fake WebSocket 替代；
 - 补 iOS 真机、签名 archive、generated entitlement/Info.plist，以及按能力记录设备、OS、build id、

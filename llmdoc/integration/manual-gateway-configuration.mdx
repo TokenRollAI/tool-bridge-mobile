@@ -13,6 +13,7 @@ code:
     - src/identity/manualGatewayCredential.ts
     - src/identity/deviceIdentity.ts
     - src/gateway/manualGatewayConfigurationController.ts
+    - src/gateway/sdkDeviceMailboxTransport.ts
     - src/gateway/sdkDeviceTransport.ts
     - src/runtime/applicationRuntime.ts
     - src/ui/components/GatewayConfigurationCard.tsx
@@ -23,7 +24,8 @@ code:
 ## 当前用途
 
 正式 pairing/U-2 尚未交付时，首页允许用户手工输入 Gateway HTTPS origin 与 API key，直接驱动
-`@tool-bridge/sdk/device@0.17.0` 连接。它是内测 fallback，不是 pairing、设备凭证签发、最小 scope、
+`@tool-bridge/sdk/device@0.20.1` realtime 连接和 active-only mailbox drain。它是内测 fallback，不是
+pairing、设备凭证签发、最小 scope、
 rotation/revoke 或 U-3 短期 ticket。
 
 ## 输入与身份
@@ -45,9 +47,9 @@ rotation/revoke 或 U-3 短期 ticket。
   `expo-secure-store`；API key 不进入 SQLite、AsyncStorage、普通审计、日志、crash report、源码或
   `EXPO_PUBLIC_*`。
 - 手工 SecureStore envelope 的 audience 优先于可选 `EXPO_PUBLIC_GATEWAY_ORIGIN` 构建预置。
-- 同一 envelope 用于认证 device WebSocket session；Store upload 的窄 capability 由 Gateway 按当前 call
-  下发，移动 handler 只得到 `call.uploadObject`，不复用长期 API key 发起旧 context HTTP 上传，也不接触
-  wire upload token 或 relay URL。
+- 同一 envelope 用于认证 device WebSocket session 与显式 mailbox HTTP drain；Store upload 的窄
+  capability 由 Gateway 按当前 call 下发，移动 handler 只得到 `call.uploadObject`，不复用长期 API key
+  发起旧 context HTTP 上传，也不接触 wire upload token 或 relay URL。
 - 构建变量只可保存非秘密 URL；清除手工 key 后，如果存在 build origin，transport 回到
   `credentials_required`，否则回到 `unconfigured`。
 
@@ -57,18 +59,18 @@ rotation/revoke 或 U-3 短期 ticket。
 
 ```text
 validate URL + key + installation identity
-  -> transport.updateConfiguration(null)
+  -> realtime/mailbox transports.updateConfiguration(null)
   -> SecureStore.save(envelope)
-  -> transport.updateConfiguration(new origin)
+  -> realtime/mailbox transports.updateConfiguration(new origin)
   -> apply current AppState / control mode
 ```
 
 清除：
 
 ```text
-transport.updateConfiguration(null)
+realtime/mailbox transports.updateConfiguration(null)
   -> SecureStore.clear()
-  -> transport.updateConfiguration(optional build origin)
+  -> realtime/mailbox transports.updateConfiguration(optional build origin)
   -> apply current AppState / control mode
 ```
 
@@ -80,13 +82,14 @@ SecureStore 写入或删除失败时不得自动重连；错误文案不包含�
 - `src/identity/manualGatewayCredential.ts`：输入规范化、派生标识和 envelope。
 - `src/gateway/manualGatewayConfigurationController.ts`：停止/存储/重连顺序。
 - `src/gateway/sdkDeviceTransport.ts`：动态 gateway origin 与 official SDK connection。
+- `src/gateway/sdkDeviceMailboxTransport.ts`：动态 gateway origin 与 active-only 显式 drain。
 - `src/runtime/applicationRuntime.ts`：SecureStore、transport、AppState/control mode 组装。
 - `src/ui/components/GatewayConfigurationCard.tsx`：遮蔽录入、清除确认和非秘密反馈。
 
 ## 验证与未证明
 
-unit/component/fake WebSocket 已覆盖 strict 输入、secret 清空、成功/失败事件顺序、旧 socket 关闭和新
-audience header。`pnpm verify` 仍是本地 gate。
+unit/component/fake WebSocket/fetch 已覆盖 strict 输入、secret 清空、成功/失败事件顺序、旧 socket 与旧
+drain 中止和新 audience header。`pnpm verify` 仍是本地 gate；这些不是实际 Gateway 兼容证据。
 
 2026-08-26 已用该 fallback 认证的 Android Preview session 完成一次真实相机 call-scoped Store 上传、stat
 和受保护回读；这不把长期 API key 变成 pairing、最小 scope 或 production compatibility 证据，也不证明
