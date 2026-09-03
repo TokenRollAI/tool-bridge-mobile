@@ -72,7 +72,7 @@ for (const [variant, expectedIdentifier] of Object.entries(variants)) {
   if (config.extra?.gatewayOrigin !== 'https://gateway.example.com') {
     throw new Error(`${variant}: gateway HTTPS origin 未规范化`)
   }
-  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.20.1') {
+  if (config.extra?.productionTransport !== '@tool-bridge/sdk/device@0.21.0') {
     throw new Error(`${variant}: production transport 版本标记不匹配`)
   }
   // 三个环境共用同一套品牌图标：安装标识虽然隔离，视觉标识不应分叉。

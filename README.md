@@ -30,7 +30,7 @@
 > 当前还实现了仅前台的 `phone/camera.capture_photo`：Ask every time / Trusted session 会在可见预览中
 > 由用户按快门并复核，用户主动选择的 Direct call 会在可见预览就绪后自动拍摄；照片重编码为有界 JPEG，
 > 通过本次 call 的窄 Store capability 上传，协议结果只含受保护的 `store://default/...` 引用与元数据。
-> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.20.1`：Android/iOS realtime transport 使用官方
+> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.21.0`：Android/iOS realtime transport 使用官方
 > hello/ready/call/result、心跳、重连与 cancel，支持命令叶子并入 path 的新 device wire 与网关签发
 > invocation context，并使用官方 call-scoped Store upload。`phone/inbox.deliver` 另声明
 > `delivery: both`，并通过官方 mailbox processor 执行 claim/lease/complete；调用继续经过本地安全
@@ -124,7 +124,7 @@ SDK `deviceId` 默认由设备硬件标识（Android ID / iOS IDFV）经单向�
 不变；也可在同一表单中自定义（字母、数字、`.`、`_`、`-`，最长 64 字符）。设备声明挂载到
 `device/phone/<deviceId>`。该 deviceId 不是网关签发身份，手工入口只是 pairing 交付前的内测通道。
 
-相机上传要求目标 Gateway 支持 SDK 0.20.1 兼容的 call-scoped Store，并为本次 device call 注入有界、短期 upload capability。
+相机上传要求目标 Gateway 支持 SDK 0.21.0 兼容的 call-scoped Store，并为本次 device call 注入有界、短期 upload capability。
 App 不接收 capability token、signed upload URL，也不会把照片字节放进 HTBP JSON result；缺少该 capability
 时会在本地确认和打开相机前拒绝。
 
