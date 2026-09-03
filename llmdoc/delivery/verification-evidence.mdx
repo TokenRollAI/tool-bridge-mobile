@@ -34,6 +34,33 @@ code:
 结果采用“已验证 / 未验证 / 受阻”三段式。受阻必须写清外部服务、工具链或上游契约缺口；失败和未运行
 不能归类为成功。日期化记录可以证明某个历史 commit/artifact，但不能作为当前工作树的持续事实。
 
+## 2026-09-03：SDK 0.21.0 Android Preview 构建、安装与冷启动
+
+### 已验证
+
+- 当前 PR 在 commit `406899dd2b1faa75f5b29502e172418de466c39a` 使用仓库锁定的 Node 22.23.1、
+  pnpm 11.21.0 执行 `pnpm build:android:preview`。clean prebuild 与 Gradle `assembleRelease` 成功，
+  总耗时 2m21s；Gradle 共 944 tasks（912 executed、32 up-to-date），Metro 打包 1,609 modules。
+- 产物是 `android/app/build/outputs/apk/release/app-release.apk`，大小 134,685,919 bytes，SHA-256 为
+  `a6e3c6210aa05ed425c608899bf2365e5878e37a42a8251411265a3582786b55`。产物反查得到 package
+  `ai.tokenroll.toolbridgemobile.preview`、label `Preview`、versionName `0.0.13`、versionCode `13`，
+  min/target/compile SDK 为 24/36/36；APK 内含 `assets/index.android.bundle` 与 `assets/app.config`，后者
+  明确记录 `productionTransport: @tool-bridge/sdk/device@0.21.0`。
+- `apksigner` v2 验证通过。签名是 Android Debug 测试证书，证书 SHA-256 为
+  `fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c`；该证据不能称为 production signer。
+- 当时唯一连接设备为序列号 `4245df0c`、Xiaomi model `25102RKBEC`、Android 16，且已安装同一 Preview
+  package。`adb install -r` 返回 `Success` 并完成保留数据的覆盖安装；设备 package manager 的
+  `firstInstallTime` 仍为 `2026-08-23 21:11:16`，`lastUpdateTime` 更新为 `2026-09-03 18:06:52`。
+- 显式 force-stop 后执行 `am start -W`，cold start 返回 `Status: ok`，Activity 为 `.MainActivity`，
+  `TotalTime` 为 146ms；随后 Activity 为 top-resumed 且 App pid 存活。
+
+### 未验证与限制
+
+- 覆盖安装和冷启动只证明上述 APK 可在该 Android 设备保留安装身份并启动，不证明保留下来的本地数据
+  内容或迁移语义正确，也不证明权限申请、拒绝、撤销或系统设置变化行为。
+- 本次没有验证真实 Gateway、mailbox enqueue/claim/complete、后台、锁屏或任何具体 capability 的物理
+  效果；install/launch 成功不能外推为这些 E2E 已通过。
+
 ## 2026-08-26：SDK 0.17 Android 后置相机与 Store 闭环
 
 ### 已验证
