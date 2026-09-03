@@ -38,7 +38,7 @@ code:
 
 ### 已验证
 
-- 第一份 0.0.11 Android Preview APK 基于当前同一源码完成 clean prebuild + release Gradle build，但构建
+- 第一份 0.0.11 Android Preview APK 基于当时与下述第二份 APK 相同的源码完成 clean prebuild + release Gradle build，但构建
   Node 是不符合仓库锁定值的 v26.7.0。`aapt` 反查 APK 为
   `ai.tokenroll.toolbridgemobile.preview`、versionName `0.0.11`、versionCode `11`；`assets/app.config` 同时
   是 Preview、scheme `toolbridgemobile-preview`、`appVariant` 为 `preview`、`productionTransport` 为
@@ -85,7 +85,7 @@ code:
   的真机拍照/Store 成功直接记为最终 artifact 的物理能力验收。
 - SDK 0.17 `call.uploadObject` 的 options 不接收相机 controller 的本地 AbortSignal。前台丢失可阻止本地
   相机/处理继续和成功结果提交，但不能保证已经开始的 Store HTTP 上传被终止；本次成功不能补足该证据。
-- 当前 Gateway 的约 60 秒 call authority 会收紧移动端相机 120 秒本地 ceiling；本次约 2 秒的成功不验证
+- 该历史现场 Gateway 0.17 的约 60 秒 call authority 会收紧移动端相机 120 秒本地 ceiling；本次约 2 秒的成功不验证
   接近 deadline 的确认、处理或上传行为。
 
 ## 2026-08-25/26：旧 SDK 0.15 Preview artifact 与上传失败
@@ -110,7 +110,8 @@ code:
 - 2026-08-26 01:57（Asia/Shanghai）的旧 APK 真实 Gateway call 在 create-upload 阶段因 Gateway 未挂载
   可写 `camera/photos` context 而失败；
   没有完成对象 PUT、稳定 `node://` result 或真实 Gateway/storage E2E，不能把此前的本地处理成功写成完整
-  `capture_photo` 成功。该失败属于 0.0.9 / SDK 0.15 artifact，不能描述当前 0.17 Store 契约。
+  `capture_photo` 成功。该失败属于 0.0.9 / SDK 0.15 artifact，不能描述随后 0.17 Store 契约，更不能外推为
+  当前 0.21.0 的 Gateway/Store 回归结果。
 - iOS 只完成 clean prebuild。本机缺少 CocoaPods 和完整 Xcode，仅有
   `/Library/Developer/CommandLineTools`，因此未通过 `xcodebuild`，不能记为 iOS 原生 build。
 

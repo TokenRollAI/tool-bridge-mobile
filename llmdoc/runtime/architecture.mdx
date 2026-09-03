@@ -48,7 +48,7 @@ code:
 ## 目的
 
 本地安全执行边界独立于 transport：最初可由 fake dispatcher 驱动，现在也由
-`@tool-bridge/sdk/device@0.20.1` realtime call adapter 与显式 durable mailbox processor 驱动；重复投递、
+`@tool-bridge/sdk/device@0.21.0` realtime call adapter 与显式 durable mailbox processor 驱动；重复投递、
 用户等待、崩溃和日志处理都不能因
 transport 变化产生隐蔽副作用或泄漏敏感参数。
 
@@ -78,7 +78,7 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
   tab 或首页滚动位置，都显示队列中最早一项并提供一次允许/拒绝。
 - `src/capabilities/camera/`：`CameraCaptureCoordinator` 只保存一个待处理 UI request，controller 维持
   foreground/cancel/deadline 边界，processor 重编码并清理私有文件，object uploader 只消费本次调用的
-  SDK 0.20.1 `call.uploadObject` 并核对 `store://default/...` descriptor。
+  SDK 0.21.0 `call.uploadObject` 并核对 `store://default/...` descriptor。
 - `src/ui/components/CameraCaptureModal.tsx`：挂在 root layout 的全屏可见相机流程；非 Direct 模式提供用户
   快门、重拍与上传复核，Direct call 在 preview ready 后自动拍摄并直接提交。
 - `src/storage/commandRepository.ts` (`SqliteCommandRepository`)：以 `commandId` 原子 claim、保存终态并

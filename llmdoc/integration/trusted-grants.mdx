@@ -27,7 +27,7 @@ code:
 ## 背景
 
 当前 `trusted_session` 只是 SQLite `settings` 中的全局 control mode 字符串，没有生产 UI、TTL、
-capability scope 或 credential-instance binding。0.20.1 SDK call 已提供网关签发的 caller 与权威期限，
+capability scope 或 credential-instance binding。0.21.0 SDK call 已提供网关签发的 caller 与权威期限，
 移动端以 `caller.keyId` 作为稳定调用主体；该字段仍不是当前 device credential identity/generation。
 
 产品方向已经明确：用户信任的是与设备建立认证关系的 Gateway Credential，而不是经该 Gateway 发起调用的
@@ -66,13 +66,13 @@ credential/session 绑定到可验证的 credential identity/generation，并携
 expiresAt/deadline。动态 capability profile、U-5 真实 Gateway/双端联合验收、U-6 push 和 `objectRef` 仍是
 独立上游或跨仓库工作。
 
-0.20.1 已交付 durable mailbox 移动 consumer API，本仓库只为 `phone/inbox.deliver` 接入
+0.20.1 首次交付 durable mailbox 移动 consumer API，本仓库只为 `phone/inbox.deliver` 接入
 `delivery: both` 和 active-only bounded drain。U-5 仍缺真实 Gateway/双端联合验收，U-6 push 仍未实现；
 这些进展不提供 credential identity/generation，也不改变 trusted grant 的阻塞条件。
 
 ## 未实现与实现约束
 
-- **未实现**：当前代码和上游 `@tool-bridge/sdk/device@0.20.1` 仍没有 credential-instance binding 与
+- **未实现**：当前代码和上游 `@tool-bridge/sdk/device@0.21.0` 仍没有 credential-instance binding 与
   trusted grant；不能因 caller/deadline context 已交付就声称 trusted grant 已可用。
 - realtime 或 mailbox 收到 401 时，当前运行时会联动停止 sibling transport 并清除 SecureStore
   credential；这只是 bearer 失效的 fail-closed plumbing，不等于 credential generation binding、正式
