@@ -112,7 +112,6 @@ function claim(): Record<string, unknown> {
     arguments: { body: '不得进入 journal 的正文', title: '本地来信' },
     attempt: 1,
     caller: { keyId: 'caller_key_01', owner: 'agent:writer' },
-    commandId: OPERATION_ID,
     createdAt: SERVER_NOW,
     expiresAt: EXPIRES_AT,
     leaseId: 'lease_01',
@@ -128,7 +127,6 @@ function detail(result: unknown): Record<string, unknown> {
   return {
     attempt: 1,
     caller: { keyId: 'caller_key_01', owner: 'agent:writer' },
-    commandId: OPERATION_ID,
     createdAt: SERVER_NOW,
     deviceId: 'device_01',
     executionMayHaveOccurred: false,
@@ -338,14 +336,10 @@ describe('SDK durable mailbox mobile transport', () => {
     ])
   })
 
-  test('mailbox 401 会触发 realtime 停止，且不等待其收敛就清除凭证', async () => {
+  test('mailbox 非规范 401 响应仍触发 realtime 停止，且不等待其收敛就清除凭证', async () => {
     const credentialStore = new MemoryCredentialStore(credential)
     const onCredentialInvalid = jest.fn(() => new Promise<void>(() => {}))
-    mockedFetch.mockResolvedValue(json({
-      code: 'permission_denied',
-      message: '设备凭证已失效',
-      retryable: false,
-    }, 401) as Awaited<ReturnType<typeof expoFetch>>)
+    mockedFetch.mockResolvedValue(json({ unexpected: true }, 401) as Awaited<ReturnType<typeof expoFetch>>)
     const transport = new SdkDeviceMailboxTransport({
       baseUrl: credential.audienceOrigin,
       credentialStore,

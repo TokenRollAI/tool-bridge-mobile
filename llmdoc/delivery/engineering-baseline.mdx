@@ -41,7 +41,7 @@ code:
 ## 版本与平台
 
 当前锁定 Node 22.23.1、pnpm 11.21.0、Expo 57.0.18、React Native 0.86.3、React 19.2.3、TypeScript
-6.0.3 和 `@tool-bridge/sdk` 0.20.1。Android min/compile/target 是 24/36/36、Java 17；iOS deployment
+6.0.3 和 `@tool-bridge/sdk` 0.21.0。Android min/compile/target 是 24/36/36、Java 17；iOS deployment
 target 是 16.4。
 
 版本事实真源依次是 `package.json`、`.node-version`、`pnpm-lock.yaml`、`app.config.ts` 与生成配置。
@@ -82,7 +82,7 @@ React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/ret
 
 | 领域 | 选择与边界 |
 | --- | --- |
-| device transport / mailbox / object upload | `@tool-bridge/sdk/device@0.20.1`；生产代码只导入 `/device`，包根 Node 入口不能进入手机 bundle；mailbox 只组装公开 processor/journal，object upload 只消费当前 call 的 `uploadObject`。 |
+| device transport / mailbox / object upload | `@tool-bridge/sdk/device@0.21.0`；生产代码只导入 `/device`，包根 Node 入口不能进入手机 bundle；mailbox 只组装公开 processor/journal，object upload 只消费当前 call 的 `uploadObject`。 |
 | router / handoff | `expo-router`、`expo-linking`；URL 与 map 目标在业务层先受控，Linking 只做 probe/handoff。 |
 | credential | `expo-secure-store`；secret 不进入 SQLite、构建环境、日志或仓库。 |
 | persistence | `expo-sqlite`；事务承载幂等、crash recovery、有界保留和专用内容域。 |
@@ -103,7 +103,7 @@ React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/ret
 
 - 前台 realtime 使用官方 SDK 与 React Native WebSocket header adapter；当前手工 origin/API key 只是
   pairing/ticket 前 fallback。
-- durable mailbox 使用官方 0.20.1 pull processor。宿主只在初始化/配置完成且 App active 或回到 active 时
+- durable mailbox 使用官方 0.21.0 pull processor。宿主只在初始化/配置完成且 App active 或回到 active 时
   显式执行最多 20 项的 drain；后台/inactive、Disabled、换配置和 credential 失效会中止。没有轮询 timer、
   push 或后台自启动。
 - HTTP 由受控 adapter 包装 timeout、错误与 redaction；有副作用请求不用通用自动重试。

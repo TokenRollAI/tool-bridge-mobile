@@ -85,9 +85,9 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
   command hash 文件名和 idempotency key，并严格核对 SDK 返回的稳定 `store://default/...` descriptor。
   inline result 只含 URI、MIME、大小、尺寸与 SHA-256，不含照片、Store capability、relay URL、私有文件 URI
   或虚构的对象过期时间。
-- 离开 `active` 会取消本地相机/处理和结果提交；当前 SDK 0.20.1 的 call-scoped upload 仍不能接收
-  controller 的本地 AbortSignal，因此上传已开始后不能保证终止 Store HTTP 副作用。当前 Gateway 的约
-  60 秒权威期限会收紧相机 120 秒本地 ceiling。
+- 离开 `active` 会取消本地相机/处理和结果提交；当前 SDK 0.21.0 的 call-scoped upload 仍不能接收
+  controller 的本地 AbortSignal，因此上传已开始后不能保证终止 Store HTTP 副作用。2026-08-26 历史现场
+  Gateway 0.17 的约 60 秒权威期限会收紧相机 120 秒本地 ceiling；这不是当前 0.21.0 Gateway 回归证据。
 - 本地自动化覆盖相机 schema、状态机、处理和 SDK upload consumer；2026-08-26 的 Android Preview
   后置 Direct call 已完成真实拍摄、Store 上传/stat/受保护回读。iOS、其余权限/镜头/生命周期矩阵、系统
   指示/快门声和 crash 后孤儿清理仍必须按各自证据层单独判断。
@@ -255,7 +255,7 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 unit/component/local contract 证明的是本地边界。registry 将单项 probe 异常隔离为
 `unavailable: probe_failed`。任何 clean build 只证明对应 commit/artifact 的原生依赖与配置能编译；prebuild
 或 Metro 不可写成 Android/iOS 原生 build，它们也不证明 production gateway、storage 或真机前台/后台/
-锁屏行为。信箱还必须把本地内容自动化、SDK 0.20.1 mailbox consumer contract、真实 Gateway operation
+锁屏行为。信箱还必须把本地内容自动化、SDK 0.21.0 mailbox consumer contract、真实 Gateway operation
 path、双端真机与 U-6 push/后台唤醒分层，不得互相替代；当前只能称 U-5 consumer 接入，不能称完整验收。
 
 ## 产品阶段映射

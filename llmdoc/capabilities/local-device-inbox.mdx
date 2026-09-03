@@ -197,7 +197,7 @@ push token，不是 remote notification 或 U-6 wake hint。
    单条/全部已读、确定性幂等、commit 后提醒、clear/replay、revision、RN Markdown 白名单、点击前零网络、
    任意结构合规 HTTPS、安全跨 hostname redirect、inbox hostname 配置链缺失且 media/link 配置未变；注入
    adapter/fake transport 不是系统或 gateway E2E。
-2. **SDK 0.20.1 mailbox consumer contract**：真实 SDK processor + fake `expo/fetch` 证明
+2. **SDK 0.21.0 mailbox consumer contract**：真实 SDK processor + fake `expo/fetch` 证明
    `delivery: both` 投影、有界 claim/complete、v5 journal barrier、正文不入 journal、crash 后
    `result_unknown`、前后台/Disabled/换配置中止和 401 credential 联动；这不是 Gateway wire 或设备 E2E。
 3. **真实 Gateway wire**：必须单独验证 `inbox/deliver` 的 expose/enqueue/claim/renew/complete、取消/过期/

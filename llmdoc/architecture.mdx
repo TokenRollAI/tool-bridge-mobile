@@ -72,10 +72,10 @@ deadline/cancel、逐次确认和 emergency disable 始终高于远程命令或 
 
 ## 现状
 
-- P0 本地安全运行时、官方 `@tool-bridge/sdk/device@0.20.1` realtime 与 durable mailbox consumer wiring、
+- P0 本地安全运行时、官方 `@tool-bridge/sdk/device@0.21.0` realtime 与 durable mailbox consumer wiring、
   手工 Gateway HTTPS origin/API key 内测入口和若干能力纵向切片已经实现。
 - `phone/camera.capture_photo` 已形成仅前台的本地纵向切片：非 Direct 模式由用户拍摄并复核，Direct call
-  仍展示可见预览但在相机就绪后自动拍摄；处理后的 JPEG 通过 0.17 首次交付、当前 0.20.1 继续提供的
+  仍展示可见预览但在相机就绪后自动拍摄；处理后的 JPEG 通过 0.17 首次交付、当前 0.21.0 继续提供的
   每次调用 Store capability 上传，成功结果只返回稳定 `store://default/...` URI 与脱敏元数据。缺少该
   capability 时会在确认和相机 probe 前 fail closed。
 - 只有 SDK `ready` 可投影为 online；手工长期 API key 不等于 pairing credential，也不证明真实 Gateway

@@ -212,7 +212,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       gatewayOrigin: parseGatewayOrigin(process.env.EXPO_PUBLIC_GATEWAY_ORIGIN),
       linkHosts: parseLinkHosts(process.env.EXPO_PUBLIC_LINK_HOSTS),
       mediaHosts: parseMediaHosts(process.env.EXPO_PUBLIC_MEDIA_HOSTS),
-      productionTransport: '@tool-bridge/sdk/device@0.20.1',
+      productionTransport: '@tool-bridge/sdk/device@0.21.0',
     },
   }
 }
