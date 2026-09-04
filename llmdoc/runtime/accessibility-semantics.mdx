@@ -38,6 +38,8 @@ code:
   purpose 和 Direct/非 Direct 模式提示；`CameraView` 暴露“前置/后置相机可见预览”label，权限、取消、
   拍摄、重拍与“使用并上传”都复用 `AccessibleAction`。Direct call 不显示快门/复核 action，但保留取消
   入口和“预览就绪后自动拍摄并上传”的可见提示。
+- `SafeMarkdown` 将一个显式 Markdown 链接跨行内样式的文字合并为单个原生 `link` 语义，
+  相邻链接仍是独立入口；系统 handoff reject 只产生不回显 URL/hostname 的通用 `alert`。
 
 ## 公告与敏感边界
 
@@ -53,7 +55,8 @@ code:
 
 - component tests 覆盖 page/card header、StatusRow 关联、操作唯一名称/role/hint/state、48dp、focus、公告
   去重及不公告高频/敏感内容；相机组件测试覆盖 Direct call 自动分支和非 Direct 快门/复核分支；theme test
-  覆盖文本和交互边界 contrast gate。
+  覆盖文本和交互边界 contrast gate。`SafeMarkdown` 组件测试另覆盖跨样式单链接、相邻链接和通用失败
+  `alert`；这不证明 TalkBack/VoiceOver 实际朗读或真机系统 handoff。
 - Android emulator semantic smoke 应验证 tab 的唯一 accessibility label/selected state，保存原字号后设为
   200%，force-stop/relaunch，逐页滚动并操作 Activity clear/cancel/confirm，复核关键 action bounds 至少
   48dp，最后恢复原字号。
@@ -70,5 +73,6 @@ code:
 - tab labels：`src/ui/navigation.ts`
 - tests：`src/ui/components/__tests__/accessibilityComponents.test.tsx`、
   `src/ui/components/__tests__/PendingConfirmationModal.test.tsx`、`src/ui/__tests__/accessibility.test.tsx`、
-  `src/ui/components/__tests__/CameraCaptureModal.test.tsx`、`src/ui/__tests__/themeContrast.test.ts`
+  `src/ui/components/__tests__/CameraCaptureModal.test.tsx`、`src/ui/components/__tests__/SafeMarkdown.test.tsx`、
+  `src/ui/__tests__/themeContrast.test.ts`
 - 验收：`llmdoc/delivery/definition-of-done.mdx`、`llmdoc/delivery/verification-evidence.mdx`
