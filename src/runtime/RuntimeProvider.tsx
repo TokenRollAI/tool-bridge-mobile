@@ -45,6 +45,7 @@ export function useRuntime(): Readonly<{
   markAllInboxMessagesRead(): Promise<number>
   markInboxMessageRead(messageId: string): Promise<void>
   openCameraSettings(): Promise<void>
+  openInboxLink(rawUrl: string): Promise<void>
   openNotificationSettings(): Promise<void>
   pauseMediaSession(sessionId: string): Promise<void>
   rejectConfirmation(commandId: string): boolean
@@ -78,6 +79,7 @@ export function useRuntime(): Readonly<{
     markAllInboxMessagesRead: () => runtime.markAllInboxMessagesRead(),
     markInboxMessageRead: messageId => runtime.markInboxMessageRead(messageId),
     openCameraSettings: () => runtime.openCameraSettings(),
+    openInboxLink: rawUrl => runtime.openInboxLink(rawUrl),
     openNotificationSettings: () => runtime.openNotificationSettings(),
     pauseMediaSession: sessionId => runtime.pauseMediaSession(sessionId),
     rejectConfirmation: commandId => runtime.rejectConfirmation(commandId),

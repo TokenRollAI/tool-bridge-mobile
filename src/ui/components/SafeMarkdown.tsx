@@ -3,10 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Image, StyleSheet, Text, View } from 'react-native'
 
 import { validateInboxImageSource } from '@/inbox/imagePolicy'
+import { validateInboxLink } from '@/inbox/linkOpener'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
 import { colors, radius, spacing } from '@/ui/theme'
 
 import type { InboxImageSourceResolver, ResolvedInboxImage } from '@/inbox/imageSource'
+import type { InboxLinkOpener } from '@/inbox/linkOpener'
 
 const MAX_RENDER_TOKENS = 600
 const MAX_IMAGES_PER_MESSAGE = 4
@@ -24,12 +26,13 @@ type InlineStyle = Readonly<{
   code: boolean
   italic: boolean
   strike: boolean
-  underlined: boolean
 }>
 
 type InlineTextPart = Readonly<{
+  href: string | null
   key: string
   kind: 'text'
+  linkId: string | null
   style: InlineStyle
   text: string
 }>
@@ -45,10 +48,12 @@ type InlinePart = InlineTextPart | InlineImagePart
 
 type SafeMarkdownProps = Readonly<{
   imageResolver: InboxImageSourceResolver
+  linkOpener: InboxLinkOpener
   markdown: string
 }>
 
-export function SafeMarkdown({ imageResolver, markdown }: SafeMarkdownProps) {
+export function SafeMarkdown({ imageResolver, linkOpener, markdown }: SafeMarkdownProps) {
+  const [linkFailure, setLinkFailure] = useState<string | null>(null)
   const tokens = useMemo(() => markdownParser.parse(markdown, {}), [markdown])
   const tokenCount = tokens.reduce((count, token) => count + 1 + (token.children?.length ?? 0), 0)
   if (tokenCount > MAX_RENDER_TOKENS) {
@@ -92,9 +97,11 @@ export function SafeMarkdown({ imageResolver, markdown }: SafeMarkdownProps) {
         if (textRun.length === 0) return
         content.push(
           <Text key={`text-run-${index}-${content.length}`} selectable style={styles.inlineText}>
-            {textRun.map(part => (
-              <Text key={part.key} style={inlineTextStyle(part.style)}>{part.text}</Text>
-            ))}
+            <InlineTextRun
+              linkOpener={linkOpener}
+              onFailure={setLinkFailure}
+              parts={textRun}
+            />
           </Text>,
         )
         textRun = []
@@ -131,9 +138,11 @@ export function SafeMarkdown({ imageResolver, markdown }: SafeMarkdownProps) {
           <View style={styles.blockContent}>
             {headingLevel === 0 ? content : (
               <Text accessibilityRole="header" style={headingStyle(headingLevel)}>
-                {parts.filter((part): part is InlineTextPart => part.kind === 'text').map(part => (
-                  <Text key={part.key} style={inlineTextStyle(part.style)}>{part.text}</Text>
-                ))}
+                <InlineTextRun
+                  linkOpener={linkOpener}
+                  onFailure={setLinkFailure}
+                  parts={parts.filter((part): part is InlineTextPart => part.kind === 'text')}
+                />
               </Text>
             )}
           </View>
@@ -148,15 +157,31 @@ export function SafeMarkdown({ imageResolver, markdown }: SafeMarkdownProps) {
     if (token.type === 'hr') rendered.push(<View key={`rule-${index}`} style={styles.rule} />)
   }
 
-  return <View style={styles.root}>{rendered}</View>
+  return (
+    <View style={styles.root}>
+      {rendered}
+      {linkFailure === null ? null : (
+        <Text accessibilityRole="alert" style={styles.linkFailure}>{linkFailure}</Text>
+      )}
+    </View>
+  )
 }
 
 function inlineParts(tokens: readonly Token[], blockIndex: number): readonly InlinePart[] {
   const parts: InlinePart[] = []
-  const style = { bold: false, code: false, italic: false, strike: false, underlined: false }
+  const style = { bold: false, code: false, italic: false, strike: false }
+  let href: string | null = null
+  let linkId: string | null = null
   const pushText = (text: string, index: number) => {
     if (text === '') return
-    parts.push({ key: `inline-${blockIndex}-${index}`, kind: 'text', style: { ...style }, text })
+    parts.push({
+      href,
+      key: `inline-${blockIndex}-${index}`,
+      kind: 'text',
+      linkId,
+      style: { ...style },
+      text,
+    })
   }
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index]
@@ -167,12 +192,19 @@ function inlineParts(tokens: readonly Token[], blockIndex: number): readonly Inl
     else if (token.type === 'em_close') style.italic = false
     else if (token.type === 's_open') style.strike = true
     else if (token.type === 's_close') style.strike = false
-    else if (token.type === 'link_open') style.underlined = true
-    else if (token.type === 'link_close') style.underlined = false
-    else if (token.type === 'code_inline') {
+    else if (token.type === 'link_open') {
+      const rawHref = token.attrGet('href')
+      href = rawHref === null ? null : String(rawHref)
+      linkId = `link-${blockIndex}-${index}`
+    } else if (token.type === 'link_close') {
+      href = null
+      linkId = null
+    } else if (token.type === 'code_inline') {
       parts.push({
+        href,
         key: `inline-${blockIndex}-${index}`,
         kind: 'text',
+        linkId,
         style: { ...style, code: true },
         text: token.content,
       })
@@ -189,12 +221,75 @@ function inlineParts(tokens: readonly Token[], blockIndex: number): readonly Inl
   return parts
 }
 
+function InlineTextRun({
+  linkOpener,
+  onFailure,
+  parts,
+}: Readonly<{
+  linkOpener: InboxLinkOpener
+  onFailure(message: string | null): void
+  parts: readonly InlineTextPart[]
+}>) {
+  const groups: { href: string | null; linkId: string | null; parts: InlineTextPart[] }[] = []
+  for (const part of parts) {
+    const previous = groups[groups.length - 1]
+    if (previous?.linkId === part.linkId) previous.parts.push(part)
+    else groups.push({ href: part.href, linkId: part.linkId, parts: [part] })
+  }
+
+  return <>{groups.map(group => (
+    <InlineTextGroup
+      group={group}
+      key={group.parts[0]?.key}
+      linkOpener={linkOpener}
+      onFailure={onFailure}
+    />
+  ))}</>
+}
+
+function InlineTextGroup({
+  group,
+  linkOpener,
+  onFailure,
+}: Readonly<{
+  group: Readonly<{ href: string | null; linkId: string | null; parts: readonly InlineTextPart[] }>
+  linkOpener: InboxLinkOpener
+  onFailure(message: string | null): void
+}>) {
+  const styledText = group.parts.map(part => (
+    <Text key={part.key} style={inlineTextStyle(part.style)}>{part.text}</Text>
+  ))
+  if (group.href === null) return <Text>{styledText}</Text>
+
+  try {
+    validateInboxLink(group.href)
+  } catch {
+    return <Text style={styles.invalidLink}>{styledText}</Text>
+  }
+
+  const href = group.href
+  return (
+    <Text
+      accessibilityHint="将在系统中打开该 HTTPS 链接"
+      accessibilityRole="link"
+      onPress={() => {
+        onFailure(null)
+        void linkOpener.open(href).catch(() => {
+          onFailure('无法打开链接。')
+        })
+      }}
+      style={styles.underlined}
+    >
+      {styledText}
+    </Text>
+  )
+}
+
 function inlineTextStyle(style: InlineStyle) {
   return [
     style.bold ? styles.bold : null,
     style.italic ? styles.italic : null,
     style.strike ? styles.strike : null,
-    style.underlined ? styles.underlined : null,
     style.code ? styles.inlineCode : null,
   ]
 }
@@ -331,8 +426,10 @@ const styles = StyleSheet.create({
   inlineCode: { backgroundColor: colors.background, fontFamily: 'monospace' },
   inlineText: { color: colors.text, fontSize: 15, lineHeight: 22 },
   italic: { fontStyle: 'italic' },
+  invalidLink: { color: colors.muted, textDecorationLine: 'none' },
   listItem: { flexDirection: 'row' },
   listPrefix: { color: colors.primary, fontSize: 15, lineHeight: 22, minWidth: 24 },
+  linkFailure: { color: colors.warning, fontSize: 13, lineHeight: 19 },
   note: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   paragraph: { color: colors.text, fontSize: 15, lineHeight: 22 },
   root: { gap: spacing.xs },
