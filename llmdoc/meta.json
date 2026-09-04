@@ -9,7 +9,7 @@
       "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
     },
     "capabilities/architecture.mdx": {
-      "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
+      "validatedRevision": "6af02cf3d4c0d2aa55a40e9d053169ef472eded0"
     },
     "capabilities/bounded-linking-handoffs.mdx": {
       "validatedRevision": "16ac14de1582682d427f761657f0ff8f7d1cce3d"
@@ -24,7 +24,7 @@
       "validatedRevision": "16ac14de1582682d427f761657f0ff8f7d1cce3d"
     },
     "capabilities/local-notifications.mdx": {
-      "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
+      "validatedRevision": "6af02cf3d4c0d2aa55a40e9d053169ef472eded0"
     },
     "capabilities/local-timers.mdx": {
       "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
@@ -72,7 +72,7 @@
       "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
     },
     "delivery/engineering-baseline.mdx": {
-      "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
+      "validatedRevision": "6af02cf3d4c0d2aa55a40e9d053169ef472eded0"
     },
     "delivery/definition-of-done.mdx": {
       "validatedRevision": "16ac14de1582682d427f761657f0ff8f7d1cce3d"
