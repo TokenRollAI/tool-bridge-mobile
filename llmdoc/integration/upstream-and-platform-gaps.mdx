@@ -67,6 +67,11 @@ origin 无 credential 为 `credentials_required`；只有收到真实 SDK ready 
 drain、后台轮询、APNs/FCM token 或进程终止后的唤醒；只有本地 consumer contract，没有真实 Gateway/
 双端真机 mailbox 证据。因此 U-5 只能称“移动 consumer 接入”，不能称完整验收；U-6 仍未实现。
 
+信箱 Markdown 的显式 HTTPS 链接是另一条本地用户交互边界：远程投递只能存储 Markdown，裸 URL
+不会自动 linkify，也不会在渲染时打开系统处理器。只有用户点按通过本地结构 policy 的链接后，
+runtime 才复检并调用 `Linking.openURL`。该路径不变更 `phone/apps.can_open_url|open_url` 的配置 allowlist、
+confirmation/deadline 或 probe 契约，不是远程任意 App UI 自动化。
+
 U-1 至 U-7 的当前责任、依赖和验收边界由本文维护；已发布 API 与 schema 仍以上游正式 SDK/规范为事实
 真源，不能用本仓库目标设计替代。
 
@@ -96,7 +101,7 @@ U-1 至 U-7 的当前责任、依赖和验收边界由本文维护；已发布 A
 - local inbox 可消费显式前台 mailbox drain，但 local notification/timer 不支持 mailbox，且三者都没有
   push 或后台可达；timer 也没有 boot/exact 入口。
 - `phone/inbox.deliver` 的本地自动化不替代真实 Gateway path、双端原生构建与真机前后台/锁屏/通知证据；
-  其他 command 的成功不能替代它。
+  Markdown 链接的本地组件测试也不证明真机系统处理器交接和失败反馈；其他 command 的成功不能替代它。
 - `phone/camera.capture_photo` 的本地自动化与单次 Android Store E2E 不替代 iOS build/真机、其余镜头与
   权限状态、系统指示/快门声、前后台/锁屏/弱网、上传取消或完整 Store 保留/强绑定证据。
 - release 签名、商店合规、可追溯 artifact、SBOM/审计与 rollout 尚未完成。

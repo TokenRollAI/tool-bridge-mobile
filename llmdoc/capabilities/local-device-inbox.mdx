@@ -137,10 +137,18 @@ SQLite schema v5 另增 `device_operation_journal`，字段只有
 
 `markdown-it/browser@15.0.0` 只负责产生 token，并配置 `html: false`、`linkify: false`、
 `typographer: false`、`maxNesting: 20`。`SafeMarkdown` 不使用 WebView，而是显式投影标题、段落、列表、
-引用、强调/删除线、行内/块代码、分隔线、链接文字和图片占位到 React Native `Text/View/Image`；链接不
-成为自动导航入口，raw HTML 只作为文字，未知 token 不能获得任意组件或属性。
+引用、强调/删除线、行内/块代码、分隔线、链接文字和图片占位到 React Native `Text/View/Image`；
+raw HTML 只作为文字，未知 token 不能获得任意组件或属性。
 
 - 每条最多渲染 600 个 block + inline token；超限时降级为可选择的纯文本 Markdown。
+- `linkify: false` 保持不变，因此裸 URL 不会自动变成可点击链接。只保留 Markdown 显式链接
+  token 的 `href`；原始值和 URL 规范化后都不得超过 2,048 字符，必须是无 userinfo、标准端口且
+  非 IP literal 的 HTTPS hostname，可保留 path、query 与 fragment。`http:`、`mailto:`、`tel:`、
+  custom scheme 及其他不合规值只显示文字，不获得原生 link 语义。
+- 结构合规链接只在用户点按后调用 runtime；runtime 在交给 `Linking.openURL` 前重做同一 URL policy
+  校验。系统拒绝时只显示本地通用失败提示，不在提示中回显不受信 URL 或 hostname。这是用户
+  主动的系统链接交接，不允许远程投递自动打开 App，也不是任意 App UI 自动化；它不改变
+  `phone/apps.open_url`、media 或 link 构建时 hostname allowlist。
 - 列表默认只展示三行去标记纯文本摘要；页面一次只展开一条消息。展开正文只生成图片 alt/hostname 与
   “加载图片”按钮，每条最多 4 张；列表、搜索、排序、摘要和仅展开 Markdown 都不发起图片网络请求。
 - 只有用户点按具体图片后才调用 resolver；每次点按只授权该图片的一次受控出站请求及其有界 redirect 链，
@@ -194,7 +202,8 @@ push token，不是 remote notification 或 U-6 wake hint。
 1. **本地内容自动化**：schema、migration、repository、controller、registry、component 与 local runtime
    contract 证明 strict rich schema、64,000 字符接受/64,001 字符拒绝、Agent 可发现的
    `maxLength: 64000`、64,000 字符 runtime 落盘、v4 migration、正文域、1,000 cap、全保留集参数化搜索、六种排序、
-   单条/全部已读、确定性幂等、commit 后提醒、clear/replay、revision、RN Markdown 白名单、点击前零网络、
+   单条/全部已读、确定性幂等、commit 后提醒、clear/replay、revision、RN Markdown 白名单、显式 HTTPS 链接的
+   点按后系统交接与拒绝边界、图片点击前零网络、
    任意结构合规 HTTPS、安全跨 hostname redirect、inbox hostname 配置链缺失且 media/link 配置未变；注入
    adapter/fake transport 不是系统或 gateway E2E。
 2. **SDK 0.21.0 mailbox consumer contract**：真实 SDK processor + fake `expo/fetch` 证明
@@ -204,15 +213,17 @@ push token，不是 remote notification 或 U-6 wake hint。
    结果、duplicate id 与正文脱敏；
    其他 capability 的 Gateway 或真机结果不能替代。
 4. **平台与双端真机**：必须为当前 commit/artifact 验证原生构建、重启持久化、前后台、锁屏、Markdown
-   布局、长列表/搜索/排序、全部已读、图片真实下载/解码/取消/清理、跨 hostname redirect、代理/DNS
+   布局、长列表/搜索/排序、全部已读、链接真实系统交接/拒绝反馈、图片真实下载/解码/取消/清理、
+   跨 hostname redirect、代理/DNS
    rebinding/private network、内存/无障碍、权限/channel 变化与提醒呈现。
 5. **后台唤醒与端到端**：U-5 当前只有移动 consumer 接入，没有真实 Gateway 与双端真机联合验收；U-6
    token registration/opaque wake hint 仍未实现。离线、挂起、进程终止、未送达、弱网和 credential revoke
    都没有端到端证据。
 
 在没有更高层当前证据时，只能表述为：“设备在线 direct call，或 Gateway operation 在 App 显式前台
-drain 中被 SDK consumer claim 并到达本地 executor 后，本机可安全保存并查询富内容消息；图片需用户逐图
-点按后按本地 policy 有界加载，并可 best-effort 请求一条固定本地提醒。”不能表述为“Agent 可随时给离线
+drain 中被 SDK consumer claim 并到达本地 executor 后，本机可安全保存并查询富内容消息；显式 HTTPS 链接
+需用户点按后才交给系统，图片需用户逐图点按后按本地 policy 有界加载，并可 best-effort 请求一条固定本地提醒。”
+不能表述为“Agent 可随时给离线
 手机发信”“Markdown 图片必定显示”“后台必达”“U-5 已完整验收”或“已实现 push”。
 
 ## 事实真源
@@ -225,8 +236,10 @@ drain 中被 SDK consumer claim 并到达本地 executor 后，本机可安全�
   `src/storage/deviceMailboxJournalRepository.ts`：显式前台 drain、SDK operation barrier 与最小 v5 journal。
 - `src/inbox/imagePolicy.ts`、`src/inbox/imageSource.ts`、`src/inbox/expoInboxImageCacheStore.ts`：逐图点击后的
   HTTPS 结构 policy、有界解析、跨 hostname redirect 和私有 cache 生命周期。
-- `src/runtime/applicationRuntime.ts`、`src/ui/screens/InboxScreen.tsx`、`src/ui/components/SafeMarkdown.tsx`：
-  revision、查询/未读组合、摘要/展开与 RN Markdown 白名单。
+- `src/inbox/linkOpener.ts`：显式 Markdown 链接的 HTTPS 结构 policy、2,048 字符上限与点按后系统交接。
+- `src/runtime/applicationRuntime.ts`、`src/ui/screens/InboxScreen.tsx`、`src/ui/screens/InboxMessageScreen.tsx`、
+  `src/ui/components/SafeMarkdown.tsx`：
+  revision、查询/未读组合、摘要/展开、RN Markdown 白名单与点按链接的失败反馈。
 - `app.config.ts`、`scripts/verify-app-config.mjs`：不存在 inbox image hostname extra/runtime 配置，media/link
   allowlist 仍保留。
 - `src/capabilities/productivity/notificationAdapter.ts`：固定 native payload、授权与本地 identifier allowlist。
