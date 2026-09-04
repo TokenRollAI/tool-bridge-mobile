@@ -184,7 +184,7 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 
 ### `phone/productivity.notify`
 
-- 使用 `expo-notifications 57.0.15` 调度即时 local notification，不注册 push token，也不实现 remote
+- 使用 `expo-notifications 57.0.17` 调度即时 local notification，不注册 push token，也不实现 remote
   notification。strict schema 只接受 trim 后非空的 purpose（最多 120）和 message（最多 240），拒绝
   control/bidi 字符及 title、data、action、scheduleAt 等未知字段。
 - 系统内容固定为 title `Tool Bridge` 和正文前缀 `Agent 通知：`；Android 固定 channel
