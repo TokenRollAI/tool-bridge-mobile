@@ -21,13 +21,13 @@ strictPeerDependencies: true
 # 0.17.0 在 RN-safe /device 入口把远程产物上传收敛为 call-scoped Store capability；
 # 0.20.1 新增正式 durable mailbox processor、journal 与 delivery metadata。已核对 registry
 # tarball/integrity、MIT license 与 RN-safe export；只允许这些已核对的精确历史/当前版本。
-# 其余 Expo 57.0.x 条目由 2026-08-24 SDK 升级和 2026-08-29 官方兼容表补丁对齐产生；
+# 其余 Expo 57.0.x 条目由 2026-08-24 SDK 升级及后续官方兼容表补丁对齐产生；
 # 均受精确 package/lock、Expo check、license、双端 autolinking/构建门禁约束，避免供应链等待期
 # 阻断已核对的 SDK 57 原生验证。
 minimumReleaseAgeExclude:
   - '@tool-bridge/sdk@0.14.1 || 0.15.0 || 0.17.0 || 0.20.1'
-  - expo-image-manipulator@57.0.13
-  - '@expo/cli@57.0.18 || 57.0.20'
+  - expo-image-manipulator@57.0.13 || 57.0.16
+  - '@expo/cli@57.0.18 || 57.0.20 || 57.0.22'
   - '@expo/config-plugins@57.0.9'
   - '@expo/config@57.0.9'
   - '@expo/fingerprint@0.20.10 || 0.20.11'
@@ -40,17 +40,18 @@ minimumReleaseAgeExclude:
   - expo-asset@57.0.14
   - expo-constants@57.0.14 || 57.0.16
   - expo-modules-autolinking@57.0.11
-  - expo-modules-core@57.0.13
-  - expo@57.0.16 || 57.0.18
+  - expo-modules-core@57.0.13 || 57.0.16
+  - expo@57.0.16 || 57.0.18 || 57.0.20
   - '@expo/metro-runtime@57.0.13'
-  - '@expo/ui@57.0.13'
-  - expo-build-properties@57.0.14
+  - '@expo/ui@57.0.13 || 57.0.16'
+  - expo-build-properties@57.0.14 || 57.0.17
   - expo-crypto@57.0.2
   - expo-dev-client@57.0.15
   - expo-dev-launcher@57.0.15
   - expo-dev-menu@57.0.15
-  - expo-location@57.0.13
-  - expo-notifications@57.0.14
-  - expo-router@57.0.16
+  - expo-location@57.0.13 || 57.0.16
+  - expo-notifications@57.0.14 || 57.0.17
+  - expo-router@57.0.16 || 57.0.19
   - '@expo/env@2.4.3'
   - expo-font@57.0.2
+  - expo-modules-jsi@57.0.8

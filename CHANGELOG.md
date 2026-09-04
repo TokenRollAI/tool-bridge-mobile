@@ -3,6 +3,27 @@
 本文件记录可发布版本中用户可感知的变化。最新版本必须位于最前，并与 `package.json`、
 `app.config.ts` 和发布 tag 保持一致；自动发布流水线只提取首个版本段作为 GitHub Release 正文。
 
+## [0.0.14] - 2026-09-05
+
+> Preview：修复设备信箱 Markdown 链接点击，并恢复 Expo 57 自动验证与双端构建门禁；不是 production、
+> App Store 或 Google Play 正式版本。
+
+### 修复与维护
+
+- 信箱详情页现在会把显式 Markdown HTTPS 链接渲染为可访问的点击入口；只有用户点按且链接通过本地
+  结构 policy 后，才交给系统处理，系统拒绝时显示通用失败提示。
+- 链接限制为不超过 2,048 字符、无 userinfo、标准端口且非 IP literal 的 HTTPS hostname；不自动
+  linkify 裸 URL，也不接受 `http:`、`mailto:`、`tel:` 或 custom scheme。
+- 将 `@tool-bridge/sdk` 更新到 0.21.0，并保持正式 device mailbox consumer、journal 与
+  `delivery: both` 契约；这不新增 push、后台轮询或后台必达。
+- 将 Expo 57 相关包对齐到当前官方兼容补丁版本，修复 `expo install --check` 对旧补丁版本的拒绝。
+
+### 安全与验证边界
+
+- 本版本不新增系统权限、后台入口或任意 App UI 自动化；Markdown 链接只能由用户主动点按。
+- 本地 typecheck、lint、单元/协议测试、Expo dependency check 与 Expo Doctor 通过；GitHub Preview
+  仍以 clean checkout 的 Android APK 和 iOS simulator workflow 结果为准，不代表双端真机验收。
+
 ## [0.0.13] - 2026-08-29
 
 > Preview：让设备本地信箱可经 Tool Bridge durable mailbox 投递；不是 production、
@@ -162,6 +183,7 @@
 
 - 首个内部 Preview，包含移动端脚手架、前台 device transport、本地安全执行链和基础能力。
 
+[0.0.14]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.14
 [0.0.13]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.13
 [0.0.12]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.12
 [0.0.11]: https://github.com/TokenRollAI/tool-bridge-mobile/releases/tag/v0.0.11
