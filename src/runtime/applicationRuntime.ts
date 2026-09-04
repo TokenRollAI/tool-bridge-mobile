@@ -87,6 +87,7 @@ import {
   type InboxImageSourceResolver,
   type ResolvedInboxImage,
 } from '@/inbox/imageSource'
+import { SafeInboxLinkOpener, type InboxLinkOpener } from '@/inbox/linkOpener'
 import {
   DEFAULT_INBOX_VIEW_OPTIONS,
   LOCAL_INBOX_DISPLAY_LIMIT,
@@ -215,6 +216,7 @@ export class ApplicationRuntime {
   #initialization: Promise<void> | null = null
   #installationId: string | null = null
   #inboxImageResolver: InboxImageSourceResolver | null = null
+  #inboxLinkOpener: InboxLinkOpener | null = null
   #inboxRepository: SqliteInboxRepository | null = null
   #inboxRevision = 0
   #inboxViewOptions = DEFAULT_INBOX_VIEW_OPTIONS
@@ -411,6 +413,11 @@ export class ApplicationRuntime {
     return this.#inboxImageResolver.resolve(rawUrl, signal)
   }
 
+  openInboxLink(rawUrl: string): Promise<void> {
+    if (this.#inboxLinkOpener === null) throw new Error('运行时尚未初始化')
+    return this.#inboxLinkOpener.open(rawUrl)
+  }
+
   async saveGatewayConfiguration(input: ManualGatewayConfigurationInput): Promise<void> {
     if (
       this.#gatewayConfigurationController === null
@@ -603,10 +610,12 @@ export class ApplicationRuntime {
       await this.#auditRepository.prune(LOCAL_AUDIT_RETENTION_LIMIT)
 
       this.#registry = new CapabilityRegistry()
+      const appLinkingAdapter = new ExpoAppLinkingAdapter()
       const appHandoffController = new AppHandoffController(
-        new ExpoAppLinkingAdapter(),
+        appLinkingAdapter,
         ExpoConfigHosts.read('linkHosts'),
       )
+      this.#inboxLinkOpener = new SafeInboxLinkOpener(appLinkingAdapter)
       this.#registry.register(createCanOpenUrlCapability(appHandoffController))
       this.#registry.register(createOpenUrlCapability(appHandoffController))
       this.#attentionController = new AttentionSessionController(

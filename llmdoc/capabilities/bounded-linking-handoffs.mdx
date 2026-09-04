@@ -75,6 +75,11 @@ Android merged manifest 为地图 handler discovery 增加 `<queries>` 中的 `V
 `open_map` 增加位置或后台权限。该 query 只允许 `canOpenURL` 发现匹配 handler，不授予打开能力，也不
 证明 emulator/真机存在可用 provider。
 
+当前 manifest 只配置 `geo:` query；Android 上受 package visibility 约束的 `canOpenURL` 结果不能泛化为
+普通 HTTPS 系统 handoff 事实。信箱本地用户点击没有 `can_open` 语义，因此在严格本地 URL policy 后
+直接调用 `Linking.openURL` 并处理 reject，不复用远程 command 的 bounded `canOpenURL` 流程。这不改变
+`phone/apps.can_open_url|open_url` 的当前契约；后者的 Android HTTPS discovery 仍需对应配置与真机证据。
+
 ## 证据边界
 
 - unit 与 local runtime contract 覆盖 schema/builder、confirmation、probe、取消/到期 zero-open、脱敏和

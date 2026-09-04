@@ -38,6 +38,7 @@ function screenProps(overrides: Partial<React.ComponentProps<typeof InboxMessage
     now: new Date('2026-08-23T10:30:00.000Z'),
     onBack: jest.fn(),
     onMarkRead: jest.fn(async () => undefined),
+    onOpenLink: jest.fn(async () => undefined),
     onResolveImage: jest.fn(async () => resolvedImage()),
     ...overrides,
   }
@@ -83,6 +84,20 @@ describe('InboxMessageScreen', () => {
       expect.any(Object),
     ))
     await waitFor(() => rendered.getByLabelText('趋势图'))
+  })
+
+  test('Markdown 链接点击后交给运行时打开', async () => {
+    const onOpenLink = jest.fn(async () => undefined)
+    const rendered = await render(<InboxMessageScreen {...screenProps({
+      message: {
+        ...unreadMessage,
+        body: '[阅读详情](https://docs.example.com/guide)',
+      },
+      onOpenLink,
+    })} />)
+
+    await fireEvent.press(rendered.getByRole('link', { name: '阅读详情' }))
+    expect(onOpenLink).toHaveBeenCalledWith('https://docs.example.com/guide')
   })
 
   test('消息不存在时给出兜底并可返回', async () => {

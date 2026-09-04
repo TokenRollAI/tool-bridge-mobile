@@ -6,7 +6,7 @@ import { InboxMessageScreen } from '@/ui/screens/InboxMessageScreen'
 export default function InboxMessageRoute() {
   const focused = useIsFocused()
   const { messageId } = useLocalSearchParams<{ messageId: string }>()
-  const { markInboxMessageRead, resolveInboxImage, snapshot } = useRuntime()
+  const { markInboxMessageRead, openInboxLink, resolveInboxImage, snapshot } = useRuntime()
   const message = snapshot.inboxMessages.find(item => item.messageId === messageId) ?? null
   return (
     <InboxMessageScreen
@@ -14,6 +14,7 @@ export default function InboxMessageRoute() {
       message={message}
       onBack={() => { router.back() }}
       onMarkRead={markInboxMessageRead}
+      onOpenLink={openInboxLink}
       onResolveImage={resolveInboxImage}
     />
   )

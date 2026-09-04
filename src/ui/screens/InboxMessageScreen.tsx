@@ -14,6 +14,7 @@ import {
 import { colors, radius, spacing } from '@/ui/theme'
 
 import type { InboxImageSourceResolver, ResolvedInboxImage } from '@/inbox/imageSource'
+import type { InboxLinkOpener } from '@/inbox/linkOpener'
 import type { InboxMessage } from '@/inbox/types'
 
 type InboxMessageScreenProps = Readonly<{
@@ -22,6 +23,7 @@ type InboxMessageScreenProps = Readonly<{
   now?: Date
   onBack(): void
   onMarkRead(messageId: string): Promise<void>
+  onOpenLink(rawUrl: string): Promise<void>
   onResolveImage(rawUrl: string, signal: AbortSignal): Promise<ResolvedInboxImage>
 }>
 
@@ -31,11 +33,15 @@ export function InboxMessageScreen({
   now,
   onBack,
   onMarkRead,
+  onOpenLink,
   onResolveImage,
 }: InboxMessageScreenProps) {
   const imageResolver = useMemo<InboxImageSourceResolver>(() => ({
     resolve: onResolveImage,
   }), [onResolveImage])
+  const linkOpener = useMemo<InboxLinkOpener>(() => ({
+    open: onOpenLink,
+  }), [onOpenLink])
 
   // 打开详情即视为已读；只对仍未读的消息触发一次，避免重复写入。
   const markedRef = useRef<string | null>(null)
@@ -101,7 +107,7 @@ export function InboxMessageScreen({
 
       <View style={styles.divider} />
 
-      <SafeMarkdown imageResolver={imageResolver} markdown={message.body} />
+      <SafeMarkdown imageResolver={imageResolver} linkOpener={linkOpener} markdown={message.body} />
     </Screen>
   )
 }
