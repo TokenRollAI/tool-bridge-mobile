@@ -34,8 +34,10 @@ code:
 
 1. **本地内容自动化**：schema/migration/repository/controller/component/local runtime contract 只能证明
    call 已到达 executor 后的 v4 内容保存、全保留集搜索/六排序/已读、幂等、clear/replay、revision、
-   RN Markdown 白名单、点击前零网络、任意结构合规 HTTPS 与安全跨 hostname redirect 的注入式 resolver
-   边界；不证明 DNS 私网/rebinding 防护或最终 redirect hostname 对用户可见。
+   RN Markdown 白名单、显式链接的 `link` 语义/点按后 opener 调用/失败反馈及 URL policy，以及图片
+   点击前零网络、任意结构合规 HTTPS 与安全跨 hostname redirect 的注入式 resolver 边界；不证明
+   真实系统处理器已交接或失败提示已被朗读，也不证明 DNS 私网/rebinding 防护或最终 redirect hostname
+   对用户可见。
 2. **SDK 0.21.0 mailbox consumer**：真实 SDK processor + fake `expo/fetch` 可证明 `delivery: both` 投影、
    有界 claim/complete、SQLite v5 journal barrier、正文不入 journal、`executing -> result_unknown`、前后台/
    Disabled/换配置中止和 401 credential 联动；不能写成真实 Gateway 或设备 E2E。
@@ -43,7 +45,8 @@ code:
    expose/enqueue/claim/renew/complete、取消/过期/结果、重复 id 与
    正文脱敏；其他 capability（包括 Android 真机 `status/get`）成功不能替代。
 4. **双端真机**：必须分别留下 Android/iOS build 与真机证据，覆盖重启持久化、Markdown 布局、长列表/
-   搜索/排序/全部已读、真实图片下载/解码/取消/清理、前后台内存与无障碍，以及权限/channel/锁屏提醒；
+   搜索/排序/全部已读、显式链接的真实系统交接/失败提示朗读、真实图片下载/解码/取消/清理、前后台内存与
+   无障碍，以及权限/channel/锁屏提醒；
    Metro、prebuild、模拟器或注入 adapter 都不能替代。
 5. **后台唤醒与端到端**：U-5 当前只能称移动 consumer 接入，完整验收仍需真实 Gateway 与双端证据；
    U-6 token/opaque wake hint 仍未实现。显式前台 drain、本地 SQLite 信箱、`scheduled` 通知或前台长连

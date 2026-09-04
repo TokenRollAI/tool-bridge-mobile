@@ -91,7 +91,7 @@ React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/ret
 | location | `expo-location`；当前只开启 foreground/When In Use，不启用后台/Always/motion。 |
 | local notification | `expo-notifications`；当前只做 local schedule，final config 移除 APNs/FCM/boot/exact 等未实现入口。 |
 | private files | `expo-file-system`；流式有界写入与确定性清理，必须作为直接依赖。 |
-| Markdown | `markdown-it` parser + RN 白名单 renderer；禁用 HTML/linkify，不使用 WebView。 |
+| Markdown | `markdown-it` parser + RN 白名单 renderer；禁用 HTML/linkify，不使用 WebView；显式 HTTPS 链接只在用户点按并通过本地 policy 后 handoff。 |
 | native probe | 本地 `tool-bridge-attention` 模块只封装 haptic/torch probe 与执行，不扩成通用控制面。 |
 | UI icons | `@expo/vector-icons` + 直接 peer `expo-font`；统一经本地语义组件使用。 |
 

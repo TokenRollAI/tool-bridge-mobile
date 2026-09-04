@@ -95,9 +95,10 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
   arguments、信箱正文或 credential。
 - `src/inbox/controller.ts` (`InboxDeliveryController`)：commit 有界正文后才 best-effort 尝试固定本地提醒；
   提醒状态不能回滚或升级消息的 `stored` 事实。
-- `src/ui/components/SafeMarkdown.tsx` 与 `src/inbox/imageSource.ts`：不可信 Markdown 的 React Native 白名单
-  投影，以及只在用户逐图点按后进入 HTTPS 结构 policy/有界下载/私有 cache 的图片路径；没有 inbox image
-  hostname config 或 runtime set。
+- `src/ui/components/SafeMarkdown.tsx` 与 `src/inbox/linkOpener.ts`：不可信 Markdown 的 React Native 白名单
+  投影；render 时只赋予显式合规 HTTPS 原生 `link` 语义，用户点按后再由 runtime 复检并直接交给系统。
+- `src/ui/components/SafeMarkdown.tsx` 与 `src/inbox/imageSource.ts`：只在用户逐图点按后进入 HTTPS
+  结构 policy/有界下载/私有 cache 的图片路径；没有 inbox image hostname config 或 runtime set。
 
 ## Android 后台运行服务
 
@@ -211,6 +212,8 @@ mailbox 在上述本地执行链之外还增加一层 SDK operation journal：�
 - 默认列表只显示三行纯文本摘要，且一次只展开一条 Markdown。展开只创建图片占位，点按前 resolver 零调用；
   每次点按只授权该图片的一次请求与 redirect 链。resolver 允许逐跳合规的跨 hostname HTTPS redirect；
   已解析图片在取消、失败、Image error 或组件卸载时释放私有 cache。
+- 裸 URL 不 linkify，不合规 Markdown href 不产生 `link`。显式合规 HTTPS 在 render 时校验，只在用户
+  点按后进入 runtime 复检并直接系统 handoff；reject 显示不回显 URL/hostname 的本地通用失败。
 - crash 遗留 running command 仍按通用规则恢复为 `result_unknown`，不能为了找回可能的正文而重放写入。
 
 ## 崩溃、保留与停用
@@ -239,7 +242,8 @@ mailbox 在上述本地执行链之外还增加一层 SDK operation journal：�
   不保存 operation arguments、消息正文或 credential，过期项在运行时初始化时回收。
 - inbox 表是有界的显式用户内容域，可保存 title/Markdown body/sourceLabel/urgency/sentAt；这些字段不得进入
   command outcome、普通 audit、普通日志、自动 accessibility announcement 或系统提醒 payload。
-  sourceLabel/urgency/sentAt 不能冒充 caller 或 receivedAt；Markdown 图片 URL 也不能绕过点击与 resolver。
+  sourceLabel/urgency/sentAt 不能冒充 caller 或 receivedAt；Markdown 链接 URL 不得进入普通 audit、自动公告或
+  失败提示，图片 URL 也不能绕过点击与 resolver。
   结构 policy 只拒绝 URL IP literal，尚无 DNS 私网/rebinding 防护，跨 hostname redirect 的最终 host 也不会
   再向用户确认。
 - timer 表只保存确定性 id、owner、来源 command、`firesAt` 与状态；确认用 `purpose` 不进入 DB、原生通知、

@@ -108,7 +108,8 @@ notification 和 timer 能力。
 - 位置：MVP 只有逐次确认后的单次 foreground fix 与地图 handoff；持续/后台定位不在 MVP。
 - 设备信箱：`phone/inbox.deliver` 为 `delivery: both`，可由 realtime direct call，或 Gateway operation 在
   App 初始化/配置完成且 active、之后回到 active 时的单次有界 drain 中到达 executor。Markdown 用 RN
-  白名单组件，图片必须用户逐图授权后有界加载；清除内容不清 command 防重放。本地 `inbox_messages`
+  白名单组件；裸 URL 不自动 linkify，显式合规 HTTPS 只在用户点按后交给系统，失败不冒充成功。图片必须
+  用户逐图授权后有界加载；清除内容不清 command 防重放。本地 `inbox_messages`
   内容域不等于 Gateway operation mailbox，也没有 push、后台轮询或后台必达。
 - Local-only notification：远程命令只在已有授权且前台时调度固定内容；不请求权限、不注册 push token，
   `scheduled` 不等于 presented/clicked。
