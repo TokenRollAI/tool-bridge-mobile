@@ -12,7 +12,7 @@
       "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
     },
     "capabilities/bounded-linking-handoffs.mdx": {
-      "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
+      "validatedRevision": "16ac14de1582682d427f761657f0ff8f7d1cce3d"
     },
     "capabilities/bounded-media-source.mdx": {
       "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
@@ -21,7 +21,7 @@
       "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
     },
     "capabilities/local-device-inbox.mdx": {
-      "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
+      "validatedRevision": "16ac14de1582682d427f761657f0ff8f7d1cce3d"
     },
     "capabilities/local-notifications.mdx": {
       "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
@@ -51,7 +51,7 @@
       "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
     },
     "integration/upstream-and-platform-gaps.mdx": {
-      "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
+      "validatedRevision": "16ac14de1582682d427f761657f0ff8f7d1cce3d"
     },
     "runtime/accessibility-semantics.mdx": {
       "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
@@ -75,7 +75,7 @@
       "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
     },
     "delivery/definition-of-done.mdx": {
-      "validatedRevision": "83128f27173e138dbef0a482a254781bcf39ec11"
+      "validatedRevision": "16ac14de1582682d427f761657f0ff8f7d1cce3d"
     },
     "delivery/verification-evidence.mdx": {
       "validatedRevision": "d75d602de45096a0a2912112c56315def2f16f21"
