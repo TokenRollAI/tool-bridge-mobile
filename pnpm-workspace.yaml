@@ -20,7 +20,7 @@ strictPeerDependencies: true
 
 # 0.17.0 在 RN-safe /device 入口把远程产物上传收敛为 call-scoped Store capability；
 # 0.20.1 新增正式 durable mailbox processor、journal 与 delivery metadata。已核对 registry
-# tarball/integrity、MIT license 与 RN-safe export；只允许这些已核对的精确历史/当前版本。
+# tarball/integrity、MIT license 与 RN-safe export；只允许这些已核对的精确历史版本。
 # 其余 Expo 57.0.x 条目由 2026-08-24 SDK 升级及后续官方兼容表补丁对齐产生；
 # 均受精确 package/lock、Expo check、license、双端 autolinking/构建门禁约束，避免供应链等待期
 # 阻断已核对的 SDK 57 原生验证。
