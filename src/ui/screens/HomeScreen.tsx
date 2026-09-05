@@ -2,10 +2,12 @@ import { StyleSheet, Text, View } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
+import { Icon } from '@/ui/components/Icon'
 import { Pill, type PillTone } from '@/ui/components/Pill'
 import { Screen } from '@/ui/components/Screen'
+import { SectionHeading } from '@/ui/components/SectionHeading'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
-import { colors, radius, spacing } from '@/ui/theme'
+import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import type { ControlMode } from '@/commands/types'
 import type { ApplicationSnapshot } from '@/runtime/applicationRuntime'
@@ -47,6 +49,8 @@ export function HomeScreen({
   onStopAttention,
   snapshot,
 }: HomeScreenProps) {
+  const { colors } = useTheme()
+  const styles = useThemedStyles(createStyles)
   useDiscreteAccessibilityAnnouncement(
     `control-mode:${snapshot.controlMode}`,
     `控制模式已变为 ${snapshot.controlMode}`,
@@ -73,14 +77,21 @@ export function HomeScreen({
 
   return (
     <Screen
-      description="设备本地裁决优先于任何远程命令。这里汇总当前的控制模式、连接、后台运行与进行中的会话。"
-      eyebrow="设备状态"
+      backLabel="设备"
+      description="连接、授权与正在运行的任务，一目了然。"
       focused={focused}
       onBack={onBack}
       title="设备状态"
     >
       {snapshot.error === null ? null : <Text style={styles.error}>{snapshot.error}</Text>}
 
+      <View style={styles.connectionHero}>
+        <View style={styles.connectionIcon}><Icon name="connection" color={snapshot.transportState === 'ready' ? colors.success : colors.muted} size={30} /></View>
+        <View style={styles.connectionCopy}>
+          <Text style={styles.connectionTitle}>{snapshot.transportState === 'ready' ? '设备已连接' : '设备尚未就绪'}</Text>
+          <Text style={styles.footnote}>{snapshot.transportState === 'ready' ? '远程命令仍受本机策略与系统权限约束。' : '前往设备页查看网关配置与连接状态。'}</Text>
+        </View>
+      </View>
       <StatusCard icon="home" title="总览">
         <View style={styles.pills}>
           <Pill
@@ -116,6 +127,7 @@ export function HomeScreen({
         </StatusCard>
       )}
 
+      {snapshot.attentionSession !== null || snapshot.timers.length > 0 ? <SectionHeading title="正在运行" detail="可在本机停止" /> : null}
       {snapshot.attentionSession === null ? null : (
         <StatusCard icon="notification" title="正在提示设备">
           <StatusRow label="调用方" value={snapshot.attentionSession.callerSubjectId} />
@@ -151,9 +163,9 @@ export function HomeScreen({
       ))}
 
       <AccessibleAction
-        accessibilityHint="返回设置页调整控制模式、后台运行、网关连接与通知"
+        accessibilityHint="返回设备管理页调整连接与授权设置"
         icon="settings"
-        label="前往设置"
+        label="返回设备管理"
         onPress={onOpenSettings}
         variant="secondary"
       />
@@ -161,7 +173,11 @@ export function HomeScreen({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  connectionHero: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, backgroundColor: colors.panel, borderRadius: radius.lg, padding: spacing.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  connectionIcon: { width: 60, height: 60, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  connectionCopy: { flex: 1, gap: spacing.sm },
+  connectionTitle: { fontSize: 22, fontWeight: '700', color: colors.text },
   error: {
     backgroundColor: colors.panel,
     borderColor: colors.danger,

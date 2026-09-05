@@ -17,13 +17,15 @@ code:
     - src/gateway/sdkDeviceTransport.ts
     - src/runtime/applicationRuntime.ts
     - src/ui/components/GatewayConfigurationCard.tsx
+    - src/ui/screens/ConnectionSettingsScreen.tsx
+    - app/connection.tsx
 ---
 
 # 手工 Gateway 配置参考
 
 ## 当前用途
 
-正式 pairing/U-2 尚未交付时，首页允许用户手工输入 Gateway HTTPS origin 与 API key，直接驱动
+正式 pairing/U-2 尚未交付时，设备总览的“连接配置”二级页允许用户手工输入 Gateway HTTPS origin 与 API key，直接驱动
 `@tool-bridge/sdk/device@0.21.0` realtime 连接和 active-only mailbox drain。它是内测 fallback，不是
 pairing、设备凭证签发、最小 scope、
 rotation/revoke 或 U-3 短期 ticket。
@@ -74,8 +76,8 @@ realtime/mailbox transports.updateConfiguration(null)
   -> apply current AppState / control mode
 ```
 
-SecureStore 写入或删除失败时不得自动重连；错误文案不包含底层 secret。Disabled 状态允许本地保存或
-清除，但新 transport 保持 suspended，直到用户恢复控制模式。
+SecureStore 写入或删除失败时不得自动重连；错误文案不包含底层 secret。控制器在 Disabled 状态允许本地保存或
+清除，但新 transport 保持 suspended，直到用户恢复控制模式；当前连接配置 UI 在停用态隐藏表单并显示恢复提示。
 
 ## 代码位置
 

@@ -1,5 +1,5 @@
 ---
-description: React Native 共享 UI 的可访问性语义、公告敏感边界及自动化证据上限。
+description: React Native 系统浅深主题、共享 UI 与导航的可访问性语义、公告敏感边界及自动化证据上限。
 kind: reference
 relations:
   requires:
@@ -12,24 +12,44 @@ code:
   paths:
     - src/ui/components/Screen.tsx
     - src/ui/components/StatusCard.tsx
+    - src/ui/components/SectionHeading.tsx
     - src/ui/components/AccessibleAction.tsx
+    - src/ui/components/ActionSheet.tsx
     - src/ui/components/PendingConfirmationModal.tsx
     - src/ui/components/CameraCaptureModal.tsx
     - src/ui/accessibility.ts
     - src/ui/navigation.ts
+    - src/ui/theme.ts
+    - app/_layout.tsx
+    - app/(tabs)/_layout.tsx
+    - app/(tabs)/settings.tsx
+    - src/ui/screens/SettingsScreen.tsx
     - src/ui/**/__tests__/**
-    - scripts/verify-android-emulator.mjs
 ---
 
-# Accessibility semantics 自动化基线
+# 系统主题与 Accessibility semantics 基线
+
+## 系统外观
+
+- 已决定：系统外观是唯一主题来源，不保存独立主题偏好。共享语义色覆盖浅色和深色，页面、导航、
+  状态栏及全局弹窗同步跟随；切换主题只更新样式，不重挂载页面或运行时，不丢弃未提交表单与待确认状态。
+- 主操作和危险操作分别使用配对的前景/背景语义色；危险操作不能复用浅色面板文字颜色推断可读性。
+  颜色回归必须检查组件实际采用的文字组合，而不是未用于渲染的候选配色。
 
 ## 共享语义
 
-- `Screen` 暴露唯一页面 header，并只在页面获得 focus 时请求辅助技术焦点；普通 snapshot/rerender 不
-  反复抢焦点。`StatusCard` title 是 header，`StatusRow` 将 label/value 合成单一可访问名称并隐藏重复的
+- `Screen` 暴露唯一页面主标题，并只在页面获得 focus 时请求辅助技术焦点；普通 snapshot/rerender 不
+  反复抢焦点。`StatusCard` 与 `SectionHeading` title 是 header，`StatusRow` 将 label/value 合成单一可访问名称并隐藏重复的
   视觉子文本，同时允许系统字号和换行。
+- 常规页面的主标题与 toolbar 固定在内容滚动区之外；消息阅读页把主标题放入可滚动正文，避免长标题
+  挤压阅读空间，返回操作仍留在顶部。两种布局都保留同一主标题语义与 focus 规则。
 - `AccessibleAction` 统一 button role、上下文唯一 label、必要 hint、busy/disabled state，以及至少
-  48dp 的 minWidth/minHeight。四个 tab 显式使用“状态/能力/媒体/活动标签页”唯一 label，并投影 selected。
+  48dp 的 minWidth/minHeight。主导航只保留信箱、设备两个 tab，显式使用“信箱/设备标签页”
+  唯一 label，并投影 selected；信箱仍为落地首页。设备 tab 保留内部 `settings` route，作为连接、授权安全、
+  活动记录、状态、能力与媒体的总览入口，不把内部 route 名当作用户可见名称。活动是低频管理页面，
+  从设备总览进入并可返回设备，不再占用底部 tab。
+- `ActionSheet` 仅承载用户主动打开的本地排序和批量操作；打开时聚焦标题，关闭后由组件或调用页恢复
+  触发控件焦点，忙碌时可禁止关闭。它不接收远程命令裁决，不能替代全局 `PendingConfirmationModal`。
 - Activity destructive confirmation 打开时聚焦确认标题，取消/完成后返回清除触发按钮；组件测试覆盖
   focus 往返和普通更新不抢焦点。
 - 远程 command 的 `PendingConfirmationModal` 挂在 root layout，不受当前 tab 与首页滚动位置影响；打开时
@@ -49,16 +69,17 @@ code:
   announcement；全局 confirmation 只公告待处理数量。detail 可作为用户主动查看的 modal 视觉/语义内容，
   但 action label 只包含 caller 与 capability。attention 倒计时和媒体 progress 只视觉更新，不改变
   semantic key，因此不会高频播报。
-- 颜色回归 gate 要求普通文本对比至少 4.5:1，交互边界/控件文字至少 3:1；视觉状态不能只依赖颜色。
+- 浅色和深色的颜色回归 gate 都要求实际文字组合对比至少 4.5:1，交互边界至少 3:1；视觉状态不能只依赖颜色。
 
 ## 自动化证据与上限
 
 - component tests 覆盖 page/card header、StatusRow 关联、操作唯一名称/role/hint/state、48dp、focus、公告
   去重及不公告高频/敏感内容；相机组件测试覆盖 Direct call 自动分支和非 Direct 快门/复核分支；theme test
-  覆盖文本和交互边界 contrast gate。`SafeMarkdown` 组件测试另覆盖跨样式单链接、相邻链接和通用失败
+  覆盖双主题文本和交互边界 contrast gate，系统主题组件测试覆盖切换后保留未提交表单及危险操作实际配色。
+  `SafeMarkdown` 组件测试另覆盖跨样式单链接、相邻链接和通用失败
   `alert`；这不证明 TalkBack/VoiceOver 实际朗读或真机系统 handoff。
-- Android emulator semantic smoke 应验证 tab 的唯一 accessibility label/selected state，保存原字号后设为
-  200%，force-stop/relaunch，逐页滚动并操作 Activity clear/cancel/confirm，复核关键 action bounds 至少
+- 页面交互验收应检查两个 tab 的唯一 accessibility label/selected state，保存原字号后设为
+  200%，force-stop/relaunch，经设备总览进入活动记录并操作 clear/cancel/confirm、返回设备，复核关键 action bounds 至少
   48dp，最后恢复原字号。
 - UIAutomator 只观察语义树、selected state、bounds 和点击，不能替代 Android TalkBack、VoiceOver、
   Switch Access、iOS Dynamic Type 或双端真机人工证据；不能据此声称实际朗读、手势/rotor 顺序、平台
@@ -71,8 +92,9 @@ code:
 - primitives：`src/ui/components/Screen.tsx`、`StatusCard.tsx`、`AccessibleAction.tsx`
 - focus/announcement：`src/ui/accessibility.ts`
 - tab labels：`src/ui/navigation.ts`
+- system theme：`src/ui/theme.ts`、`app/_layout.tsx`、`app/(tabs)/_layout.tsx`
 - tests：`src/ui/components/__tests__/accessibilityComponents.test.tsx`、
   `src/ui/components/__tests__/PendingConfirmationModal.test.tsx`、`src/ui/__tests__/accessibility.test.tsx`、
   `src/ui/components/__tests__/CameraCaptureModal.test.tsx`、`src/ui/components/__tests__/SafeMarkdown.test.tsx`、
-  `src/ui/__tests__/themeContrast.test.ts`
+  `src/ui/__tests__/themeContrast.test.ts`、`src/ui/__tests__/systemTheme.test.tsx`
 - 验收：`llmdoc/delivery/definition-of-done.mdx`、`llmdoc/delivery/verification-evidence.mdx`

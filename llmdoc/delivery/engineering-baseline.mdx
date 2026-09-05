@@ -135,7 +135,7 @@ APNs/FCM 及不需要的 badge/remote transport。每次 Expo 模块升级都要
 | React UI | React Native Testing Library：确认、权限、错误和 accessibility 语义。 |
 | 原生模块 | Android native test / XCTest：平台 adapter；JS mock 不替代。 |
 | consumer contract | 官方 SDK + fake WebSocket/fetch：realtime 公共入口、mailbox claim/complete/journal barrier 和本地适配；不等于真实 Gateway。 |
-| UI E2E | Maestro 或仓库 smoke：驱动界面；不证明硬件真实发声、拍照、后台或 push。 |
+| 页面交互 | 驱动界面并记录操作结果；不证明硬件真实发声、拍照、后台或 push。 |
 | 真机矩阵 | Android/iOS 设备 + 脱敏日志：权限、后台、锁屏、DND、弱网、系统物理效果。 |
 
 PR 至少执行 frozen install 与仓库 `pnpm verify`；配置/依赖还需双端 clean build，平台/敏感能力还需对应

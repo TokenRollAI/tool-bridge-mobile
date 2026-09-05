@@ -2,7 +2,7 @@ import { forwardRef } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { Icon, type IconName } from '@/ui/components/Icon'
-import { colors, radius, spacing } from '@/ui/theme'
+import { useTheme, useThemedStyles, type ThemeColors, radius, spacing } from '@/ui/theme'
 
 import type { AccessibilityRole, StyleProp, TextStyle, ViewStyle } from 'react-native'
 
@@ -25,12 +25,6 @@ type AccessibleActionProps = Readonly<{
   visualLabel?: string
 }>
 
-const VARIANT_TEXT_COLOR: Readonly<Record<ActionVariant, string>> = {
-  danger: colors.text,
-  primary: colors.background,
-  secondary: colors.text,
-}
-
 // 统一 button role、上下文唯一 label、hint、busy/disabled state 与至少 48dp 目标尺寸。
 // variant 只影响视觉；无障碍语义完全由 label/hint/state 决定。
 export const AccessibleAction = forwardRef<React.ElementRef<typeof Pressable>, AccessibleActionProps>(function AccessibleAction({
@@ -47,8 +41,14 @@ export const AccessibleAction = forwardRef<React.ElementRef<typeof Pressable>, A
   variant = 'primary',
   visualLabel = label,
 }: AccessibleActionProps, ref) {
+  const { colors } = useTheme()
+  const styles = useThemedStyles(createStyles)
+  const variantStyles = useThemedStyles(createVariantStyles)
+  const textColors: Readonly<Record<ActionVariant, string>> = {
+    danger: colors.onDanger, primary: colors.onPrimary, secondary: colors.text,
+  }
   const unavailable = disabled || busy
-  const resolvedTextColor = StyleSheet.flatten(textStyle)?.color ?? VARIANT_TEXT_COLOR[variant]
+  const resolvedTextColor = StyleSheet.flatten(textStyle)?.color ?? textColors[variant]
   return (
     <Pressable
       accessibilityHint={accessibilityHint}
@@ -81,7 +81,7 @@ export const AccessibleAction = forwardRef<React.ElementRef<typeof Pressable>, A
   )
 })
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   action: {
     alignItems: 'center',
     borderRadius: radius.md,
@@ -98,8 +98,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontSize: 16,
-    fontWeight: '800',
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '600',
     textAlign: 'center',
   },
   pressed: {
@@ -107,14 +108,14 @@ const styles = StyleSheet.create({
   },
   selected: {
     borderColor: colors.primary,
-    borderWidth: 2,
+    borderWidth: 1,
   },
   unavailable: {
     opacity: 0.5,
   },
 })
 
-const variantStyles = StyleSheet.create({
+const createVariantStyles = (colors: ThemeColors) => StyleSheet.create({
   danger: {
     backgroundColor: colors.danger,
   },
@@ -122,7 +123,7 @@ const variantStyles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   secondary: {
-    backgroundColor: colors.panelElevated,
+    backgroundColor: colors.panel,
     borderColor: colors.outline,
     borderWidth: 1,
   },

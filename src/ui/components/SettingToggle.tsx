@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { MINIMUM_ACCESSIBLE_TARGET_SIZE } from '@/ui/components/AccessibleAction'
-import { colors } from '@/ui/theme'
+import { useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 // 带说明文本的开关行。用 switch role 表达当前状态，整行可点击，满足最小触控尺寸。
 export function SettingToggle({
@@ -17,6 +17,7 @@ export function SettingToggle({
   onToggle(next: boolean): void
   value: boolean
 }>) {
+  const styles = useThemedStyles(createStyles)
   return (
     <Pressable
       accessibilityHint={description}
@@ -38,7 +39,7 @@ export function SettingToggle({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   description: {
     color: colors.muted,
     fontSize: 13,
@@ -61,7 +62,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   thumb: {
-    backgroundColor: colors.text,
+    backgroundColor: '#ffffff',
     borderRadius: 11,
     height: 22,
     width: 22,
@@ -73,13 +74,14 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   track: {
+    flexShrink: 0,
     borderRadius: 15,
     height: 30,
     padding: 4,
     width: 52,
   },
   trackOff: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.outline,
   },
   trackOn: {
     backgroundColor: colors.primary,

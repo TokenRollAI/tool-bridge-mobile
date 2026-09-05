@@ -6,12 +6,15 @@ export default defineConfig([
   {
     ignores: [
       '.expo/**',
+      '.llmdoc-tmp/**',
       'android/**',
       'coverage/**',
       'dist/**',
       'ios/**',
       'node_modules/**',
     ],
+  },
+  {
     rules: {
       'import/order': ['error', {
         alphabetize: { caseInsensitive: true, order: 'asc' },

@@ -158,13 +158,14 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 - SQLite v4 专用 `inbox_messages` 以 source command unique key 和 `inbox_ + SHA-256(commandId)` 去重；
   insert/回读/裁剪在同一 exclusive transaction，写时维持 1,000 条硬上限。v3 旧行迁移为 markdown/normal，
   sentAt 保持 NULL。
-- repository 在用户明确提交搜索后，对全部保留集参数化查询 title/body/sourceLabel/caller，按六值本地枚举
+- repository 在用户明确提交搜索后，对全部保留集参数化查询 title/body/sourceLabel/caller，并按本地视图选项
+  过滤未读；过滤后按六值本地枚举
   排序后最多投影 100 条；支持单条/全表 mark-read。sentAt 缺值时只为排序 fallback 到 receivedAt，不补造
   显示字段。
 - Markdown 由 `markdown-it/browser` 产出 token，再经 React Native 白名单 renderer；不用 WebView/HTML/
   JavaScript，裸 URL 不 linkify。只有显式且通过本地 policy 的 HTTPS 链接才在用户点按后交给系统；
   该路径不复用或改变 media、`phone/apps` 的 hostname allowlist。渲染另限制 nesting、600 tokens
-  和每条 4 张图片，默认三行摘要且一次只展开一条。
+  和每条 4 张图片；列表只展示纯文本摘要，正文在单条详情页查看。
 - 图片展开和点击前零网络；每次点按只授权该图片的一次请求和有界 redirect 链。任意 hostname 只要逐跳/
   最终满足标准端口 HTTPS、无 userinfo/fragment/IP literal 即可；安全的跨 hostname redirect 允许继续。
   resolver 使用 `credentials: omit` + manual redirect，并限制 3 次 redirect、20 秒、PNG/JPEG、3 MiB、

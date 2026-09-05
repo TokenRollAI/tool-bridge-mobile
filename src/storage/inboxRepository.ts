@@ -169,13 +169,16 @@ export class SqliteInboxRepository implements InboxRepository {
   async list(options: InboxViewOptions, limit: number): Promise<readonly InboxMessage[]> {
     const boundedLimit = Math.max(1, Math.min(limit, 200))
     const query = options.searchQuery.trim()
-    const where = query === '' ? '' : `WHERE (
+    const searchClause = query === '' ? '' : `(
       title LIKE ? ESCAPE '!' COLLATE NOCASE
       OR body LIKE ? ESCAPE '!' COLLATE NOCASE
       OR source_label LIKE ? ESCAPE '!' COLLATE NOCASE
       OR caller_display_name LIKE ? ESCAPE '!' COLLATE NOCASE
       OR caller_subject_id LIKE ? ESCAPE '!' COLLATE NOCASE
     )`
+    // 过滤必须先于 LIMIT，避免近期已读消息挤掉较早的未读消息。
+    const clauses = [options.unreadOnly === true ? 'read_at IS NULL' : '', searchClause].filter(Boolean)
+    const where = clauses.length === 0 ? '' : `WHERE ${clauses.join(' AND ')}`
     const parameters = query === '' ? [] : Array(5).fill(searchPattern(query))
     const rows = await this.database.raw.getAllAsync<InboxMessageRow>(
       `SELECT ${INBOX_COLUMNS} FROM inbox_messages
@@ -247,6 +250,7 @@ export class MemoryInboxRepository implements InboxRepository {
 
   async list(options: InboxViewOptions, limit: number): Promise<readonly InboxMessage[]> {
     return [...this.records.values()]
+      .filter(message => options.unreadOnly !== true || message.readAt === null)
       .filter(message => messageMatches(message, options.searchQuery.trim()))
       .sort((left, right) => compareInboxMessages(options.sort, left, right))
       .slice(0, Math.max(1, Math.min(limit, 200)))

@@ -1,5 +1,5 @@
 ---
-description: 本地 Activity 审计投影、5,000 条保留上限、仅审计清除与防重放并发边界。
+description: 设备总览下活动记录入口、本地 Activity 审计投影、5,000 条保留上限、仅审计清除与防重放并发边界。
 kind: reference
 relations:
   requires:
@@ -15,14 +15,16 @@ code:
     - src/storage/auditRepository.ts
     - src/runtime/applicationRuntime.ts
     - src/ui/screens/ActivityScreen.tsx
+    - app/activity.tsx
     - test/contract/audit-history.contract.test.ts
-    - scripts/verify-android-emulator.mjs
 ---
 
 # 本地 Activity 与仅审计历史清除
 
 ## 展示与保留
 
+- 已决定：活动记录是低频设备管理页面，通过设备总览进入 `app/activity.tsx`，并提供返回设备的操作；
+  不作为底部 tab。入口迁移不改变审计查询、清除或防重放语义。
 - Activity 页面按 occurredAt 倒序展示最近 100 条本地 audit metadata：caller subject id、occurredAt、
   path/tool、effect/risk、decision 与 outcomeCode。
 - 页面不展示 command arguments、完整 outcome、commandId、坐标、URL、message/purpose、credential 或
@@ -54,16 +56,16 @@ code:
 - repository/component/local contract 覆盖写时裁剪、clear 的唯一 SQL、真实删除数、失败显示、DELETE 后
   新记录，以及“副作用一次 -> clear -> 同 id replay 仍一次并新增 replayed audit”；runtime 代码复核确认
   revision 会阻止 clear 前启动的 refresh 回写旧列表。
-- Android emulator fresh-install smoke 应覆盖 Activity 的 100/5,000 范围文案、打开确认后取消、再次确认及
-  真实“已清除 0 条”结果。它没有生成有记录的 SQLite clear，也不是 iOS、真机或服务端审计证据。
+- 页面交互验收应从设备总览进入 Activity，覆盖 100/5,000 范围文案、打开确认后取消、再次确认和返回设备。
+  空历史的真实“已清除 0 条”结果不能替代有记录的 SQLite clear，也不构成另一平台或服务端审计证据。
 
 ## 事实真源
 
 - audit model/上限：`src/audit/types.ts`
 - SQLite repository：`src/storage/auditRepository.ts`
 - runtime revision：`src/runtime/applicationRuntime.ts`
-- Activity UI：`src/ui/screens/ActivityScreen.tsx`
+- Activity UI：`app/activity.tsx`、`src/ui/screens/ActivityScreen.tsx`
 - replay contract：`test/contract/audit-history.contract.test.ts`
 - 产品与验收：`llmdoc/product/requirements-and-roadmap.mdx`、
   `llmdoc/delivery/definition-of-done.mdx`
-- emulator 证据方法：`llmdoc/delivery/verification-evidence.mdx`
+- 证据记录方法：`llmdoc/delivery/verification-evidence.mdx`

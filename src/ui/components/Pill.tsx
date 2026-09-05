@@ -1,15 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native'
 
-import { colors, radius, spacing } from '@/ui/theme'
+import { useTheme, useThemedStyles, type ThemeColors, radius, spacing } from '@/ui/theme'
 
 export type PillTone = 'positive' | 'neutral' | 'caution' | 'danger'
-
-const toneColor: Readonly<Record<PillTone, string>> = {
-  caution: colors.warning,
-  danger: colors.danger,
-  neutral: colors.muted,
-  positive: colors.primary,
-}
 
 // 紧凑的状态徽标：状态点 + label + value。颜色不是唯一信号——
 // 文本本身即含义，满足对比度与非仅颜色依赖的无障碍要求。
@@ -18,6 +11,11 @@ export function Pill({
   tone = 'neutral',
   value,
 }: Readonly<{ label: string; tone?: PillTone; value: string }>) {
+  const { colors } = useTheme()
+  const styles = useThemedStyles(createStyles)
+  const toneColor: Readonly<Record<PillTone, string>> = {
+    caution: colors.warning, danger: colors.danger, neutral: colors.muted, positive: colors.success,
+  }
   return (
     <View
       accessibilityLabel={`${label}：${value}`}
@@ -50,7 +48,7 @@ export function Pill({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   dot: {
     borderRadius: 4,
     height: 8,
@@ -74,12 +72,13 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexShrink: 1,
     gap: spacing.xs,
+    flexBasis: 130,
     minWidth: 96,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
   },
   value: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
 })

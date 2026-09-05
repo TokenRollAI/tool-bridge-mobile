@@ -26,8 +26,8 @@ code:
 
 ## 背景
 
-当前 `trusted_session` 只是 SQLite `settings` 中的全局 control mode 字符串，没有生产 UI、TTL、
-capability scope 或 credential-instance binding。0.21.0 SDK call 已提供网关签发的 caller 与权威期限，
+当前 `trusted_session` 只是 SQLite `settings` 中的全局 control mode 字符串，本地授权 UI 可以选择该模式，
+但没有 TTL、capability scope 或 credential-instance binding。0.21.0 SDK call 已提供网关签发的 caller 与权威期限，
 移动端以 `caller.keyId` 作为稳定调用主体；该字段仍不是当前 device credential identity/generation。
 
 产品方向已经明确：用户信任的是与设备建立认证关系的 Gateway Credential，而不是经该 Gateway 发起调用的

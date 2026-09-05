@@ -28,7 +28,6 @@
     "verify:docs": "node scripts/verify-docs.mjs",
     "verify:config": "node scripts/verify-app-config.mjs",
     "verify:dependency-mitigations": "node scripts/verify-dependency-mitigations.mjs",
-    "verify:android:emulator": "node scripts/verify-android-emulator.mjs",
     "verify:app-icons": "node scripts/verify-app-icons.mjs",
     "verify:doctor": "expo-doctor",
     "verify:expo": "expo install --check",

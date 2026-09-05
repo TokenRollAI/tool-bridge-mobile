@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
-import { colors, radius, spacing } from '@/ui/theme'
+import { radius, spacing, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import type {
   CameraCaptureFailure,
@@ -42,6 +42,7 @@ export function CameraCaptureModal({
   onSubmit,
   request,
 }: CameraCaptureModalProps) {
+  const styles = useThemedStyles(createStyles)
   const cameraRef = useRef<CameraView>(null)
   const automaticCommandRef = useRef<string | null>(null)
   const reviewPhotoRef = useRef<CameraCapturedPicture | null>(null)
@@ -271,7 +272,7 @@ function discardPhoto(photo: Readonly<{ uri: string }>): void {
   }
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -308,19 +309,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.panel,
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.lg,
+    gap: spacing.sm,
+    padding: spacing.xl,
   },
   heading: {
     color: colors.text,
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
+    letterSpacing: -0.6,
   },
   mode: {
+    backgroundColor: colors.warningSoft,
+    borderRadius: radius.sm,
     color: colors.warning,
     fontSize: 13,
     lineHeight: 19,
     marginTop: spacing.xs,
+    padding: spacing.md,
   },
   overlay: {
     backgroundColor: 'rgba(8, 17, 31, 0.9)',
@@ -339,7 +344,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statusText: {
-    color: colors.text,
+    color: '#ffffff',
     fontSize: 14,
     fontWeight: '700',
     paddingHorizontal: spacing.lg,

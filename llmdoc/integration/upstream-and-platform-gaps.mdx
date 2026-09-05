@@ -53,7 +53,7 @@ lifecycle。精确用法与证据边界见 `llmdoc/integration/sdk-device-transp
 - 真实 gateway compatibility matrix、CLI/管理入口与端到端 revoke。
 
 因此可以声称“官方 SDK 前台 consumer wiring 已集成”，不能声称“已配对”“真实 gateway 已兼容”或
-“后台可达”。用户现在可以在首页手工保存 HTTPS origin + API key 作为内测 fallback；它不提供设备
+“后台可达”。用户现在可以在设备总览下的“连接配置”页手工保存 HTTPS origin + API key 作为内测 fallback；它不提供设备
 credential 的签发、最小 scope、rotation、revoke 或短期 ticket。没有 origin 为 `unconfigured`；有
 origin 无 credential 为 `credentials_required`；只有收到真实 SDK ready 才是 online。
 

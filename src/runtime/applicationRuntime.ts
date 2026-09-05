@@ -402,6 +402,7 @@ export class ApplicationRuntime {
     if (
       normalized.searchQuery === this.#inboxViewOptions.searchQuery
       && normalized.sort === this.#inboxViewOptions.sort
+      && normalized.unreadOnly === this.#inboxViewOptions.unreadOnly
     ) return
     this.#inboxViewOptions = normalized
     this.#inboxRevision += 1

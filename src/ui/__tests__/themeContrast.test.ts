@@ -1,4 +1,4 @@
-import { colors } from '../theme'
+import { darkColors, lightColors } from '../theme'
 
 function relativeLuminance(color: string): number {
   const channels = color.slice(1).match(/../gu)?.map(channel => Number.parseInt(channel, 16) / 255)
@@ -16,22 +16,30 @@ function contrast(left: string, right: string): number {
     / (Math.min(leftLuminance, rightLuminance) + 0.05)
 }
 
-describe('theme contrast regression gate', () => {
+describe.each([['light', lightColors], ['dark', darkColors]] as const)('%s theme contrast', (_scheme, colors) => {
   test.each([
     ['text/background', colors.text, colors.background],
     ['muted/background', colors.muted, colors.background],
     ['text/panel', colors.text, colors.panel],
     ['muted/panel', colors.muted, colors.panel],
-  ])('%s 普通文字对比不低于 4.5:1', (_name, foreground, background) => {
+    ['muted/elevated', colors.muted, colors.panelElevated],
+    ['primary/soft', colors.primary, colors.primarySoft],
+    ['success/soft', colors.success, colors.successSoft],
+    ['warning/soft', colors.warning, colors.warningSoft],
+    ['danger/soft', colors.danger, colors.dangerSoft],
+    ['text/dangerSoft', colors.text, colors.dangerSoft],
+    ['muted/dangerSoft', colors.muted, colors.dangerSoft],
+    ['primary action', colors.onPrimary, colors.primary],
+    ['danger action', colors.onDanger, colors.danger],
+  ])('%s 实际文字组合对比不低于 4.5:1', (_name, foreground, background) => {
     expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5)
   })
 
   test.each([
     ['outline/panel', colors.outline, colors.panel],
     ['outline/background', colors.outline, colors.background],
-    ['primary action', colors.background, colors.primary],
-    ['danger action', colors.background, colors.danger],
-  ])('%s 交互边界或控件文字对比不低于 3:1', (_name, foreground, background) => {
+    ['outline/elevated', colors.outline, colors.panelElevated],
+  ])('%s 交互边界对比不低于 3:1', (_name, foreground, background) => {
     expect(contrast(foreground, background)).toBeGreaterThanOrEqual(3)
   })
 })

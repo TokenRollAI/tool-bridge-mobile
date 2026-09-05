@@ -14,7 +14,6 @@ code:
     - package.json
     - scripts/verify-docs.mjs
     - scripts/verify-app-config.mjs
-    - scripts/verify-android-emulator.mjs
 ---
 
 # 验证与结论写作指南
@@ -39,10 +38,6 @@ typecheck、lint 和 Jest。若变更触及生成的 native tree，确认 clean 
 Android 权限变更需要同时检查三层：Expo config introspection、clean prebuild 的 merged manifest，以及
 安装后的 `dumpsys package`。`blockedPermissions` 能移除依赖 manifest 声明，但 development debug
 manifest 仍可能以更高优先级重新引入权限；不能只凭 config 输出作最终结论。
-
-已有 debug APK、唯一且完成 boot 的 emulator 和运行中的 Metro 时，执行
-`pnpm verify:android:emulator`。该脚本只操作 dev application id，并验证安装后权限、首页、动态能力和
-紧急停用重启持久化；这属于 emulator UI smoke，不是原生 instrumentation 或真机证据。
 
 要交付不依赖 Metro 的内部 Android 安装包，使用 `pnpm build:android:preview`，并验证 package 是
 `ai.tokenroll.toolbridgemobile.preview`、APK 含 `assets/index.android.bundle`、签名可验证且显式

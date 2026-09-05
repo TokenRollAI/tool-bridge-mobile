@@ -67,7 +67,7 @@ code:
   只有当前 call context 含未过期 upload capability 时，transport 才把窄 `call.uploadObject` 作为内存
   `CapabilityInvocationServices` 下传，token 不进入本地 command、SQLite 或日志。
 
-首页现已提供手工 HTTPS origin + API key 内测入口。它经
+设备总览的“连接配置”页提供手工 HTTPS origin + API key 内测入口。它经
 `ManualGatewayConfigurationController` 按“停止旧连接 -> 写/清 SecureStore -> 应用新 origin”切换，失败时
 保持断开。输入、身份、存储与证据边界见 `llmdoc/integration/manual-gateway-configuration.mdx`。
 

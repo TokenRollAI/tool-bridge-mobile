@@ -1,4 +1,4 @@
-import { useIsFocused } from 'expo-router'
+import { router, useIsFocused } from 'expo-router'
 
 import { useRuntime } from '@/runtime/RuntimeProvider'
 import { ActivityScreen } from '@/ui/screens/ActivityScreen'
@@ -9,6 +9,7 @@ export default function ActivityRoute() {
   return (
     <ActivityScreen
       focused={focused}
+      onBack={() => { router.back() }}
       onClearAuditHistory={clearAuditHistory}
       records={snapshot.auditRecords}
     />

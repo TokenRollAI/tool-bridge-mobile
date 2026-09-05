@@ -93,7 +93,7 @@ pairing、短期 ticket、真实 Gateway、mailbox/push 或撤销闭环。
   Direct 仍有可见预览；结果只有受保护对象引用，Gateway 保留/读取授权、失败脱敏与 crash 孤儿清理有效。
 - **位置**：确认和权限之后才采集；时间、精度、approximate/mocked 状态诚实；stale fix 被拒绝；后台不
   升级为持续定位；地图 handoff 不回显目标或声称导航完成。
-- **设备信箱**：在线 call 的 schema、专用有界表、全保留集搜索/排序、已读、Markdown 白名单、逐图有界
+- **设备信箱**：在线 call 的 schema、专用有界表、全保留集搜索/未读过滤/排序、已读、Markdown 白名单、逐图有界
   加载、显式 HTTPS 链接的点按后系统交接/不合规拒绝/失败反馈、内容清除与防重放都通过；真实
   Gateway、双端真机的链接交互/提醒和 U-5/U-6 离线路径分别验收。
 - **local notification**：固定内容、权限只在本地请求、前台/授权/channel availability、幂等和脱敏通过；
@@ -101,7 +101,8 @@ pairing、短期 ticket、真实 Gateway、mailbox/push 或撤销闭环。
 - **timer**：输入窗口、SQLite ownership/capacity、确定性 identifier、补偿/恢复/reconcile/disabled 通过；
   双端真机覆盖后台、锁屏、kill、低电量、权限撤销与到点 cancel，Android 另覆盖 reboot/Doze。
 - **Activity 与 accessibility**：近期本地 audit 与仅审计清除不影响防重放/凭证；语义、焦点、target size、
-  对比度和公告脱敏通过自动化，TalkBack/VoiceOver/Switch Access/Dynamic Type 仍需双端人工证据。
+  双主题实际文字/交互边界对比度和公告脱敏通过自动化；系统外观切换保留未提交表单与交互状态。
+  TalkBack/VoiceOver/Switch Access/Dynamic Type 仍需双端人工证据。
 
 各能力的精确限值、状态机和已知剩余风险由 `capabilities/` 与 `runtime/` 专题文档维护，避免在 DOD 中
 复制会漂移的实现细节。

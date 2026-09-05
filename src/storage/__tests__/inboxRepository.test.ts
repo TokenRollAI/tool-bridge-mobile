@@ -1,4 +1,4 @@
-import { LOCAL_INBOX_RETENTION_LIMIT } from '@/inbox/types'
+import { LOCAL_INBOX_RETENTION_LIMIT, normalizeInboxViewOptions } from '@/inbox/types'
 
 import { MemoryInboxRepository, SqliteInboxRepository } from '../inboxRepository'
 
@@ -90,6 +90,47 @@ describe('SqliteInboxRepository', () => {
       'UPDATE inbox_messages SET read_at = ? WHERE read_at IS NULL',
       '2026-08-23T10:05:00.000Z',
     )
+  })
+
+  test('未读 SQL 将未读条件与参数化搜索合取，先过滤再限制数量', async () => {
+    const raw = { getAllAsync: jest.fn(async (..._arguments: unknown[]) => [row]) }
+    const repository = new SqliteInboxRepository({ raw } as unknown as MobileDatabase)
+    await repository.list({ searchQuery: 'Daily%_', sort: 'received_desc', unreadOnly: true }, 100)
+    const [query, ...parameters] = raw.getAllAsync.mock.calls[0] ?? []
+    expect(query).toMatch(/WHERE read_at IS NULL AND \([\s\S]*\) ORDER BY[\s\S]*LIMIT \?/u)
+    expect(parameters).toEqual([...Array(5).fill('%Daily!%!_%'), 100])
+
+    await repository.list({ searchQuery: '', sort: 'received_desc', unreadOnly: true }, 100)
+    expect(raw.getAllAsync.mock.calls[1]?.[0]).toContain('WHERE read_at IS NULL ORDER BY')
+    expect(raw.getAllAsync.mock.calls[1]?.slice(1)).toEqual([100])
+    expect(normalizeInboxViewOptions({ searchQuery: '  Daily  ', sort: 'received_desc', unreadOnly: true }))
+      .toEqual({ searchQuery: 'Daily', sort: 'received_desc', unreadOnly: true })
+    expect(normalizeInboxViewOptions({ searchQuery: '', sort: 'received_desc', unreadOnly: false }))
+      .toEqual({ searchQuery: '', sort: 'received_desc' })
+  })
+
+  test('超过一屏近期已读消息时，仍能查到更早的未读；已读后退出未读结果', async () => {
+    const repository = new MemoryInboxRepository()
+    for (let index = 0; index < 102; index += 1) {
+      const messageId = `inbox_${index}`
+      await repository.add({
+        body: '测试正文', callerDisplayName: null, callerSubjectId: 'caller', category: 'message',
+        format: 'markdown', messageId, receivedAt: new Date(Date.UTC(2026, 8, 1, 0, index)).toISOString(),
+        sentAt: null, sourceCommandId: `command_${index}`, sourceLabel: null,
+        title: index === 0 ? '较早的未读' : '近期已读', urgency: 'normal',
+      })
+      if (index !== 0) await repository.markRead(messageId, '2026-09-02T00:00:00.000Z')
+    }
+    const all = await repository.list({ searchQuery: '', sort: 'received_desc' }, 100)
+    expect(all).toHaveLength(100)
+    expect(all.some(message => message.messageId === 'inbox_0')).toBe(false)
+    await expect(repository.list({ searchQuery: '', sort: 'received_desc', unreadOnly: true }, 100))
+      .resolves.toEqual([expect.objectContaining({ messageId: 'inbox_0' })])
+    await expect(repository.list({ searchQuery: '近期', sort: 'received_desc', unreadOnly: true }, 100))
+      .resolves.toEqual([])
+    await repository.markRead('inbox_0', '2026-09-02T00:00:00.000Z')
+    await expect(repository.list({ searchQuery: '', sort: 'received_desc', unreadOnly: true }, 100))
+      .resolves.toEqual([])
   })
 
   test('内存契约同样按 source command 幂等并保留刚写入项的 1,000 条硬上限', async () => {

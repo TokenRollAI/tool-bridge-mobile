@@ -21,6 +21,7 @@ code:
     - src/storage/deviceMailboxJournalRepository.ts
     - src/runtime/applicationRuntime.ts
     - src/ui/screens/InboxScreen.tsx
+    - src/ui/screens/InboxMessageScreen.tsx
     - src/ui/components/SafeMarkdown.tsx
     - src/capabilities/productivity/notificationAdapter.ts
     - app.config.ts
@@ -127,11 +128,15 @@ SQLite schema v5 另增 `device_operation_journal`，字段只有
 - 排序只能来自本地六值枚举：`received_desc`、`received_asc`、`sent_desc`、`sent_asc`、
   `unread_first`、`read_first`。收件/发送时间用 message id 确定性打破平局；未读/已读优先组内按收件时间
   倒序。
-- 默认是空搜索 + `received_desc`。输入搜索词不会逐键触发查询，用户须按键盘 search 或“搜索”按钮明确
-  提交；搜索与排序是进程内 view option，不写入 SQLite。“最近半小时”只按当前最多 100 条结果的
-  `receivedAt` 计算展示计数，不是 retention 或投递时限。
-- 单条 mark-read 只更新仍未读的目标；mark-all 对表内全部保留消息执行，不受当前搜索或 100 条投影限制，
+- 默认是空搜索 + `received_desc` + 全部消息。内部 `InboxViewOptions.unreadOnly` 只有 `true` 启用未读
+  过滤，省略或 `false` 规范化为全部消息；它是本地视图选项，不增加远程 capability 输入字段。
+- 搜索、未读过滤与排序都先应用于全部保留行，最后才限制 UI 投影数量；SQLite 与内存实现保持这一顺序，
+  不能从最近 100 条中再筛选未读，否则较早未读消息会被近期已读消息挤掉。
+- 输入搜索词不会逐键触发查询，用户须明确提交；搜索、排序与未读过滤是进程内 view option，不写入 SQLite。
+- 单条 mark-read 只更新仍未读的目标；mark-all 对表内全部保留消息执行，不受当前搜索、未读过滤或 100 条投影限制，
   并返回 SQLite 实际 changes。全局未读数也查询整个表。
+- 本地操作 sheet 明示全部已读/清空的作用域包含当前筛选外的消息；清空仍需独立的范围确认，不因收进
+  sheet 而直接删除，也不改变命令防重放与其他数据域。
 
 ## Markdown 与图片加载
 
@@ -149,7 +154,7 @@ raw HTML 只作为文字，未知 token 不能获得任意组件或属性。
   校验。系统拒绝时只显示本地通用失败提示，不在提示中回显不受信 URL 或 hostname。这是用户
   主动的系统链接交接，不允许远程投递自动打开 App，也不是任意 App UI 自动化；它不改变
   `phone/apps.open_url`、media 或 link 构建时 hostname allowlist。
-- 列表默认只展示三行去标记纯文本摘要；页面一次只展开一条消息。展开正文只生成图片 alt/hostname 与
+- 列表只展示去标记纯文本摘要，用户进入单条详情页后查看 Markdown 正文。正文只生成图片 alt/hostname 与
   “加载图片”按钮，每条最多 4 张；列表、搜索、排序、摘要和仅展开 Markdown 都不发起图片网络请求。
 - 只有用户点按具体图片后才调用 resolver；每次点按只授权该图片的一次受控出站请求及其有界 redirect 链，
   不形成 hostname 持久信任、不授权其他图片或自动预取，失败后重试也需要再次点按。
@@ -193,7 +198,7 @@ push token，不是 remote notification 或 U-6 wake hint。
   服务端数据或调用通知取消 API。
 - command 防重放记录与内容生命周期分离。用户清空后，同一 `commandId` replay 返回原持久化终态，handler
   不再执行，因此不会重建已清空消息；crash 遗留 running command 恢复为 `result_unknown` 时也不重放写入。
-- `ApplicationRuntime` 为 inbox 维护独立 revision。search/sort view option、clear、单条/全部 mark-read 以及
+- `ApplicationRuntime` 为 inbox 维护独立 revision。search/sort/unread view option、clear、单条/全部 mark-read 以及
   成功 commit 的回调都会递增；refresh 捕获 revision，并在组合发布查询结果与全局未读数前复检，拒绝旧
   查询或写操作之前启动的迟到 snapshot。
 

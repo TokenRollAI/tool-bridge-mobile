@@ -6,25 +6,29 @@ import {
   useDiscreteAccessibilityAnnouncement,
 } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
-import { Icon } from '@/ui/components/Icon'
+import { EmptyState } from '@/ui/components/EmptyState'
 import { Screen } from '@/ui/components/Screen'
+import { SectionHeading } from '@/ui/components/SectionHeading'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
-import { colors, radius, spacing } from '@/ui/theme'
+import { radius, spacing, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import type { AuditRecord } from '@/audit/types'
 import type { Pressable, Text as NativeText } from 'react-native'
 
 type ActivityScreenProps = Readonly<{
   focused?: boolean
+  onBack?: (() => void) | undefined
   onClearAuditHistory: () => Promise<number>
   records: readonly AuditRecord[]
 }>
 
 export function ActivityScreen({
   focused = true,
+  onBack,
   onClearAuditHistory,
   records,
 }: ActivityScreenProps) {
+  const styles = useThemedStyles(createStyles)
   const [confirmingClear, setConfirmingClear] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [isClearing, setIsClearing] = useState(false)
@@ -63,33 +67,35 @@ export function ActivityScreen({
 
   return (
     <Screen
-      description="这里只展示最近 100 条调用元数据；本机最多保留 5,000 条，不展示参数、正文或结果载荷。"
+      backLabel="设备"
+      onBack={onBack}
+      description="每一次调用，都有迹可循。这里只显示调用元数据。"
       focused={focused}
       title="活动"
     >
-      {records.map(record => {
-        const allowed = record.decision === 'allowed'
-        return (
-          <StatusCard
-            icon={allowed ? 'positive' : 'danger'}
-            key={record.id}
-            title={`${record.path}.${record.tool}`}
-          >
-            <StatusRow label="来源" value={record.callerSubjectId} />
-            <StatusRow label="时间" value={record.occurredAt} />
-            <StatusRow label="影响" value={record.effect} />
-            <StatusRow label="风险" value={record.risk} />
-            <StatusRow label="决策" value={record.decision} />
-            <StatusRow label="结果" value={record.outcomeCode} />
-          </StatusCard>
-        )
-      })}
+      <SectionHeading title="调用记录" detail={`最近 ${records.length} 条`} />
       {records.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Icon color={colors.muted} name="activity" size={28} />
-          <Text style={styles.empty}>暂无远程调用记录。</Text>
+        <EmptyState icon="activity" title="暂无远程调用记录。" description="Agent 调用这台设备后，可在这里查看本地决策和执行结果。" />
+      ) : (
+        <View style={styles.timeline}>
+          {records.map(record => (
+            <StatusCard icon="activity" key={record.id} title={`${record.path}.${record.tool}`}>
+              <Text accessibilityLabel={`时间：${record.occurredAt}`} style={styles.timestamp}>{record.occurredAt}</Text>
+              <StatusRow label="来源" value={record.callerSubjectId} />
+              <View style={styles.resultBlock}>
+                <StatusRow label="决策" value={record.decision} />
+                <StatusRow label="结果" value={record.outcomeCode} />
+              </View>
+              <View style={styles.boundaries}>
+                <StatusRow label="影响" value={record.effect} />
+                <StatusRow label="风险" value={record.risk} />
+              </View>
+              <Text style={styles.timeHint}>决策允许不代表执行成功，请以结果为准。</Text>
+            </StatusCard>
+          ))}
         </View>
-      ) : null}
+      )}
+      <Text style={styles.timeHint}>显示最近 100 条，本机最多保留 5,000 条；不展示参数、正文或结果载荷。</Text>
 
       {!confirmingClear ? (
         <AccessibleAction
@@ -101,7 +107,7 @@ export function ActivityScreen({
             setConfirmingClear(true)
           }}
           ref={clearTriggerRef}
-          variant="danger"
+          variant="secondary"
         />
       ) : (
         <View style={styles.confirmation}>
@@ -145,7 +151,12 @@ export function ActivityScreen({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  timeline: { gap: spacing.md },
+  timestamp: { color: colors.muted, fontSize: 12 },
+  resultBlock: { backgroundColor: colors.panelElevated, borderRadius: radius.sm, padding: spacing.md, gap: spacing.sm },
+  boundaries: { gap: spacing.xs },
+  timeHint: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   actionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -168,21 +179,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: '800',
-  },
-  empty: {
-    color: colors.muted,
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  emptyCard: {
-    alignItems: 'center',
-    backgroundColor: colors.panel,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxl,
   },
   feedback: {
     backgroundColor: colors.panel,

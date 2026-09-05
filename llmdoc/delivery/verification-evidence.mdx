@@ -193,11 +193,7 @@ clean prebuild/autolinking/Metro export 只证明生成配置或 bundle；Gradle
 可编译；模拟器 build 不证明真机签名、权限和物理行为。构建受网络或本机工具链阻塞时，记录已完成层级，
 不要把 prebuild 提升为 native build。
 
-## Android emulator 与 Preview APK
-
-在已有 development debug APK、唯一且完成 boot 的 emulator 与运行中的 Metro 条件下，可执行
-`pnpm verify:android:emulator`。它只操作 development application id，验证安装后权限、页面/语义、动态能力、
-紧急停用与重启等 UI smoke；它不是 native instrumentation、真机或另一平台证据。
+## Android Preview APK
 
 内部 Android 离线安装包使用 `pnpm build:android:preview`。验收至少确认：
 

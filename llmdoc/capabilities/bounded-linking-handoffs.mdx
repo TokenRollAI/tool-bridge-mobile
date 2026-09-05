@@ -84,8 +84,8 @@ Android merged manifest 为地图 handler discovery 增加 `<queries>` 中的 `V
 
 - unit 与 local runtime contract 覆盖 schema/builder、confirmation、probe、取消/到期 zero-open、脱敏和
   重复 `commandId` 单次 handoff；它们使用注入 adapter，不是 OS/第三方 App E2E。
-- Android clean build 只能证明对应 commit 的 package visibility query 可合并；emulator smoke 只断言能力页
-  可发现 `open_map`，没有实际调用 `Linking.openURL`。
+- Android clean build 只能证明对应 commit 的 package visibility query 可合并；能力页可见 `open_map`
+  不证明实际调用 `Linking.openURL` 或系统交接成功。
 - iOS simulator、双端 native build 与真机 handoff 必须按当前 evidence 记录判断；没有对应证据时，不能
   声称 provider 选择、地图显示、导航结果或后台/锁屏行为已验收。
 - production transport、mailbox/revoke 与 `open_map` 本地 handler 是不同层，仍受上游阻塞。
