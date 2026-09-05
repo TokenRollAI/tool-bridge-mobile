@@ -45,9 +45,10 @@ code:
 - 常规页面的主标题与 toolbar 固定在内容滚动区之外；消息阅读页把主标题放入可滚动正文，避免长标题
   挤压阅读空间，返回操作仍留在顶部。两种布局都保留同一主标题语义与 focus 规则。
 - `AccessibleAction` 统一 button role、上下文唯一 label、必要 hint、busy/disabled state，以及至少
-  48dp 的 minWidth/minHeight。主导航保留信箱、活动、设备三个 tab，显式使用“信箱/活动/设备标签页”
+  48dp 的 minWidth/minHeight。主导航只保留信箱、设备两个 tab，显式使用“信箱/设备标签页”
   唯一 label，并投影 selected；信箱仍为落地首页。设备 tab 保留内部 `settings` route，作为连接、授权安全、
-  状态、能力与媒体的总览入口，不把内部 route 名当作用户可见名称。
+  活动记录、状态、能力与媒体的总览入口，不把内部 route 名当作用户可见名称。活动是低频管理页面，
+  从设备总览进入并可返回设备，不再占用底部 tab。
 - `ActionSheet` 仅承载用户主动打开的本地排序和批量操作；打开时聚焦标题，关闭后由组件或调用页恢复
   触发控件焦点，忙碌时可禁止关闭。它不接收远程命令裁决，不能替代全局 `PendingConfirmationModal`。
 - Activity destructive confirmation 打开时聚焦确认标题，取消/完成后返回清除触发按钮；组件测试覆盖
@@ -78,8 +79,8 @@ code:
   覆盖双主题文本和交互边界 contrast gate，系统主题组件测试覆盖切换后保留未提交表单及危险操作实际配色。
   `SafeMarkdown` 组件测试另覆盖跨样式单链接、相邻链接和通用失败
   `alert`；这不证明 TalkBack/VoiceOver 实际朗读或真机系统 handoff。
-- Android emulator semantic smoke 应验证 tab 的唯一 accessibility label/selected state，保存原字号后设为
-  200%，force-stop/relaunch，逐页滚动并操作 Activity clear/cancel/confirm，复核关键 action bounds 至少
+- Android emulator semantic smoke 应验证两个 tab 的唯一 accessibility label/selected state，保存原字号后设为
+  200%，force-stop/relaunch，经设备总览进入活动记录并操作 clear/cancel/confirm、返回设备，复核关键 action bounds 至少
   48dp，最后恢复原字号。
 - UIAutomator 只观察语义树、selected state、bounds 和点击，不能替代 Android TalkBack、VoiceOver、
   Switch Access、iOS Dynamic Type 或双端真机人工证据；不能据此声称实际朗读、手势/rotor 顺序、平台
