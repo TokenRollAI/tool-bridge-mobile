@@ -14,6 +14,7 @@ code:
     - src/ui/components/StatusCard.tsx
     - src/ui/components/SectionHeading.tsx
     - src/ui/components/AccessibleAction.tsx
+    - src/ui/components/ActionSheet.tsx
     - src/ui/components/PendingConfirmationModal.tsx
     - src/ui/components/CameraCaptureModal.tsx
     - src/ui/accessibility.ts
@@ -21,6 +22,8 @@ code:
     - src/ui/theme.ts
     - app/_layout.tsx
     - app/(tabs)/_layout.tsx
+    - app/(tabs)/settings.tsx
+    - src/ui/screens/SettingsScreen.tsx
     - src/ui/**/__tests__/**
     - scripts/verify-android-emulator.mjs
 ---
@@ -36,12 +39,17 @@ code:
 
 ## 共享语义
 
-- `Screen` 暴露唯一页面 header，并只在页面获得 focus 时请求辅助技术焦点；普通 snapshot/rerender 不
+- `Screen` 暴露唯一页面主标题，并只在页面获得 focus 时请求辅助技术焦点；普通 snapshot/rerender 不
   反复抢焦点。`StatusCard` 与 `SectionHeading` title 是 header，`StatusRow` 将 label/value 合成单一可访问名称并隐藏重复的
   视觉子文本，同时允许系统字号和换行。
+- 常规页面的主标题与 toolbar 固定在内容滚动区之外；消息阅读页把主标题放入可滚动正文，避免长标题
+  挤压阅读空间，返回操作仍留在顶部。两种布局都保留同一主标题语义与 focus 规则。
 - `AccessibleAction` 统一 button role、上下文唯一 label、必要 hint、busy/disabled state，以及至少
-  48dp 的 minWidth/minHeight。主导航保留信箱、活动、设置三个 tab，显式使用“信箱/活动/设置标签页”
-  唯一 label，并投影 selected；状态、能力、媒体从设置进入二级页面。
+  48dp 的 minWidth/minHeight。主导航保留信箱、活动、设备三个 tab，显式使用“信箱/活动/设备标签页”
+  唯一 label，并投影 selected；信箱仍为落地首页。设备 tab 保留内部 `settings` route，作为连接、授权安全、
+  状态、能力与媒体的总览入口，不把内部 route 名当作用户可见名称。
+- `ActionSheet` 仅承载用户主动打开的本地排序和批量操作；打开时聚焦标题，关闭后由组件或调用页恢复
+  触发控件焦点，忙碌时可禁止关闭。它不接收远程命令裁决，不能替代全局 `PendingConfirmationModal`。
 - Activity destructive confirmation 打开时聚焦确认标题，取消/完成后返回清除触发按钮；组件测试覆盖
   focus 往返和普通更新不抢焦点。
 - 远程 command 的 `PendingConfirmationModal` 挂在 root layout，不受当前 tab 与首页滚动位置影响；打开时

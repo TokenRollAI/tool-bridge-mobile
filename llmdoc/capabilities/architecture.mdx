@@ -158,7 +158,8 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 - SQLite v4 专用 `inbox_messages` 以 source command unique key 和 `inbox_ + SHA-256(commandId)` 去重；
   insert/回读/裁剪在同一 exclusive transaction，写时维持 1,000 条硬上限。v3 旧行迁移为 markdown/normal，
   sentAt 保持 NULL。
-- repository 在用户明确提交搜索后，对全部保留集参数化查询 title/body/sourceLabel/caller，按六值本地枚举
+- repository 在用户明确提交搜索后，对全部保留集参数化查询 title/body/sourceLabel/caller，并按本地视图选项
+  过滤未读；过滤后按六值本地枚举
   排序后最多投影 100 条；支持单条/全表 mark-read。sentAt 缺值时只为排序 fallback 到 receivedAt，不补造
   显示字段。
 - Markdown 由 `markdown-it/browser` 产出 token，再经 React Native 白名单 renderer；不用 WebView/HTML/

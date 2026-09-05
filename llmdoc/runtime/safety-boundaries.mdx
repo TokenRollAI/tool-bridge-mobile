@@ -1,5 +1,5 @@
 ---
-description: 远程命令、本地裁决、凭证、敏感数据、平台权限与能力执行不可绕过的安全边界。
+description: 本机授权与权限入口、远程命令裁决、凭证、敏感数据及能力执行不可绕过的安全边界。
 kind: architecture
 relations:
   related:
@@ -13,6 +13,8 @@ relations:
 code:
   paths:
     - app.config.ts
+    - app/controls.tsx
+    - src/ui/screens/ControlSettingsScreen.tsx
     - src/runtime/**
     - src/capabilities/**
     - src/inbox/**
@@ -28,6 +30,8 @@ code:
 - 高风险能力默认拒绝，并声明 effect、risk、confirmation、前后台条件、queue policy 与平台支持。
 - 不实现隐藏录音/拍摄、绕过锁屏、后台常驻监控或任意第三方 App UI 自动化。
 - capability 必须由实际 probe 得出；不能只按 OS 名称推断，也不能以模拟成功替代 unavailable。
+- 设备总览下的“授权与安全”页根据 capability snapshot 的 status/reason 展示可请求或需去系统设置的权限入口；
+  页面迁移不能改成按平台名称猜权限，也不能使远程命令自动触发系统授权。
 - 副作用前必须完成 runtime schema、过期/取消、probe、policy、所需确认与持久化 claim。
 - 用户确认后仍要重新检查过期、取消、probe 和 policy，避免等待期间状态变化造成越权执行。
 - SQLite claim 返回后必须最后复检取消/到期；每个本地 capability 的 admission 必须在 confirmation 前
@@ -142,8 +146,9 @@ code:
   push 或后台轮询；本地 notification 或 Android 后台服务不能充当 push wake hint 或最终送达证据。
 - 本地 `inbox_messages` 是用户内容域，Gateway operation mailbox 是投递/执行恢复层；U-5 当前只能称移动
   consumer 接入，真实 Gateway/双端联合验收仍缺失，U-6 仍未实现。
-- 信箱搜索必须在全部最多 1,000 条保留行上参数化过滤和本地枚举排序后才限制到 100 条 UI 投影；搜索
-  wildcard 必须转义，排序不得拼接用户字符串。全局未读和全部已读不得被当前搜索或显示上限截断。
+- 信箱搜索与未读过滤必须在全部最多 1,000 条保留行上应用，再按本地枚举排序后限制到 100 条 UI 投影；
+  搜索 wildcard 必须转义，排序不得拼接用户字符串。全局未读、全部已读和清空作用域不得被当前搜索、
+  未读过滤或显示上限截断；本地批量操作应明示这一范围。
 
 ## 事实真源
 

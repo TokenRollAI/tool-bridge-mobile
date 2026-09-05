@@ -65,7 +65,7 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
 - `src/gateway/sdkDeviceMailboxTransport.ts`：组装官方 `createDeviceMailboxProcessor`，把 registry 中
   `delivery: both` 的 operation 经 claim/lease/complete 送入同一个 executor；只在初始化/配置完成且 active
   或回到 active 时触发一次最多 20 项的 drain，不用 timer 触发新 drain，也没有 push 或后台轮询。
-- `src/gateway/manualGatewayConfigurationController.ts`：协调设置页手工 Gateway URL/API key 的配置切换；
+- `src/gateway/manualGatewayConfigurationController.ts`：协调“连接配置”页手工 Gateway URL/API key 的配置切换；
   保存和清除都先停止旧 transport，SecureStore 失败时保持断开。
 - `src/runtime/localCommandExecutor.ts` (`LocalCommandExecutor`)：唯一的本地 command 执行入口和安全顺序。
 - `src/capabilities/runtime/runtimeCapabilities.ts`：按当前 gateway credential principal 投影活动命令并请求
@@ -158,7 +158,8 @@ mailbox 在上述本地执行链之外还增加一层 SDK operation journal：�
 
 ## 控制模式、Direct call 与 `when_locked` 的当前边界
 
-- 设置页当前提供 `ask_every_time`、`trusted_session` 与 `direct_call`，并可紧急切换到 `disabled`。
+- 设备总览下的“授权与安全”页提供 `ask_every_time`、`trusted_session` 与 `direct_call`，并可紧急切换到 `disabled`；
+  设备总览也保留紧急停用/恢复入口。
   `trusted_session` 只跳过低/中风险逐次确认；`direct_call` 会跳过包括 high-risk `always` 在内的逐次确认。
 - 当前存储只是一个持久化的全局 control mode 字符串；没有 TTL、capability scope 或已认证 Gateway
   Credential 实例绑定。因此 `trusted_session` 和 `direct_call` 都不是未来正式 credential-bound grant，
@@ -200,16 +201,16 @@ mailbox 在上述本地执行链之外还增加一层 SDK operation journal：�
 - `inbox_messages` 是 Markdown 正文专用域。v4 为 v3 旧行设置 `format = markdown`、`urgency = normal`，
   并保留 `sent_at = NULL`；receivedAt 是本机事实，sentAt 是可选 Agent 元数据，发送时间排序可以 fallback
   到 receivedAt，但不能写回或冒充 Agent 时间。
-- repository 先在全部 1,000 条保留集上参数化搜索 title/body/sourceLabel/caller，再用六值本地枚举生成
+- repository 先在全部 1,000 条保留集上参数化搜索 title/body/sourceLabel/caller 并应用可选未读过滤，再用六值本地枚举生成
   收件/发送/已读排序 SQL，最后投影最多 100 条；搜索由用户明确提交，不按输入字符实时查询。mark-all 与
-  未读总数始终针对全表，不受当前搜索结果影响。
+  未读总数始终针对全表，不受当前搜索或未读过滤结果影响。
 - clear 的唯一 SQL 是 `DELETE FROM inbox_messages`；commands/audit/timers/settings/identity/credential
   保持不变，也不撤销 gateway、删除服务端数据或取消通知。command 终态保留，因此同一 commandId replay
   不再次执行 handler，也不会重建已清空内容。
 - mark-read 只更新仍未读的目标，mark-all 返回 SQLite 实际 changes。`ApplicationRuntime` 使用独立 inbox
-  revision；search/sort view option、clear、单条/全部 mark-read 和消息 commit 都先使旧 refresh 失效，再
+  revision；search/sort/unread view option、clear、单条/全部 mark-read 和消息 commit 都先使旧 refresh 失效，再
   从数据库组合刷新查询结果与全局未读数，避免迟到 snapshot 覆盖新状态。
-- 默认列表只显示三行纯文本摘要，且一次只展开一条 Markdown。展开只创建图片占位，点按前 resolver 零调用；
+- 列表只显示纯文本摘要，单条详情页展示 Markdown 正文。正文只创建图片占位，点按前 resolver 零调用；
   每次点按只授权该图片的一次请求与 redirect 链。resolver 允许逐跳合规的跨 hostname HTTPS redirect；
   已解析图片在取消、失败、Image error 或组件卸载时释放私有 cache。
 - 裸 URL 不 linkify，不合规 Markdown href 不产生 `link`。显式合规 HTTPS 在 render 时校验，只在用户
