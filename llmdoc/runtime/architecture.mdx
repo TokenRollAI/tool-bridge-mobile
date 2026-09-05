@@ -65,7 +65,7 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
 - `src/gateway/sdkDeviceMailboxTransport.ts`：组装官方 `createDeviceMailboxProcessor`，把 registry 中
   `delivery: both` 的 operation 经 claim/lease/complete 送入同一个 executor；只在初始化/配置完成且 active
   或回到 active 时触发一次最多 20 项的 drain，不用 timer 触发新 drain，也没有 push 或后台轮询。
-- `src/gateway/manualGatewayConfigurationController.ts`：协调首页手工 Gateway URL/API key 的配置切换；
+- `src/gateway/manualGatewayConfigurationController.ts`：协调设置页手工 Gateway URL/API key 的配置切换；
   保存和清除都先停止旧 transport，SecureStore 失败时保持断开。
 - `src/runtime/localCommandExecutor.ts` (`LocalCommandExecutor`)：唯一的本地 command 执行入口和安全顺序。
 - `src/capabilities/runtime/runtimeCapabilities.ts`：按当前 gateway credential principal 投影活动命令并请求
