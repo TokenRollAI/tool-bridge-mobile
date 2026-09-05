@@ -6,7 +6,7 @@
   },
   "documents": {
     "architecture.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
     },
     "capabilities/architecture.mdx": {
       "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
@@ -33,13 +33,13 @@
       "validatedRevision": "763539a8fe0dd504be7baa67669e5ec8c5db5587"
     },
     "delivery/evidence-language.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
     },
     "delivery/github-preview-release.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
     },
     "delivery/verification-and-claims.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
     },
     "integration/manual-gateway-configuration.mdx": {
       "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
@@ -54,10 +54,10 @@
       "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
     },
     "runtime/accessibility-semantics.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
     },
     "runtime/activity-history.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
     },
     "runtime/architecture.mdx": {
       "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
@@ -69,16 +69,16 @@
       "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
     },
     "product/requirements-and-roadmap.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
     },
     "delivery/engineering-baseline.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
     },
     "delivery/definition-of-done.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
     },
     "delivery/verification-evidence.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
     }
   },
   "convergence": {
