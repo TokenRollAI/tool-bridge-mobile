@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { focusAccessibilityElement } from '@/ui/accessibility'
 import { MINIMUM_ACCESSIBLE_TARGET_SIZE } from '@/ui/components/AccessibleAction'
 import { Icon } from '@/ui/components/Icon'
-import { colors, radius, spacing } from '@/ui/theme'
+import { useTheme, useThemedStyles, type ThemeColors, radius, spacing } from '@/ui/theme'
 
 import type { PropsWithChildren } from 'react'
 
@@ -27,6 +27,8 @@ export function Screen({
   onBack,
   title,
 }: ScreenProps) {
+  const { colors } = useTheme()
+  const styles = useThemedStyles(createStyles)
   const headingRef = useRef<Text>(null)
 
   useEffect(() => {
@@ -37,6 +39,8 @@ export function Screen({
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
         {onBack === undefined ? null : (
@@ -71,7 +75,7 @@ export function Screen({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   backButton: {
     alignItems: 'center',
     alignSelf: 'flex-start',
@@ -91,6 +95,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   content: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 720,
     gap: spacing.lg,
     paddingBottom: spacing.xxl,
     paddingHorizontal: spacing.xl,
@@ -98,31 +105,28 @@ const styles = StyleSheet.create({
   },
   description: {
     color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 21,
   },
   eyebrow: {
     color: colors.primary,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 1.5,
   },
   eyebrowBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.panelElevated,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 5,
+    paddingVertical: spacing.xs,
   },
   headerBlock: {
-    gap: spacing.sm,
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   heading: {
     color: colors.text,
-    fontSize: 30,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '700',
     letterSpacing: -0.5,
   },
   safeArea: {

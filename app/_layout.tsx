@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar'
 import { RuntimeProvider, useRuntime } from '@/runtime/RuntimeProvider'
 import { CameraCaptureModal } from '@/ui/components/CameraCaptureModal'
 import { PendingConfirmationModal } from '@/ui/components/PendingConfirmationModal'
-import { colors } from '@/ui/theme'
+import { useTheme } from '@/ui/theme'
 
 export default function RootLayout() {
   return (
@@ -15,6 +15,7 @@ export default function RootLayout() {
 }
 
 function RootContent() {
+  const { colors, isDark } = useTheme()
   const {
     approveConfirmation,
     failCameraCapture,
@@ -24,7 +25,7 @@ function RootContent() {
   } = useRuntime()
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ contentStyle: { backgroundColor: colors.background }, headerShown: false }} />
       <PendingConfirmationModal
         confirmations={snapshot.pendingConfirmations}

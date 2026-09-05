@@ -124,13 +124,13 @@ describe('InboxScreen', () => {
     await waitFor(() => rendered.getByText('已清空 2 条本机信箱消息。'))
   })
 
-  test('空搜索结果与本地/离线边界表达准确', async () => {
+  test('空搜索结果与本地内容边界表达准确', async () => {
     const rendered = await render(<InboxScreen {...screenProps({
       messages: [],
       unreadCount: 0,
       viewOptions: { searchQuery: '不存在', sort: 'received_desc' },
     })} />)
     rendered.getByText('没有匹配的本机信箱消息。')
-    rendered.getByText(/离线队列与 push 尚未实现/)
+    rendered.getByText(/来自 Agent 的消息，集中留在本机/)
   })
 })

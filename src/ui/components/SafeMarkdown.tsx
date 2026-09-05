@@ -5,7 +5,7 @@ import { Image, StyleSheet, Text, View } from 'react-native'
 import { validateInboxImageSource } from '@/inbox/imagePolicy'
 import { validateInboxLink } from '@/inbox/linkOpener'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
-import { colors, radius, spacing } from '@/ui/theme'
+import { radius, spacing, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import type { InboxImageSourceResolver, ResolvedInboxImage } from '@/inbox/imageSource'
 import type { InboxLinkOpener } from '@/inbox/linkOpener'
@@ -53,6 +53,7 @@ type SafeMarkdownProps = Readonly<{
 }>
 
 export function SafeMarkdown({ imageResolver, linkOpener, markdown }: SafeMarkdownProps) {
+  const styles = useThemedStyles(createStyles)
   const [linkFailure, setLinkFailure] = useState<string | null>(null)
   const tokens = useMemo(() => markdownParser.parse(markdown, {}), [markdown])
   const tokenCount = tokens.reduce((count, token) => count + 1 + (token.children?.length ?? 0), 0)
@@ -137,7 +138,7 @@ export function SafeMarkdown({ imageResolver, linkOpener, markdown }: SafeMarkdo
           {listPrefix === null ? null : <Text style={styles.listPrefix}>{listPrefix}</Text>}
           <View style={styles.blockContent}>
             {headingLevel === 0 ? content : (
-              <Text accessibilityRole="header" style={headingStyle(headingLevel)}>
+              <Text accessibilityRole="header" style={headingStyle(headingLevel, styles)}>
                 <InlineTextRun
                   linkOpener={linkOpener}
                   onFailure={setLinkFailure}
@@ -256,8 +257,9 @@ function InlineTextGroup({
   linkOpener: InboxLinkOpener
   onFailure(message: string | null): void
 }>) {
+  const styles = useThemedStyles(createStyles)
   const styledText = group.parts.map(part => (
-    <Text key={part.key} style={inlineTextStyle(part.style)}>{part.text}</Text>
+    <Text key={part.key} style={inlineTextStyle(part.style, styles)}>{part.text}</Text>
   ))
   if (group.href === null) return <Text>{styledText}</Text>
 
@@ -285,7 +287,7 @@ function InlineTextGroup({
   )
 }
 
-function inlineTextStyle(style: InlineStyle) {
+function inlineTextStyle(style: InlineStyle, styles: ReturnType<typeof createStyles>) {
   return [
     style.bold ? styles.bold : null,
     style.italic ? styles.italic : null,
@@ -294,7 +296,7 @@ function inlineTextStyle(style: InlineStyle) {
   ]
 }
 
-function headingStyle(level: number) {
+function headingStyle(level: number, styles: ReturnType<typeof createStyles>) {
   if (level <= 1) return styles.heading1
   if (level === 2) return styles.heading2
   return styles.heading3
@@ -309,6 +311,7 @@ function SafeMarkdownImage({
   imageResolver: InboxImageSourceResolver
   source: string
 }>) {
+  const styles = useThemedStyles(createStyles)
   const [failure, setFailure] = useState(false)
   const [loading, setLoading] = useState(false)
   const [resolved, setResolved] = useState<ResolvedInboxImage | null>(null)
@@ -391,27 +394,32 @@ function safeDisplayHost(source: string): string | null {
   }
 }
 
-const styles = StyleSheet.create({
-  block: { marginBottom: spacing.sm },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  block: { marginBottom: spacing.md },
   blockContent: { flex: 1, gap: spacing.sm },
   blockquote: {
-    borderLeftColor: colors.outline,
+    backgroundColor: colors.panelElevated,
+    borderLeftColor: colors.primary,
     borderLeftWidth: 3,
     paddingLeft: spacing.md,
+    paddingRight: spacing.md,
+    paddingVertical: spacing.sm,
   },
   bold: { fontWeight: '800' },
   codeBlock: {
-    backgroundColor: colors.background,
-    borderRadius: radius.sm,
+    backgroundColor: colors.panelElevated,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
     color: colors.text,
     fontFamily: 'monospace',
     fontSize: 13,
-    lineHeight: 19,
-    padding: spacing.md,
+    lineHeight: 21,
+    padding: spacing.lg,
   },
-  heading1: { color: colors.text, fontSize: 22, fontWeight: '800', lineHeight: 29 },
-  heading2: { color: colors.text, fontSize: 19, fontWeight: '800', lineHeight: 26 },
-  heading3: { color: colors.text, fontSize: 17, fontWeight: '800', lineHeight: 24 },
+  heading1: { color: colors.text, fontSize: 25, fontWeight: '800', letterSpacing: -0.5, lineHeight: 34, marginTop: spacing.sm },
+  heading2: { color: colors.text, fontSize: 21, fontWeight: '700', letterSpacing: -0.3, lineHeight: 30, marginTop: spacing.sm },
+  heading3: { color: colors.text, fontSize: 18, fontWeight: '700', lineHeight: 27, marginTop: spacing.xs },
   image: { borderRadius: radius.sm, maxHeight: 360, width: '100%' },
   imageAlt: { color: colors.text, fontSize: 14, fontWeight: '700' },
   imageFailure: { color: colors.warning, fontSize: 13, lineHeight: 19 },
@@ -423,17 +431,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.md,
   },
-  inlineCode: { backgroundColor: colors.background, fontFamily: 'monospace' },
-  inlineText: { color: colors.text, fontSize: 15, lineHeight: 22 },
+  inlineCode: { backgroundColor: colors.panelElevated, fontFamily: 'monospace', fontSize: 14 },
+  inlineText: { color: colors.text, fontSize: 16, lineHeight: 27 },
   italic: { fontStyle: 'italic' },
   invalidLink: { color: colors.muted, textDecorationLine: 'none' },
   listItem: { flexDirection: 'row' },
-  listPrefix: { color: colors.primary, fontSize: 15, lineHeight: 22, minWidth: 24 },
+  listPrefix: { color: colors.primary, fontSize: 16, lineHeight: 27, minWidth: 28 },
   linkFailure: { color: colors.warning, fontSize: 13, lineHeight: 19 },
   note: { color: colors.muted, fontSize: 12, lineHeight: 18 },
-  paragraph: { color: colors.text, fontSize: 15, lineHeight: 22 },
+  paragraph: { color: colors.text, fontSize: 16, lineHeight: 27 },
   root: { gap: spacing.xs },
-  rule: { backgroundColor: colors.border, height: 1, marginVertical: spacing.sm },
+  rule: { backgroundColor: colors.border, height: 1, marginVertical: spacing.lg },
   strike: { textDecorationLine: 'line-through' },
   underlined: { color: colors.primary, textDecorationLine: 'underline' },
 })

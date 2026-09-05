@@ -3,9 +3,10 @@ import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { focusAccessibilityElement, useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
-import { colors, spacing } from '@/ui/theme'
+import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import { AccessibleAction } from './AccessibleAction'
+import { Icon } from './Icon'
 import { StatusRow } from './StatusCard'
 
 import type { PendingConfirmationSnapshot } from '@/policy/localConfirmationCoordinator'
@@ -21,6 +22,8 @@ export function PendingConfirmationModal({
   onApprove,
   onReject,
 }: PendingConfirmationModalProps) {
+  const styles = useThemedStyles(createStyles)
+  const { colors } = useTheme()
   const confirmation = confirmations[0] ?? null
   const headingRef = useRef<Text>(null)
   const commandId = confirmation?.commandId ?? null
@@ -58,6 +61,12 @@ export function PendingConfirmationModal({
           style={styles.dialog}
         >
           <ScrollView contentContainerStyle={styles.content}>
+            <View style={styles.requestHeader}>
+              <View style={styles.requestIcon}>
+                <Icon color={colors.warning} name="warning" size={24} />
+              </View>
+              <Text style={styles.requestLabel}>需要你的允许</Text>
+            </View>
             <Text accessibilityRole="header" ref={headingRef} style={styles.heading}>
               等待本地确认
             </Text>
@@ -66,20 +75,25 @@ export function PendingConfirmationModal({
                 ? '1 条命令等待处理'
                 : `${confirmations.length} 条命令等待处理；当前显示最早的一条`}
             </Text>
-            <StatusRow label="调用方" value={caller} />
-            <StatusRow label="能力" value={capability} />
-            <StatusRow
-              label="风险 / effect"
-              value={`${confirmation.risk} / ${confirmation.effect}`}
-            />
-            <StatusRow label="确认截止" value={confirmation.expiresAt} />
+            <View style={styles.requestDetails}>
+              <StatusRow label="调用方" value={caller} />
+              <StatusRow label="能力" value={capability} />
+              <StatusRow
+                label="风险 / effect"
+                value={`${confirmation.risk} / ${confirmation.effect}`}
+              />
+              <StatusRow label="确认截止" value={confirmation.expiresAt} />
+            </View>
             <Text style={styles.description}>{confirmation.description}</Text>
             {confirmation.details.map(detail => (
               <StatusRow key={detail.label} label={detail.label} value={detail.value} />
             ))}
-            <Text style={styles.footnote}>
-              只裁决当前这一条命令。允许后仍会重新检查期限、权限与设备状态；完整参数不会写入普通审计日志。
-            </Text>
+            <View style={styles.permissionScope}>
+              <Text style={styles.scopeTitle}>仅允许这一次</Text>
+              <Text style={styles.footnote}>
+                只裁决当前这一条命令。允许后仍会重新检查期限、权限与设备状态；完整参数不会写入普通审计日志。
+              </Text>
+            </View>
             <View style={styles.actions}>
               <AccessibleAction
                 accessibilityHint="拒绝当前命令，不影响队列中的其他命令"
@@ -107,7 +121,31 @@ export function PendingConfirmationModal({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  requestHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
+  requestIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.warningSoft,
+    borderRadius: radius.md,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  requestLabel: { color: colors.warning, fontSize: 13, fontWeight: '700' },
+  requestDetails: {
+    backgroundColor: colors.panelElevated,
+    borderRadius: radius.md,
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  permissionScope: {
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  scopeTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
   action: {
     flexBasis: 120,
     flexGrow: 1,
@@ -122,7 +160,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.72)',
     flex: 1,
     justifyContent: 'center',
-    padding: spacing.xl,
+    padding: spacing.lg,
   },
   content: {
     gap: spacing.md,
@@ -135,7 +173,7 @@ const styles = StyleSheet.create({
   },
   dialog: {
     backgroundColor: colors.panel,
-    borderColor: colors.outline,
+    borderColor: colors.border,
     borderRadius: 24,
     borderWidth: 1,
     maxHeight: '88%',
@@ -150,11 +188,12 @@ const styles = StyleSheet.create({
   },
   heading: {
     color: colors.text,
-    fontSize: 25,
+    fontSize: 28,
     fontWeight: '800',
+    letterSpacing: -0.7,
   },
   queueSummary: {
-    color: colors.warning,
+    color: colors.muted,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,

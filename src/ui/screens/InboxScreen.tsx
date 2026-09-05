@@ -6,14 +6,16 @@ import {
   useDiscreteAccessibilityAnnouncement,
 } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
+import { EmptyState } from '@/ui/components/EmptyState'
 import { Icon } from '@/ui/components/Icon'
 import { Screen } from '@/ui/components/Screen'
+import { SectionHeading } from '@/ui/components/SectionHeading'
 import {
   URGENCY_LABEL,
   formatRelativeTime,
   markdownSummary,
 } from '@/ui/inboxFormat'
-import { colors, radius, spacing } from '@/ui/theme'
+import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import type {
   InboxMessage,
@@ -45,6 +47,8 @@ function MessageListItem({
   now,
   onOpen,
 }: Readonly<{ message: InboxMessage; now?: Date | undefined; onOpen(): void }>) {
+  const { colors } = useTheme()
+  const styles = useThemedStyles(createStyles)
   const caller = message.callerDisplayName ?? message.callerSubjectId
   const unread = message.readAt === null
   const relative = formatRelativeTime(message.receivedAt, now)
@@ -65,6 +69,9 @@ function MessageListItem({
       onPress={onOpen}
       style={({ pressed }) => [styles.item, pressed ? styles.itemPressed : null]}
     >
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.avatar}>
+        <Text style={styles.avatarText}>{caller.slice(0, 1).toLocaleUpperCase()}</Text>
+      </View>
       <View
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
@@ -77,7 +84,6 @@ function MessageListItem({
           <Text numberOfLines={1} style={[styles.itemTitle, unread ? styles.itemTitleUnread : null]}>
             {message.title}
           </Text>
-          <Text style={styles.itemTime}>{relative}</Text>
         </View>
         <View style={styles.itemMetaLine}>
           {showUrgency ? (
@@ -91,6 +97,7 @@ function MessageListItem({
             </Text>
           ) : null}
           <Text numberOfLines={1} style={styles.itemCaller}>{caller}</Text>
+          <Text numberOfLines={1} style={styles.itemTime}>{relative}</Text>
         </View>
         {summary === '' ? null : (
           <Text numberOfLines={2} style={styles.itemSummary}>{summary}</Text>
@@ -112,6 +119,8 @@ export function InboxScreen({
   unreadCount,
   viewOptions,
 }: InboxScreenProps) {
+  const { colors } = useTheme()
+  const styles = useThemedStyles(createStyles)
   const [confirmingClear, setConfirmingClear] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [isClearing, setIsClearing] = useState(false)
@@ -200,8 +209,8 @@ export function InboxScreen({
 
   return (
     <Screen
-      description="Agent 通过当前设备直连会话投递的 Markdown 消息只保存在本机。点开任意一条即可阅读全文并自动标为已读。离线队列与 push 尚未实现。"
-      eyebrow={unreadCount === 0 ? '信箱' : `${unreadCount} 条未读`}
+      description="来自 Agent 的消息，集中留在本机。"
+      eyebrow="TOOL BRIDGE"
       focused={focused}
       title="信箱"
     >
@@ -224,7 +233,7 @@ export function InboxScreen({
           <Pressable
             accessibilityLabel="清除信箱搜索词"
             accessibilityRole="button"
-            hitSlop={8}
+            style={styles.clearSearch}
             onPress={() => {
               setSearchText('')
               void applySearch('')
@@ -271,13 +280,9 @@ export function InboxScreen({
         )}
       </View>
 
+      <SectionHeading title={searching ? '搜索结果' : '最近消息'} detail={unreadCount > 0 ? `${unreadCount} 条未读` : '全部已读'} />
       {messages.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Icon color={colors.muted} name="inbox" size={28} />
-          <Text style={styles.empty}>
-            {searching ? '没有匹配的本机信箱消息。' : '最近还没有 Agent 来信。'}
-          </Text>
-        </View>
+        <EmptyState icon="inbox" title={searching ? '没有匹配的本机信箱消息。' : '最近还没有 Agent 来信。'} description={searching ? '试试其他关键词，或清除搜索查看全部消息。' : '收到消息后会显示在这里。点开即可阅读并标为已读。'} />
       ) : (
         <View style={styles.list}>
           {messages.map(message => (
@@ -346,7 +351,7 @@ export function InboxScreen({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   confirmation: {
     backgroundColor: colors.panel,
@@ -358,17 +363,6 @@ const styles = StyleSheet.create({
   },
   confirmationBody: { color: colors.text, fontSize: 15, lineHeight: 22 },
   confirmationTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  empty: { color: colors.muted, fontSize: 15, textAlign: 'center' },
-  emptyCard: {
-    alignItems: 'center',
-    backgroundColor: colors.panel,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxl,
-  },
   feedback: {
     backgroundColor: colors.panel,
     borderColor: colors.warning,
@@ -382,16 +376,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   flexButton: { flexBasis: 140, flexGrow: 1 },
+  avatar: { alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 14, backgroundColor: colors.primarySoft },
+  avatarText: { fontSize: 16, fontWeight: '700', color: colors.primary },
+  clearSearch: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   item: {
     alignItems: 'center',
     backgroundColor: colors.panel,
     borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    columnGap: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    columnGap: spacing.md,
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.xl,
   },
   itemBody: {
     flexGrow: 1,
@@ -400,6 +396,7 @@ const styles = StyleSheet.create({
   },
   itemCaller: {
     color: colors.muted,
+    flexGrow: 1,
     flexShrink: 1,
     fontSize: 13,
   },
@@ -423,6 +420,7 @@ const styles = StyleSheet.create({
   },
   itemTime: {
     color: colors.muted,
+    flexShrink: 0,
     fontSize: 12,
   },
   itemTitle: {
@@ -435,14 +433,12 @@ const styles = StyleSheet.create({
   itemTitleUnread: {
     fontWeight: '800',
   },
-  list: {
-    gap: spacing.sm,
-  },
+  list: { backgroundColor: colors.panel, borderRadius: radius.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   markAllButton: {
     alignItems: 'center',
     borderRadius: radius.sm,
     justifyContent: 'center',
-    minHeight: 36,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
   },
   markAllText: {
@@ -474,7 +470,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 36,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
   },
   sortChipSelected: {
@@ -487,7 +483,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sortChipTextSelected: {
-    color: colors.background,
+    color: colors.onPrimary,
   },
   sortRow: {
     alignItems: 'center',
@@ -509,12 +505,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   urgencyCritical: {
-    backgroundColor: colors.danger,
-    color: colors.background,
+    backgroundColor: colors.dangerSoft,
+    color: colors.danger,
   },
   urgencyHigh: {
-    backgroundColor: colors.warning,
-    color: colors.background,
+    backgroundColor: colors.warningSoft,
+    color: colors.warning,
   },
   urgencyTag: {
     borderRadius: radius.sm,

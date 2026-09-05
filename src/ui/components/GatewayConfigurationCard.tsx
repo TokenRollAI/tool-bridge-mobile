@@ -3,8 +3,9 @@ import { StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
+import { Icon } from '@/ui/components/Icon'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
-import { colors, radius, spacing } from '@/ui/theme'
+import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
 
@@ -25,6 +26,8 @@ export function GatewayConfigurationCard({
   onClear,
   onSave,
 }: GatewayConfigurationCardProps) {
+  const styles = useThemedStyles(createStyles)
+  const { colors } = useTheme()
   const [apiKey, setApiKey] = useState('')
   const [confirmingClear, setConfirmingClear] = useState(false)
   const [deviceIdInput, setDeviceIdInput] = useState('')
@@ -80,59 +83,74 @@ export function GatewayConfigurationCard({
 
   return (
     <StatusCard title="网关连接设置">
+      <View style={styles.connectionHeader}>
+        <View style={styles.connectionIcon}>
+          <Icon color={colors.primary} name="connection" size={24} />
+        </View>
+        <View style={styles.connectionCopy}>
+          <Text style={styles.connectionTitle}>连接你的工具网络</Text>
+          <Text style={styles.hint}>使用网关地址与密钥连接此设备</Text>
+        </View>
+      </View>
       <StatusRow label="当前 Gateway" value={currentOrigin ?? '未配置'} />
       <Text style={styles.body}>
-        暂时使用手工 URL + API key，不经过 pairing。API key 只写入系统安全存储，界面不会回显。
+        API key 只保存在系统安全存储中，保存后不会回显。
       </Text>
-      <Text style={styles.label}>Gateway HTTPS URL</Text>
-      <TextInput
-        accessibilityLabel="Gateway HTTPS URL"
-        autoCapitalize="none"
-        autoCorrect={false}
-        editable={!isBusy}
-        keyboardType="url"
-        onChangeText={value => {
-          setOriginInput(value)
-          setOriginDirty(true)
-        }}
-        placeholder="https://gateway.example.com"
-        placeholderTextColor={colors.muted}
-        spellCheck={false}
-        style={styles.input}
-        value={displayedOrigin}
-      />
-      <Text style={styles.label}>API key</Text>
-      <TextInput
-        accessibilityHint="输入内容会被遮蔽，保存后立即从表单清空"
-        accessibilityLabel="Tool Bridge API key"
-        autoCapitalize="none"
-        autoCorrect={false}
-        editable={!isBusy}
-        onChangeText={setApiKey}
-        placeholder="输入 API key"
-        placeholderTextColor={colors.muted}
-        secureTextEntry
-        spellCheck={false}
-        style={styles.input}
-        value={apiKey}
-      />
-      <Text style={styles.label}>设备 ID（可选）</Text>
-      <TextInput
-        accessibilityHint="留空时使用由本机硬件标识派生的稳定默认值；挂载路径为 device/phone/设备ID"
-        accessibilityLabel="自定义设备 ID"
-        autoCapitalize="none"
-        autoCorrect={false}
-        editable={!isBusy}
-        onChangeText={setDeviceIdInput}
-        placeholder={defaultDeviceId === null ? '留空使用默认设备 ID' : `留空使用默认 ${defaultDeviceId}`}
-        placeholderTextColor={colors.muted}
-        spellCheck={false}
-        style={styles.input}
-        value={deviceIdInput}
-      />
-      <Text style={styles.hint}>
-        只能包含字母、数字、“.”、“_”或“-”，最长 64 个字符；设备将挂载到 device/phone/设备ID。
-      </Text>
+      <View style={styles.field}>
+        <Text style={styles.label}>Gateway HTTPS URL</Text>
+        <TextInput
+          accessibilityLabel="Gateway HTTPS URL"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!isBusy}
+          keyboardType="url"
+          onChangeText={value => {
+            setOriginInput(value)
+            setOriginDirty(true)
+          }}
+          placeholder="https://gateway.example.com"
+          placeholderTextColor={colors.muted}
+          spellCheck={false}
+          style={styles.input}
+          value={displayedOrigin}
+        />
+      </View>
+      <View style={styles.field}>
+        <Text style={styles.label}>API key</Text>
+        <TextInput
+          accessibilityHint="输入内容会被遮蔽，保存后立即从表单清空"
+          accessibilityLabel="Tool Bridge API key"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!isBusy}
+          onChangeText={setApiKey}
+          placeholder="输入 API key"
+          placeholderTextColor={colors.muted}
+          secureTextEntry
+          spellCheck={false}
+          style={styles.input}
+          value={apiKey}
+        />
+      </View>
+      <View style={styles.deviceField}>
+        <Text style={styles.label}>设备 ID（可选）</Text>
+        <TextInput
+          accessibilityHint="留空时使用由本机硬件标识派生的稳定默认值；挂载路径为 device/phone/设备ID"
+          accessibilityLabel="自定义设备 ID"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!isBusy}
+          onChangeText={setDeviceIdInput}
+          placeholder={defaultDeviceId === null ? '留空使用默认设备 ID' : `留空使用默认 ${defaultDeviceId}`}
+          placeholderTextColor={colors.muted}
+          spellCheck={false}
+          style={styles.input}
+          value={deviceIdInput}
+        />
+        <Text style={styles.hint}>
+          只能包含字母、数字、“.”、“_”或“-”，最长 64 个字符；设备将挂载到 device/phone/设备ID。
+        </Text>
+      </View>
       <AccessibleAction
         accessibilityHint="先停止旧连接，再把 API key 写入系统安全存储并连接这个 Gateway"
         busy={isBusy}
@@ -190,7 +208,31 @@ export function GatewayConfigurationCard({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  connectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  connectionIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  connectionCopy: { flex: 1, gap: spacing.xs },
+  connectionTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
+  field: { gap: spacing.sm },
+  deviceField: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    paddingTop: spacing.lg,
+  },
   actionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -202,7 +244,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   confirmation: {
-    backgroundColor: colors.panelElevated,
+    backgroundColor: colors.dangerSoft,
     borderColor: colors.danger,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -230,7 +272,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: colors.panelElevated,
-    borderColor: colors.outline,
+    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     color: colors.text,

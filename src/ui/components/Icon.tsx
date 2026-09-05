@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 
-import { colors } from '@/ui/theme'
+import { useTheme } from '@/ui/theme'
 
 import type { ComponentProps } from 'react'
 
@@ -47,14 +47,15 @@ const ICONS = {
 export type IconName = keyof typeof ICONS
 
 export function Icon({
-  color = colors.text,
+  color,
   name,
   size = 20,
 }: Readonly<{ color?: string; name: IconName; size?: number }>) {
+  const { colors } = useTheme()
   return (
     <Ionicons
       accessibilityElementsHidden
-      color={color}
+      color={color ?? colors.text}
       importantForAccessibility="no"
       name={ICONS[name]}
       size={size}

@@ -11,7 +11,7 @@ import {
   formatAbsoluteTime,
   formatRelativeTime,
 } from '@/ui/inboxFormat'
-import { colors, radius, spacing } from '@/ui/theme'
+import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import type { InboxImageSourceResolver, ResolvedInboxImage } from '@/inbox/imageSource'
 import type { InboxLinkOpener } from '@/inbox/linkOpener'
@@ -36,6 +36,8 @@ export function InboxMessageScreen({
   onOpenLink,
   onResolveImage,
 }: InboxMessageScreenProps) {
+  const { colors } = useTheme()
+  const styles = useThemedStyles(createStyles)
   const imageResolver = useMemo<InboxImageSourceResolver>(() => ({
     resolve: onResolveImage,
   }), [onResolveImage])
@@ -89,7 +91,7 @@ export function InboxMessageScreen({
                 message.urgency === 'critical' ? styles.urgencyCritical : styles.urgencyHigh,
               ]}
             >
-              <Text style={styles.urgencyText}>{URGENCY_LABEL[message.urgency]}</Text>
+              <Text style={[styles.urgencyText, { color: message.urgency === 'critical' ? colors.danger : colors.warning }]}>{URGENCY_LABEL[message.urgency]}</Text>
             </View>
           ) : null}
           <Text style={styles.caller} numberOfLines={1}>{caller}</Text>
@@ -107,12 +109,15 @@ export function InboxMessageScreen({
 
       <View style={styles.divider} />
 
-      <SafeMarkdown imageResolver={imageResolver} linkOpener={linkOpener} markdown={message.body} />
+      <View style={styles.readingCard}>
+        <SafeMarkdown imageResolver={imageResolver} linkOpener={linkOpener} markdown={message.body} />
+      </View>
     </Screen>
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  readingCard: { backgroundColor: colors.panel, padding: spacing.xl, borderRadius: radius.lg, borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth },
   caller: {
     color: colors.text,
     flexShrink: 1,
@@ -156,10 +161,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   urgencyCritical: {
-    backgroundColor: colors.danger,
+    backgroundColor: colors.dangerSoft,
   },
   urgencyHigh: {
-    backgroundColor: colors.warning,
+    backgroundColor: colors.warningSoft,
   },
   urgencyTag: {
     borderRadius: radius.sm,
@@ -167,7 +172,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   urgencyText: {
-    color: colors.background,
+    color: colors.onDanger,
     fontSize: 12,
     fontWeight: '800',
   },

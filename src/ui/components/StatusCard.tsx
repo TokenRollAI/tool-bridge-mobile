@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 
 import { Icon, type IconName } from '@/ui/components/Icon'
-import { colors, radius, spacing } from '@/ui/theme'
+import { useTheme, useThemedStyles, type ThemeColors, radius, spacing } from '@/ui/theme'
 
 import type { PropsWithChildren } from 'react'
 
@@ -11,6 +11,8 @@ export function StatusCard({
   title,
   tone = 'neutral',
 }: PropsWithChildren<Readonly<{ icon?: IconName; title: string; tone?: 'neutral' | 'danger' }>>) {
+  const { colors } = useTheme()
+  const styles = useThemedStyles(createStyles)
   return (
     <View style={[styles.card, tone === 'danger' ? styles.cardDanger : null]}>
       <View style={styles.header}>
@@ -27,6 +29,7 @@ export function StatusCard({
 }
 
 export function StatusRow({ label, value }: Readonly<{ label: string; value: string }>) {
+  const styles = useThemedStyles(createStyles)
   return (
     <View
       accessibilityLabel={`${label}：${value}`}
@@ -52,7 +55,7 @@ export function StatusRow({ label, value }: Readonly<{ label: string; value: str
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     backgroundColor: colors.panel,
     borderColor: colors.border,
@@ -62,6 +65,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   cardDanger: {
+    backgroundColor: colors.dangerSoft,
     borderColor: colors.danger,
   },
   header: {
@@ -71,7 +75,7 @@ const styles = StyleSheet.create({
   },
   iconBadge: {
     alignItems: 'center',
-    backgroundColor: colors.panelElevated,
+    backgroundColor: colors.primarySoft,
     borderRadius: radius.sm,
     height: 30,
     justifyContent: 'center',
@@ -96,13 +100,15 @@ const styles = StyleSheet.create({
     flexBasis: 160,
     flexGrow: 2,
     flexShrink: 1,
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 20,
+    fontVariant: ['tabular-nums'],
     textAlign: 'right',
   },
   title: {
     color: colors.text,
     flexShrink: 1,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
   },
 })

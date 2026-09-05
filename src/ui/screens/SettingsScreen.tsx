@@ -5,9 +5,10 @@ import { AccessibleAction } from '@/ui/components/AccessibleAction'
 import { GatewayConfigurationCard } from '@/ui/components/GatewayConfigurationCard'
 import { Icon, type IconName } from '@/ui/components/Icon'
 import { Screen } from '@/ui/components/Screen'
+import { SectionHeading } from '@/ui/components/SectionHeading'
 import { SettingToggle } from '@/ui/components/SettingToggle'
 import { StatusCard } from '@/ui/components/StatusCard'
-import { colors, radius, spacing } from '@/ui/theme'
+import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import type { ControlMode } from '@/commands/types'
 import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
@@ -29,7 +30,7 @@ const CONTROL_MODE_OPTIONS: readonly Readonly<{
     mode: 'trusted_session',
   },
   {
-    hint: '所有命令（含高风险）直接执行，不再询问；仅紧急停用可中断',
+    hint: '跳过逐次确认；系统权限、平台限制与紧急停用仍然有效',
     label: '允许直接调用（含高危）',
     mode: 'direct_call',
   },
@@ -70,6 +71,8 @@ export function SettingsScreen({
   onSetControlMode,
   snapshot,
 }: SettingsScreenProps) {
+  const { colors } = useTheme()
+  const styles = useThemedStyles(createStyles)
   const isDisabled = snapshot.controlMode === 'disabled'
   const notificationAvailability = snapshot.capabilities.find(({ descriptor }) => (
     descriptor.path === 'phone/productivity' && descriptor.tool === 'notify'
@@ -100,14 +103,21 @@ export function SettingsScreen({
 
   return (
     <Screen
-      description="集中管理裁决强度、后台运行、网关连接与本地通知。系统权限与用户拒绝始终优先。"
-      eyebrow="设置"
+      description="让 Agent 如何使用这台设备，由你决定。"
       focused={focused}
       title="设置"
     >
+      <View style={styles.connectionOverview}>
+        <View style={styles.connectionSymbol}><Icon name="connection" size={26} color={snapshot.transportState === 'ready' ? colors.success : colors.muted} /></View>
+        <View style={styles.connectionCopy}>
+          <Text style={styles.connectionTitle}>{snapshot.transportState === 'ready' ? '已连接网关' : '网关尚未就绪'}</Text>
+          <Text style={styles.body}>{snapshot.transportState === 'ready' ? '连接可用，命令仍由本机裁决。' : '检查下方连接设置，准备接收 Agent 请求。'}</Text>
+        </View>
+      </View>
+      <SectionHeading title="这台设备" />
       <StatusCard icon="home" title="设备信息">
         <Text style={styles.body}>
-          查看运行时状态、已探测的设备能力与媒体会话。这些页面只读，不改变裁决配置。
+          查看设备状态与能力，管理正在进行的提示、计时器和媒体。
         </Text>
         <NavRow
           hint="查看控制模式、连接、后台运行与进行中的会话"
@@ -143,6 +153,7 @@ export function SettingsScreen({
         </StatusCard>
       ) : (
         <>
+          <SectionHeading title="控制与连接" detail="系统权限与用户拒绝始终优先" />
           <StatusCard icon="settings" title="控制模式">
             <Text style={styles.body}>
               选择 Agent 命令在本机的裁决强度。
@@ -150,14 +161,21 @@ export function SettingsScreen({
             {CONTROL_MODE_OPTIONS.map(option => {
               const active = snapshot.controlMode === option.mode
               return (
-                <AccessibleAction
+                <Pressable
                   accessibilityHint={option.hint}
+                  accessibilityLabel={active ? `${option.label}（当前）` : option.label}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
                   key={option.mode}
-                  label={active ? `${option.label}（当前）` : option.label}
                   onPress={() => { onSetControlMode(option.mode) }}
-                  variant={active ? 'primary' : 'secondary'}
-                  {...(active ? { icon: 'positive' as const } : {})}
-                />
+                  style={({ pressed }) => [styles.modeOption, active ? styles.modeOptionActive : null, pressed ? styles.navRowPressed : null]}
+                >
+                  <View style={styles.modeCopy}>
+                    <Text style={[styles.modeTitle, active ? styles.modeTitleActive : null]}>{option.label}</Text>
+                    <Text style={styles.modeDescription}>{option.hint}</Text>
+                  </View>
+                  <Icon color={active ? colors.primary : colors.outline} name={active ? 'positive' : 'neutral'} size={22} />
+                </Pressable>
               )
             })}
             {snapshot.controlMode === 'direct_call' ? (
@@ -267,6 +285,8 @@ function NavRow({
   label,
   onPress,
 }: Readonly<{ hint: string; icon: IconName; label: string; onPress(): void }>) {
+  const { colors } = useTheme()
+  const styles = useThemedStyles(createStyles)
   return (
     <Pressable
       accessibilityHint={hint}
@@ -284,7 +304,17 @@ function NavRow({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  connectionOverview: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.panel, padding: spacing.xl, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  connectionSymbol: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  connectionCopy: { flex: 1, gap: spacing.xs },
+  connectionTitle: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  modeOption: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 80, borderWidth: 1, borderColor: colors.outline, borderRadius: radius.md, padding: spacing.lg },
+  modeOptionActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  modeCopy: { flex: 1, gap: spacing.xs },
+  modeTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  modeTitleActive: { color: colors.primary },
+  modeDescription: { color: colors.muted, fontSize: 13, lineHeight: 20 },
   body: {
     color: colors.muted,
     fontSize: 15,
@@ -322,7 +352,7 @@ const styles = StyleSheet.create({
   },
   warningNote: {
     alignItems: 'flex-start',
-    backgroundColor: colors.panelElevated,
+    backgroundColor: colors.warningSoft,
     borderRadius: radius.sm,
     columnGap: spacing.sm,
     flexDirection: 'row',
