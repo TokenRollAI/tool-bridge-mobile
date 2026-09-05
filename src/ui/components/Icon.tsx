@@ -9,6 +9,16 @@ type IoniconName = ComponentProps<typeof Ionicons>['name']
 // 语义化图标名 → Ionicons glyph。屏幕代码只引用语义名，
 // 换图标库时只改这一处映射。图标默认对辅助技术隐藏（父级已有文字语义）。
 const ICONS = {
+  close: 'close-outline',
+  device: 'phone-portrait-outline',
+  deviceActive: 'phone-portrait',
+  filter: 'options-outline',
+  info: 'information-circle-outline',
+  key: 'key-outline',
+  more: 'ellipsis-horizontal',
+  read: 'checkmark-done-outline',
+  shield: 'shield-checkmark-outline',
+  unread: 'mail-unread-outline',
   activity: 'time-outline',
   activityActive: 'time',
   alert: 'alert-circle',

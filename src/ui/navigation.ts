@@ -1,11 +1,11 @@
 import type { IconName } from '@/ui/components/Icon'
 
-// 主导航只保留三个高频入口：信箱（落地首页）、活动、设置。
-// 状态、能力、媒体降级为设置页内的二级页面，不再占用 tab bar。
+// 主导航只保留三个高频入口：信箱（落地首页）、活动、设备。
+// 状态、能力、媒体降级为设备页内的二级页面，不再占用 tab bar。
 export const TAB_OPTIONS = {
   activity: { tabBarAccessibilityLabel: '活动标签页', title: '活动' },
   index: { tabBarAccessibilityLabel: '信箱标签页', title: '信箱' },
-  settings: { tabBarAccessibilityLabel: '设置标签页', title: '设置' },
+  settings: { tabBarAccessibilityLabel: '设备标签页', title: '设备' },
 } as const
 
 export const TAB_ORDER = ['index', 'activity', 'settings'] as const
@@ -15,7 +15,7 @@ export const TAB_ORDER = ['index', 'activity', 'settings'] as const
 export const TAB_ICONS = {
   activity: { active: 'activityActive', inactive: 'activity' },
   index: { active: 'inboxActive', inactive: 'inbox' },
-  settings: { active: 'settingsActive', inactive: 'settings' },
+  settings: { active: 'deviceActive', inactive: 'device' },
 } as const satisfies Record<
   (typeof TAB_ORDER)[number],
   Readonly<{ active: IconName; inactive: IconName }>

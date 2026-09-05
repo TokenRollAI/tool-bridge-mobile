@@ -36,6 +36,7 @@ export function MediaScreen({
 
   return (
     <Screen
+      backLabel="设备"
       description="管理这台设备上的 Tool Bridge 播放会话。"
       focused={focused}
       onBack={onBack}

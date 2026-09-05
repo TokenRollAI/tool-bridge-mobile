@@ -395,7 +395,7 @@ function safeDisplayHost(source: string): string | null {
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  block: { marginBottom: spacing.md },
+  block: { marginBottom: spacing.lg },
   blockContent: { flex: 1, gap: spacing.sm },
   blockquote: {
     backgroundColor: colors.panelElevated,
@@ -432,14 +432,14 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     padding: spacing.md,
   },
   inlineCode: { backgroundColor: colors.panelElevated, fontFamily: 'monospace', fontSize: 14 },
-  inlineText: { color: colors.text, fontSize: 16, lineHeight: 27 },
+  inlineText: { color: colors.text, fontSize: 17, lineHeight: 29 },
   italic: { fontStyle: 'italic' },
   invalidLink: { color: colors.muted, textDecorationLine: 'none' },
   listItem: { flexDirection: 'row' },
-  listPrefix: { color: colors.primary, fontSize: 16, lineHeight: 27, minWidth: 28 },
+  listPrefix: { color: colors.primary, fontSize: 17, lineHeight: 29, minWidth: 28 },
   linkFailure: { color: colors.warning, fontSize: 13, lineHeight: 19 },
   note: { color: colors.muted, fontSize: 12, lineHeight: 18 },
-  paragraph: { color: colors.text, fontSize: 16, lineHeight: 27 },
+  paragraph: { color: colors.text, fontSize: 17, lineHeight: 29 },
   root: { gap: spacing.xs },
   rule: { backgroundColor: colors.border, height: 1, marginVertical: spacing.lg },
   strike: { textDecorationLine: 'line-through' },

@@ -28,6 +28,7 @@ export function CapabilitiesScreen({
 
   return (
     <Screen
+      backLabel="设备"
       description="能力来自实际 probe；未注册的硬件能力不会出现在此处。"
       focused={focused}
       onBack={onBack}

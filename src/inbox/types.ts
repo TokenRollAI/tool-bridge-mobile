@@ -16,6 +16,7 @@ export type InboxSort =
 export type InboxViewOptions = Readonly<{
   searchQuery: string
   sort: InboxSort
+  unreadOnly?: boolean
 }>
 
 export const DEFAULT_INBOX_VIEW_OPTIONS: InboxViewOptions = {
@@ -55,5 +56,5 @@ export function normalizeInboxViewOptions(options: InboxViewOptions): InboxViewO
   if (searchQuery.length > LOCAL_INBOX_SEARCH_LIMIT) {
     throw new Error(`信箱搜索词不能超过 ${LOCAL_INBOX_SEARCH_LIMIT} 个字符`)
   }
-  return { searchQuery, sort: options.sort }
+  return { searchQuery, sort: options.sort, ...(options.unreadOnly === true ? { unreadOnly: true } : {}) }
 }

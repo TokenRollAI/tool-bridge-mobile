@@ -19,10 +19,8 @@
 > 本机活动审计，以及由 Agent 通过在线 direct call，或由 Gateway durable mailbox 入队并在
 > App 启动/回到前台后显式拉取投递、在 SQLite 中保留最近 1,000 条并可选发出
 > 固定隐私提醒的设备本地信箱；单条正文支持最多 64,000 字符的 Markdown、用户主动安全加载的 HTTPS
-> 图片、用户点按后交给系统打开的有界 HTTPS 链接、紧急程度、可选 Agent 发送时间、全文搜索、六种排序、
-> 单条/全部已读。App 现有六个本地页面的
-> 无障碍语义自动化基线
-> 与持久化/并发幂等测试。
+> 图片、用户点按后交给系统打开的有界 HTTPS 链接、紧急程度、可选 Agent 发送时间、全文搜索、列表排序、
+> 未读筛选与单条/全部已读。页面支持跟随系统的浅深主题，具有无障碍语义自动化基线与持久化/并发幂等测试。
 > 本地执行还包含确认前 caller/global admission、inline 结果字节上限、claim 后取消/到期复检和
 > emergency disable 的进行中命令取消。
 > SDK expose 现在为每个公开工具同时提供输入/输出 JSON Schema，并只注册静态配置完整的 App/媒体
@@ -119,7 +117,10 @@ pnpm start
 三环境配置、SDK RN 子入口漂移、secret/license/dependency 检查、Expo 依赖一致性、strict typecheck、
 零 warning lint、unit/component 和本地/SDK transport 契约测试。
 
-安装 App 后可在首页“网关连接设置”中填写纯 HTTPS origin 和 Tool Bridge API key。API key 不应写入
+主导航为信箱、活动、设备。信箱提供固定搜索/筛选工具栏和独立阅读页，排序与批量操作进入本地操作面板；
+设备总览分别进入连接配置、授权与安全、能力和运行详情。
+
+安装 App 后可在“设备 → 连接配置”中填写纯 HTTPS origin 和 Tool Bridge API key。API key 不应写入
 `.env`、`EXPO_PUBLIC_*`、源码或 URL；保存时 App 会先停止旧连接，再把 key 写入系统 SecureStore。
 SDK `deviceId` 默认由设备硬件标识（Android ID / iOS IDFV）经单向摘要派生为稳定短 ID，跨重装保持
 不变；也可在同一表单中自定义（字母、数字、`.`、`_`、`-`，最长 64 字符）。设备声明挂载到
@@ -172,7 +173,7 @@ mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas build --platform
 
 EAS `preview` profile 固定 Node 22.23.1、`APP_VARIANT=preview`、preview environment 与 APK 输出。EAS
 环境中的 `EXPO_PUBLIC_*` 都会进入客户端，不能存放凭证、token 或私钥；
-`EXPO_PUBLIC_GATEWAY_ORIGIN` 只可作为非秘密 URL 预置，首页本机 URL 配置优先。未配置 media/link
+`EXPO_PUBLIC_GATEWAY_ORIGIN` 只可作为非秘密 URL 预置，本机连接配置优先。未配置 media/link
 变量时，相应能力保持 unavailable。
 
 Android development debug APK 构建完成、API 36 emulator 已启动且另一个终端正在运行 `pnpm start`
@@ -182,8 +183,8 @@ Android development debug APK 构建完成、API 36 emulator 已启动且另一�
 pnpm verify:android:emulator
 ```
 
-该脚本会卸载 emulator 中的 dev application id 后重新安装 APK，并验证安装后权限、首页状态、动态
-能力、local-only 通知/timer 边界、紧急停用重启持久化、六个标签页的唯一语义，以及关键页面在 200%
+该脚本会卸载 emulator 中的 dev application id 后重新安装 APK，并验证安装后权限、信箱首页与设备分层导航、动态
+能力、local-only 通知/timer 边界、紧急停用重启持久化、三个标签页的唯一语义，以及关键页面在 200%
 系统字号下的名称、选中状态和操作最小尺寸；不会操作 preview/production 包，也不替代 TalkBack、VoiceOver
 或真机验收。
 

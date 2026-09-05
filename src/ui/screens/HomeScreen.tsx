@@ -77,6 +77,7 @@ export function HomeScreen({
 
   return (
     <Screen
+      backLabel="设备"
       description="连接、授权与正在运行的任务，一目了然。"
       focused={focused}
       onBack={onBack}
@@ -88,7 +89,7 @@ export function HomeScreen({
         <View style={styles.connectionIcon}><Icon name="connection" color={snapshot.transportState === 'ready' ? colors.success : colors.muted} size={30} /></View>
         <View style={styles.connectionCopy}>
           <Text style={styles.connectionTitle}>{snapshot.transportState === 'ready' ? '设备已连接' : '设备尚未就绪'}</Text>
-          <Text style={styles.footnote}>{snapshot.transportState === 'ready' ? '远程命令仍受本机策略与系统权限约束。' : '前往设置查看网关配置与连接状态。'}</Text>
+          <Text style={styles.footnote}>{snapshot.transportState === 'ready' ? '远程命令仍受本机策略与系统权限约束。' : '前往设备页查看网关配置与连接状态。'}</Text>
         </View>
       </View>
       <StatusCard icon="home" title="总览">
@@ -162,9 +163,9 @@ export function HomeScreen({
       ))}
 
       <AccessibleAction
-        accessibilityHint="返回设置页调整控制模式、后台运行、网关连接与通知"
+        accessibilityHint="返回设备管理页调整连接与授权设置"
         icon="settings"
-        label="前往设置"
+        label="返回设备管理"
         onPress={onOpenSettings}
         variant="secondary"
       />

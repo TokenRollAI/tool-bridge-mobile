@@ -10,6 +10,7 @@ import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/
 import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
 
 type GatewayConfigurationCardProps = Readonly<{
+  appearance?: 'card' | 'page'
   currentOrigin: string | null
   defaultDeviceId: string | null
   onClear(): Promise<void>
@@ -21,6 +22,7 @@ function safeFeedback(error: unknown, fallback: string): string {
 }
 
 export function GatewayConfigurationCard({
+  appearance = 'card',
   currentOrigin,
   defaultDeviceId,
   onClear,
@@ -81,9 +83,9 @@ export function GatewayConfigurationCard({
     }
   }
 
-  return (
-    <StatusCard title="网关连接设置">
-      <View style={styles.connectionHeader}>
+  const content = (
+    <>
+      {appearance === 'card' ? <View style={styles.connectionHeader}>
         <View style={styles.connectionIcon}>
           <Icon color={colors.primary} name="connection" size={24} />
         </View>
@@ -91,7 +93,7 @@ export function GatewayConfigurationCard({
           <Text style={styles.connectionTitle}>连接你的工具网络</Text>
           <Text style={styles.hint}>使用网关地址与密钥连接此设备</Text>
         </View>
-      </View>
+      </View> : null}
       <StatusRow label="当前 Gateway" value={currentOrigin ?? '未配置'} />
       <Text style={styles.body}>
         API key 只保存在系统安全存储中，保存后不会回显。
@@ -204,11 +206,15 @@ export function GatewayConfigurationCard({
       )}
 
       {feedback === null ? null : <Text style={styles.feedback}>{feedback}</Text>}
-    </StatusCard>
+    </>
   )
+  return appearance === 'page'
+    ? <View style={styles.pageForm}>{content}</View>
+    : <StatusCard title="网关连接设置">{content}</StatusCard>
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  pageForm: { gap: spacing.xl },
   connectionHeader: {
     alignItems: 'center',
     flexDirection: 'row',

@@ -81,35 +81,42 @@ export function InboxMessageScreen({
       focused={focused}
       onBack={onBack}
       title={message.title}
+      titlePlacement="content"
+      tone="reading"
     >
       <View style={styles.metaBlock}>
-        <View style={styles.metaLine}>
-          {message.urgency === 'critical' || message.urgency === 'high' ? (
-            <View
-              style={[
-                styles.urgencyTag,
-                message.urgency === 'critical' ? styles.urgencyCritical : styles.urgencyHigh,
-              ]}
-            >
-              <Text style={[styles.urgencyText, { color: message.urgency === 'critical' ? colors.danger : colors.warning }]}>{URGENCY_LABEL[message.urgency]}</Text>
-            </View>
-          ) : null}
-          <Text style={styles.caller} numberOfLines={1}>{caller}</Text>
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.senderAvatar}>
+          <Text style={styles.senderInitial}>{caller.slice(0, 1).toLocaleUpperCase()}</Text>
         </View>
-        <Text
-          accessibilityLabel={`收到时间：${formatAbsoluteTime(message.receivedAt)}`}
-          style={styles.time}
-        >
-          {relative} · {formatAbsoluteTime(message.receivedAt)}
-        </Text>
-        {message.sourceLabel === null ? null : (
-          <Text style={styles.source}>内容来源（Agent 提供）：{message.sourceLabel}</Text>
-        )}
+        <View style={styles.senderDetails}>
+          <View style={styles.metaLine}>
+            {message.urgency === 'critical' || message.urgency === 'high' ? (
+              <View
+                style={[
+                  styles.urgencyTag,
+                  message.urgency === 'critical' ? styles.urgencyCritical : styles.urgencyHigh,
+                ]}
+              >
+                <Text style={[styles.urgencyText, { color: message.urgency === 'critical' ? colors.danger : colors.warning }]}>{URGENCY_LABEL[message.urgency]}</Text>
+              </View>
+            ) : null}
+            <Text style={styles.caller}>{caller}</Text>
+          </View>
+          <Text
+            accessibilityLabel={`收到时间：${formatAbsoluteTime(message.receivedAt)}`}
+            style={styles.time}
+          >
+            {relative}
+          </Text>
+          {message.sourceLabel === null ? null : (
+            <Text style={styles.source}>内容来源（Agent 提供）：{message.sourceLabel}</Text>
+          )}
+        </View>
       </View>
 
       <View style={styles.divider} />
 
-      <View style={styles.readingCard}>
+      <View style={styles.article}>
         <SafeMarkdown imageResolver={imageResolver} linkOpener={linkOpener} markdown={message.body} />
       </View>
     </Screen>
@@ -117,7 +124,10 @@ export function InboxMessageScreen({
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  readingCard: { backgroundColor: colors.panel, padding: spacing.xl, borderRadius: radius.lg, borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth },
+  article: { paddingBottom: spacing.xxl },
+  senderAvatar: { alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primarySoft },
+  senderInitial: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+  senderDetails: { flex: 1, gap: spacing.xs },
   caller: {
     color: colors.text,
     flexShrink: 1,
@@ -144,7 +154,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingVertical: spacing.xxl,
   },
   metaBlock: {
-    gap: spacing.sm,
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.md,
   },
   metaLine: {
     alignItems: 'center',
@@ -158,7 +170,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   time: {
     color: colors.muted,
-    fontSize: 14,
+    fontSize: 12,
   },
   urgencyCritical: {
     backgroundColor: colors.dangerSoft,
