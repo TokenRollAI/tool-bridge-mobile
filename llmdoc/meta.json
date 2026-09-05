@@ -6,58 +6,58 @@
   },
   "documents": {
     "architecture.mdx": {
-      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "capabilities/architecture.mdx": {
       "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
     },
     "capabilities/bounded-linking-handoffs.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "capabilities/bounded-media-source.mdx": {
       "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
     },
     "capabilities/foreground-camera-capture.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "capabilities/local-device-inbox.mdx": {
       "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
     },
     "capabilities/local-notifications.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "capabilities/local-timers.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "delivery/eas-project-binding.mdx": {
       "validatedRevision": "763539a8fe0dd504be7baa67669e5ec8c5db5587"
     },
     "delivery/evidence-language.mdx": {
-      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "delivery/github-preview-release.mdx": {
-      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "delivery/verification-and-claims.mdx": {
-      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "integration/manual-gateway-configuration.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "integration/sdk-device-transport.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "integration/trusted-grants.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "integration/upstream-and-platform-gaps.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "runtime/accessibility-semantics.mdx": {
-      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "runtime/activity-history.mdx": {
-      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "runtime/architecture.mdx": {
       "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
@@ -69,16 +69,16 @@
       "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
     },
     "product/requirements-and-roadmap.mdx": {
-      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "delivery/engineering-baseline.mdx": {
-      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "delivery/definition-of-done.mdx": {
-      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "delivery/verification-evidence.mdx": {
-      "validatedRevision": "62acdc614d74e6a8d1590b958c4e38c47974009d"
+      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     }
   },
   "convergence": {
