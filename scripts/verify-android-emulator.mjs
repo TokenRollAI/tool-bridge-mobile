@@ -254,7 +254,7 @@ for (const expected of [
 }
 
 let source = await launchApp()
-for (const tabLabel of ['信箱标签页', '活动标签页', '设备标签页']) {
+for (const tabLabel of ['信箱标签页', '设备标签页']) {
   if (describedNode(source, tabLabel) === null) throw new Error(`首页缺少唯一 tab accessibility label: ${tabLabel}`)
 }
 requireSelectedTab(source, '信箱标签页')
@@ -310,9 +310,8 @@ await tapByDescription('授权与安全')
 await findDescription('每次确认（当前）', 48)
 await returnToDevice()
 
-await tapByDescription('活动标签页')
-source = await waitForUi(current => describedNode(current, '活动标签页')?.includes('selected="true"') === true, '活动页面')
-requireSelectedTab(source, '活动标签页')
+await tapByDescription('活动记录')
+await waitForUi(current => hasText(current, '活动'), '设备内的活动页面')
 await findUi(current => hasText(current, '暂无远程调用记录。'), '本地活动空态')
 await findUi(current => current.includes('显示最近 100 条，本机最多保留 5,000 条；不展示参数、正文或结果载荷。'), '本地活动历史范围')
 await tapByDescription('清除本机活动历史')
@@ -323,6 +322,7 @@ await tapByDescription('清除本机活动历史')
 await findUi(current => hasText(current, '确认清除当前活动历史？'), '再次确认清除活动历史')
 await tapByDescription('确认清除活动历史')
 await findUi(current => hasText(current, '已清除 0 条本机活动历史；后续调用会继续记录。'), '清除空活动历史的真实结果')
+await returnToDevice()
 
 const fontScaleSource = (await adb('shell', 'settings', 'get', 'system', 'font_scale')).trim()
 const originalFontScale = /^\d+(?:\.\d+)?$/u.test(fontScaleSource) ? fontScaleSource : '1.0'
@@ -336,9 +336,8 @@ try {
   await findUi(current => hasText(current, '暂无 App 自有媒体会话。'), '200% 字号媒体空态')
   await returnToDevice()
 
-  await tapByDescription('活动标签页')
-  source = await waitForUi(current => describedNode(current, '活动标签页')?.includes('selected="true"') === true, '200% 字号活动页面')
-  requireSelectedTab(source, '活动标签页')
+  await tapByDescription('活动记录')
+  await waitForUi(current => hasText(current, '活动'), '200% 字号活动页面')
   await tapByDescription('清除本机活动历史')
   // 分别滚动到每个 action 并核对 48dp，不要求放大字号后仍处于同一屏。
   for (const actionLabel of ['取消清除活动历史', '确认清除活动历史']) {
@@ -349,7 +348,7 @@ try {
   await tapByDescription('确认清除活动历史')
   await findUi(current => hasText(current, '已清除 0 条本机活动历史；后续调用会继续记录。'), '200% 字号确认清除结果')
 
-  await openDevice()
+  await returnToDevice()
   await tapByDescription('设备能力')
   await findUi(current => hasText(current, 'phone/apps.can_open_url'), '200% 字号能力列表可达')
   await returnToDevice()

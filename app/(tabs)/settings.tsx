@@ -11,6 +11,7 @@ export default function SettingsRoute() {
       focused={focused}
       onEmergencyDisable={() => { void setControlMode('disabled') }}
       onEnable={() => { void setControlMode('ask_every_time') }}
+      onOpenActivity={() => { router.navigate('/activity') }}
       onOpenCapabilities={() => { router.navigate('/capabilities') }}
       onOpenConnection={() => { router.navigate('/connection') }}
       onOpenControls={() => { router.navigate('/controls') }}

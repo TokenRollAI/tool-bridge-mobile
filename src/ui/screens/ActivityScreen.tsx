@@ -17,12 +17,14 @@ import type { Pressable, Text as NativeText } from 'react-native'
 
 type ActivityScreenProps = Readonly<{
   focused?: boolean
+  onBack?: (() => void) | undefined
   onClearAuditHistory: () => Promise<number>
   records: readonly AuditRecord[]
 }>
 
 export function ActivityScreen({
   focused = true,
+  onBack,
   onClearAuditHistory,
   records,
 }: ActivityScreenProps) {
@@ -65,6 +67,8 @@ export function ActivityScreen({
 
   return (
     <Screen
+      backLabel="设备"
+      onBack={onBack}
       description="每一次调用，都有迹可循。这里只显示调用元数据。"
       focused={focused}
       title="活动"

@@ -21,6 +21,7 @@ type SettingsScreenProps = Readonly<{
   focused?: boolean
   onEmergencyDisable(): void
   onEnable(): void
+  onOpenActivity(): void
   onOpenCapabilities(): void
   onOpenConnection(): void
   onOpenControls(): void
@@ -33,6 +34,7 @@ export function SettingsScreen({
   focused = true,
   onEmergencyDisable,
   onEnable,
+  onOpenActivity,
   onOpenCapabilities,
   onOpenConnection,
   onOpenControls,
@@ -83,6 +85,7 @@ export function SettingsScreen({
         <NavRow description={`${availableCount} 项可用 · ${snapshot.capabilities.length} 项已探测`} icon="capabilities" label="设备能力" onPress={onOpenCapabilities} />
         <NavRow description="连接状态、设备提示与计时器" icon="home" label="运行详情" onPress={onOpenStatus} />
         <NavRow description={snapshot.mediaSession === null ? '当前没有媒体会话' : snapshot.mediaSession.title} icon="media" label="媒体会话" onPress={onOpenMedia} />
+        <NavRow description="查看调用记录与本地执行结果" icon="activity" label="活动记录" onPress={onOpenActivity} />
       </View>
 
       <View style={styles.safetyControl}>

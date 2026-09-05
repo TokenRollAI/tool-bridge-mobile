@@ -35,6 +35,7 @@ function handlers() {
   return {
     onEmergencyDisable: jest.fn(),
     onEnable: jest.fn(),
+    onOpenActivity: jest.fn(),
     onOpenCapabilities: jest.fn(),
     onOpenConnection: jest.fn(),
     onOpenControls: jest.fn(),
@@ -44,7 +45,7 @@ function handlers() {
 }
 
 describe('设备总览', () => {
-  test('独立入口导航到连接、安全、能力、运行详情和媒体，不直接展示配置表单', async () => {
+  test('独立入口导航到连接、安全、能力、运行详情、媒体和活动，不直接展示配置表单', async () => {
     const actions = handlers()
     const screen = await render(<SettingsScreen {...actions} snapshot={snapshot} />)
     await fireEvent.press(screen.getByRole('button', { name: '连接配置' }))
@@ -52,6 +53,8 @@ describe('设备总览', () => {
     await fireEvent.press(screen.getByRole('button', { name: '设备能力' }))
     await fireEvent.press(screen.getByRole('button', { name: '运行详情' }))
     await fireEvent.press(screen.getByRole('button', { name: '媒体会话' }))
+    await fireEvent.press(screen.getByRole('button', { name: '活动记录' }))
+    expect(actions.onOpenActivity).toHaveBeenCalledTimes(1)
     expect(actions.onOpenConnection).toHaveBeenCalledTimes(1)
     expect(actions.onOpenControls).toHaveBeenCalledTimes(1)
     expect(actions.onOpenCapabilities).toHaveBeenCalledTimes(1)

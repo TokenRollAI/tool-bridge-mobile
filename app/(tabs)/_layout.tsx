@@ -49,13 +49,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="activity"
-        options={{
-          ...TAB_OPTIONS.activity,
-          tabBarIcon: tabIcon(TAB_ICONS.activity.inactive, TAB_ICONS.activity.active),
-        }}
-      />
-      <Tabs.Screen
         name="settings"
         options={{
           ...TAB_OPTIONS.settings,

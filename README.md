@@ -117,8 +117,8 @@ pnpm start
 三环境配置、SDK RN 子入口漂移、secret/license/dependency 检查、Expo 依赖一致性、strict typecheck、
 零 warning lint、unit/component 和本地/SDK transport 契约测试。
 
-主导航为信箱、活动、设备。信箱提供固定搜索/筛选工具栏和独立阅读页，排序与批量操作进入本地操作面板；
-设备总览分别进入连接配置、授权与安全、能力和运行详情。
+主导航为信箱、设备。信箱提供固定搜索/筛选工具栏和独立阅读页，排序与批量操作进入本地操作面板；
+设备总览分别进入连接配置、授权与安全、能力、运行详情和活动记录。
 
 安装 App 后可在“设备 → 连接配置”中填写纯 HTTPS origin 和 Tool Bridge API key。API key 不应写入
 `.env`、`EXPO_PUBLIC_*`、源码或 URL；保存时 App 会先停止旧连接，再把 key 写入系统 SecureStore。
@@ -184,7 +184,7 @@ pnpm verify:android:emulator
 ```
 
 该脚本会卸载 emulator 中的 dev application id 后重新安装 APK，并验证安装后权限、信箱首页与设备分层导航、动态
-能力、local-only 通知/timer 边界、紧急停用重启持久化、三个标签页的唯一语义，以及关键页面在 200%
+能力、local-only 通知/timer 边界、紧急停用重启持久化、两个标签页的唯一语义，以及关键页面在 200%
 系统字号下的名称、选中状态和操作最小尺寸；不会操作 preview/production 包，也不替代 TalkBack、VoiceOver
 或真机验收。
 

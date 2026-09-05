@@ -22,8 +22,9 @@ const record: AuditRecord = {
 
 describe('ActivityScreen', () => {
   test('显示来源、时间、能力边界、决策和结果，但不展示载荷字段', async () => {
+    const onBack = jest.fn()
     const rendered = await render(
-      <ActivityScreen onClearAuditHistory={jest.fn()} records={[record]} />,
+      <ActivityScreen onBack={onBack} onClearAuditHistory={jest.fn()} records={[record]} />,
     )
 
     rendered.getByRole('header', { name: '活动' })
@@ -37,6 +38,8 @@ describe('ActivityScreen', () => {
     rendered.getByText(/最近 100 条/)
     rendered.getByText(/最多保留 5,000 条/)
     expect(rendered.queryByText('command_01')).toBeNull()
+    await fireEvent.press(rendered.getByRole('button', { name: '设备' }))
+    expect(onBack).toHaveBeenCalledTimes(1)
   })
 
   test('清除前明确二次确认；取消不会删除', async () => {
