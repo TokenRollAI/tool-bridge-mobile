@@ -25,7 +25,6 @@ code:
     - app/(tabs)/settings.tsx
     - src/ui/screens/SettingsScreen.tsx
     - src/ui/**/__tests__/**
-    - scripts/verify-android-emulator.mjs
 ---
 
 # 系统主题与 Accessibility semantics 基线
@@ -79,7 +78,7 @@ code:
   覆盖双主题文本和交互边界 contrast gate，系统主题组件测试覆盖切换后保留未提交表单及危险操作实际配色。
   `SafeMarkdown` 组件测试另覆盖跨样式单链接、相邻链接和通用失败
   `alert`；这不证明 TalkBack/VoiceOver 实际朗读或真机系统 handoff。
-- Android emulator semantic smoke 应验证两个 tab 的唯一 accessibility label/selected state，保存原字号后设为
+- 页面交互验收应检查两个 tab 的唯一 accessibility label/selected state，保存原字号后设为
   200%，force-stop/relaunch，经设备总览进入活动记录并操作 clear/cancel/confirm、返回设备，复核关键 action bounds 至少
   48dp，最后恢复原字号。
 - UIAutomator 只观察语义树、selected state、bounds 和点击，不能替代 Android TalkBack、VoiceOver、

@@ -116,8 +116,8 @@ Android 仍声明 `POST_NOTIFICATIONS`，因为本地通知需要系统授权。
   脱敏和 `scheduled` 语义；信箱另覆盖 commit 后提醒与失败不回滚。它们使用注入 adapter，不是系统 UI E2E。
 - registry contract 明确只有 `phone/inbox.deliver` 投影 `delivery: both`，`phone/productivity.notify` 没有
   `delivery` metadata；这不证明 mailbox Gateway path 或本地通知已在真机呈现。
-- Android clean build 与 merged manifest 只能证明对应 commit 的 local-only final config 可生成；emulator
-  smoke 只证明 fresh permission 映射和 capability 投影，未请求权限、调度、呈现或点击通知。
+- Android clean build 与 merged manifest 只能证明对应 commit 的 local-only final config 可生成；权限状态与
+  capability 投影的界面检查不证明实际请求权限、调度、呈现或点击通知。
 - iOS/Android 的 simulator、native build 与真机结果必须按当前 evidence 记录判断；APNs entitlement 静态
   移除不等于 iOS local notification 行为已验证。
 
