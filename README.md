@@ -176,18 +176,6 @@ EAS `preview` profile 固定 Node 22.23.1、`APP_VARIANT=preview`、preview envi
 `EXPO_PUBLIC_GATEWAY_ORIGIN` 只可作为非秘密 URL 预置，本机连接配置优先。未配置 media/link
 变量时，相应能力保持 unavailable。
 
-Android development debug APK 构建完成、API 36 emulator 已启动且另一个终端正在运行 `pnpm start`
-时，可以执行可重复 UI smoke：
-
-```bash
-pnpm verify:android:emulator
-```
-
-该脚本会卸载 emulator 中的 dev application id 后重新安装 APK，并验证安装后权限、信箱首页与设备分层导航、动态
-能力、local-only 通知/timer 边界、紧急停用重启持久化、两个标签页的唯一语义，以及关键页面在 200%
-系统字号下的名称、选中状态和操作最小尺寸；不会操作 preview/production 包，也不替代 TalkBack、VoiceOver
-或真机验收。
-
 Android 需要 Java 17；iOS 需要 macOS、Xcode 26.4+ 与 CocoaPods。涉及 push、后台、相机、音频、
 位置或权限的功能仍必须按 [DOD](llmdoc/delivery/definition-of-done.mdx) 留下双端真机证据。
 
