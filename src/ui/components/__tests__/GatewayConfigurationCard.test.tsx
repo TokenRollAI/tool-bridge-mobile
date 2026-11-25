@@ -77,13 +77,14 @@ describe('GatewayConfigurationCard', () => {
     rendered.getByText('已停止当前连接并清除本机 API key。')
   })
 
-  test('保存失败时不伪装成功且不把 API key 放进反馈', async () => {
+  test('无效地址获得就地提示，修改后保留遮蔽密钥并可以保存', async () => {
+    const onSave = jest.fn(async () => undefined)
     const rendered = await render(
       <GatewayConfigurationCard
         currentOrigin={null}
         defaultDeviceId="a1b2c3d4e5f6"
         onClear={jest.fn(async () => undefined)}
-        onSave={jest.fn(async () => { throw new Error('Gateway URL 必须是有效的 HTTPS origin') })}
+        onSave={onSave}
       />,
     )
     await fireEvent.changeText(rendered.getByLabelText('Gateway HTTPS URL'), 'not-a-url')
@@ -95,7 +96,13 @@ describe('GatewayConfigurationCard', () => {
       name: '保存 Gateway URL 和 API key 并连接',
     }))
 
-    await waitFor(() => rendered.getByText('Gateway URL 必须是有效的 HTTPS origin'))
+    rendered.getByText('Gateway URL 必须是有效的 HTTPS origin')
+    expect(onSave).not.toHaveBeenCalled()
     expect(rendered.queryByText('tb_sk_fixture_secret')).toBeNull()
+
+    await fireEvent.changeText(rendered.getByLabelText('Gateway HTTPS URL'), 'https://gateway.example.com')
+    expect(rendered.queryByText('Gateway URL 必须是有效的 HTTPS origin')).toBeNull()
+    await fireEvent.press(rendered.getByRole('button', { name: '保存 Gateway URL 和 API key 并连接' }))
+    expect(onSave).toHaveBeenCalledWith({ apiKey: 'tb_sk_fixture_secret', origin: 'https://gateway.example.com' })
   })
 })

@@ -136,7 +136,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   divider: {
     backgroundColor: colors.border,
-    height: 1,
+    height: StyleSheet.hairlineWidth,
   },
   empty: {
     color: colors.muted,
@@ -146,9 +146,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   emptyCard: {
     alignItems: 'center',
     backgroundColor: colors.panel,
-    borderColor: colors.border,
     borderRadius: radius.lg,
-    borderWidth: 1,
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xxl,
@@ -160,6 +158,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   metaLine: {
     alignItems: 'center',
+    flexWrap: 'wrap',
     columnGap: spacing.sm,
     flexDirection: 'row',
   },
@@ -179,12 +178,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.warningSoft,
   },
   urgencyTag: {
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },
   urgencyText: {
-    color: colors.onDanger,
     fontSize: 12,
     fontWeight: '800',
   },

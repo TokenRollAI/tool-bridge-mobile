@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { focusAccessibilityElement } from '@/ui/accessibility'
 import { Icon } from '@/ui/components/Icon'
-import { spacing, useTheme, useThemedStyles, type ThemeColors } from '@/ui/theme'
+import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import type { PropsWithChildren, RefObject } from 'react'
 
@@ -67,12 +67,12 @@ export function ActionSheet({ children, dismissible = true, onClose, returnFocus
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  backdrop: { alignItems: 'center', backgroundColor: 'rgba(7, 12, 20, 0.48)', flex: 1, justifyContent: 'flex-end' },
+  backdrop: { alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.48)', flex: 1, justifyContent: 'flex-end' },
   close: { alignItems: 'center', borderRadius: 24, justifyContent: 'center', minHeight: 48, minWidth: 48 },
   content: { gap: spacing.md, paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
   handle: { alignSelf: 'center', backgroundColor: colors.outline, borderRadius: 2, height: 4, marginTop: spacing.md, width: 32 },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingLeft: spacing.xl, paddingRight: spacing.sm, paddingVertical: spacing.md },
   pressed: { backgroundColor: colors.panelElevated },
-  sheet: { backgroundColor: colors.panel, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '88%', maxWidth: 620, width: '100%' },
+  sheet: { backgroundColor: colors.slab, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, maxHeight: '88%', maxWidth: 620, width: '100%' },
   title: { color: colors.text, flex: 1, fontSize: 22, fontWeight: '700' },
 })

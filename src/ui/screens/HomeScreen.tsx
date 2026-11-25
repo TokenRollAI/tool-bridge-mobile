@@ -86,7 +86,7 @@ export function HomeScreen({
       {snapshot.error === null ? null : <Text style={styles.error}>{snapshot.error}</Text>}
 
       <View style={styles.connectionHero}>
-        <View style={styles.connectionIcon}><Icon name="connection" color={snapshot.transportState === 'ready' ? colors.success : colors.muted} size={30} /></View>
+        <Icon name="connection" color={snapshot.transportState === 'ready' ? colors.success : colors.muted} size={20} />
         <View style={styles.connectionCopy}>
           <Text style={styles.connectionTitle}>{snapshot.transportState === 'ready' ? '设备已连接' : '设备尚未就绪'}</Text>
           <Text style={styles.footnote}>{snapshot.transportState === 'ready' ? '远程命令仍受本机策略与系统权限约束。' : '前往设备页查看网关配置与连接状态。'}</Text>
@@ -136,6 +136,7 @@ export function HomeScreen({
             value={`${snapshot.attentionSession.remainingSeconds} 秒`}
           />
           <AccessibleAction
+            variant="secondary"
             accessibilityHint="立即停止当前由 Tool Bridge 发起的设备提示"
             icon="stop"
             label="停止设备提示"
@@ -174,15 +175,12 @@ export function HomeScreen({
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  connectionHero: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, backgroundColor: colors.panel, borderRadius: radius.lg, padding: spacing.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  connectionIcon: { width: 60, height: 60, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  connectionHero: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.panel, borderRadius: radius.lg, padding: spacing.md },
   connectionCopy: { flex: 1, gap: spacing.sm },
-  connectionTitle: { fontSize: 22, fontWeight: '700', color: colors.text },
+  connectionTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
   error: {
-    backgroundColor: colors.panel,
-    borderColor: colors.danger,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radius.lg,
     color: colors.danger,
     fontSize: 14,
     fontWeight: '600',

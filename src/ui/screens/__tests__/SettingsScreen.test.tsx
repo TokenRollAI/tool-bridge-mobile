@@ -70,7 +70,7 @@ describe('设备总览', () => {
     await screen.rerender(<SettingsScreen {...handlers()} snapshot={{ ...snapshot, defaultDeviceId: 'local_device' }} />)
     screen.getByText('local_device')
     await screen.rerender(<SettingsScreen {...handlers()} snapshot={{ ...snapshot, defaultDeviceId: 'local_device', deviceId: 'gateway_device' }} />)
-    screen.getByText('gateway_device')
+    expect(screen.getByText('gateway_device').props.selectable).toBe(true)
     expect(screen.queryByText('local_device')).toBeNull()
   })
 
@@ -78,8 +78,9 @@ describe('设备总览', () => {
     const screen = await render(<SettingsScreen {...handlers()} snapshot={{ ...snapshot, gatewayOrigin: 'https://gateway.example.com' }} />)
     screen.getByText('网关尚未就绪')
     expect(screen.queryByText('已连接网关')).toBeNull()
-    await screen.rerender(<SettingsScreen {...handlers()} snapshot={{ ...snapshot, transportState: 'ready', reachability: 'online' }} />)
+    await screen.rerender(<SettingsScreen {...handlers()} snapshot={{ ...snapshot, gatewayOrigin: 'https://gateway.example.com', transportState: 'ready', reachability: 'online' }} />)
     screen.getByText('已连接网关')
+    screen.getByText('gateway.example.com')
   })
 
   test('总览可立即紧急停用，并在停用后恢复为每次确认', async () => {

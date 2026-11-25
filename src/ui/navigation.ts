@@ -7,6 +7,11 @@ export const TAB_OPTIONS = {
   settings: { tabBarAccessibilityLabel: '设备标签页', title: '设备' },
 } as const
 
+export function inboxTabAccessibilityLabel(unreadCount: number): string {
+  const label = TAB_OPTIONS.index.tabBarAccessibilityLabel
+  return unreadCount > 0 ? `${label}，${unreadCount} 条未读` : label
+}
+
 export const TAB_ORDER = ['index', 'settings'] as const
 
 // 每个 tab 的选中/未选中图标；tab 布局据此渲染 Ionicons，

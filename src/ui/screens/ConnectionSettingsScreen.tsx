@@ -37,7 +37,7 @@ export function ConnectionSettingsScreen({ focused = true, onBack, onClear, onSa
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  status: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, padding: spacing.xl, borderRadius: radius.lg, backgroundColor: colors.primarySoft },
+  status: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.panel },
   statusCopy: { flex: 1, gap: spacing.xs },
   title: { color: colors.text, fontSize: 17, fontWeight: '600' },
   description: { color: colors.muted, fontSize: 14, lineHeight: 22 },
