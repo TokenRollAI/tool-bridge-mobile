@@ -10,15 +10,15 @@
   },
   "scripts": {
     "start": "expo start --dev-client",
-    "android": "expo run:android",
+    "android": "cd native-android && ./gradlew :app:installDevelopmentDebug && adb shell am start -n ai.tokenroll.toolbridgemobile.dev/ai.tokenroll.toolbridge.mobile.MainActivity",
     "ios": "expo run:ios",
     "icons:generate": "node scripts/generate-app-icons.mjs",
-    "prebuild": "expo prebuild",
-    "prebuild:clean": "expo prebuild --clean",
-    "prebuild:android": "expo prebuild --clean --platform android",
+    "prebuild": "expo prebuild --platform ios",
+    "prebuild:clean": "expo prebuild --clean --platform ios",
+    "prebuild:android": "cd native-android && ./gradlew :app:preBuild",
     "prebuild:ios": "expo prebuild --clean --platform ios",
-    "build:android:debug": "NODE_ENV=development pnpm prebuild:android && cd android && NODE_ENV=development ./gradlew assembleDebug",
-    "build:android:preview": "APP_VARIANT=preview NODE_ENV=production pnpm prebuild:android && cd android && APP_VARIANT=preview NODE_ENV=production ./gradlew assembleRelease",
+    "build:android:debug": "cd native-android && ./gradlew :app:assembleDevelopmentDebug",
+    "build:android:preview": "cd native-android && ./gradlew :app:assemblePreviewLocal",
     "build:ios:sim": "NODE_ENV=development pnpm prebuild:ios && NODE_ENV=development xcodebuild -workspace ios/ToolBridgeMobileDev.xcworkspace -scheme ToolBridgeMobileDev -configuration Debug -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
@@ -36,7 +36,9 @@
     "verify:release-tag": "node scripts/verify-release-tag.mjs",
     "verify:sdk-device": "node scripts/verify-sdk-device-entry.mjs",
     "verify:secrets": "node scripts/verify-secrets.mjs",
-    "verify": "pnpm verify:docs && pnpm verify:release-tag && pnpm verify:config && pnpm verify:app-icons && pnpm verify:native-modules && pnpm verify:sdk-device && pnpm verify:secrets && pnpm verify:licenses && pnpm verify:dependency-mitigations && pnpm verify:expo && pnpm typecheck && pnpm lint && pnpm test"
+    "verify": "pnpm verify:docs && pnpm verify:release-tag && pnpm verify:config && pnpm verify:app-icons && pnpm verify:native-modules && pnpm verify:sdk-device && pnpm verify:secrets && pnpm verify:licenses && pnpm verify:dependency-mitigations && pnpm verify:expo && pnpm typecheck && pnpm lint && pnpm test",
+    "build:android:release": "cd native-android && ./gradlew :app:assemblePreviewRelease",
+    "test:android": "cd native-android && ./gradlew :app:testDevelopmentDebugUnitTest"
   },
   "dependencies": {
     "@expo/vector-icons": "15.1.1",

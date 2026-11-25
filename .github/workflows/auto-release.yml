@@ -64,7 +64,7 @@ jobs:
     needs: prepare
     if: needs.prepare.outputs.should_publish == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 35
     permissions:
       actions: read
       contents: write
@@ -73,13 +73,13 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
-      - name: Download APK from the verified run
-        uses: actions/download-artifact@v8.0.1
-        with:
-          name: tool-bridge-mobile-preview-apk-${{ github.event.workflow_run.head_sha }}
-          path: verified-artifact
-          github-token: ${{ github.token }}
-          run-id: ${{ github.event.workflow_run.id }}
+      - name: Build signed native preview
+        uses: ./.github/actions/sign-android-preview
+        env:
+          TB_ANDROID_SIGNING_BASE64: ${{ secrets.TB_ANDROID_SIGNING_BASE64 }}
+          TB_ANDROID_STORE_PASSWORD: ${{ secrets.TB_ANDROID_STORE_PASSWORD }}
+          TB_ANDROID_KEY_ALIAS: ${{ secrets.TB_ANDROID_KEY_ALIAS }}
+          TB_ANDROID_KEY_PASSWORD: ${{ secrets.TB_ANDROID_KEY_PASSWORD }}
       - name: Prepare versioned release assets and notes
         env:
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
@@ -87,7 +87,7 @@ jobs:
           set -euo pipefail
           mkdir -p release-artifacts
           release_apk="tool-bridge-mobile-preview-${RELEASE_TAG}.apk"
-          cp verified-artifact/tool-bridge-mobile-preview.apk "release-artifacts/${release_apk}"
+          cp native-android/app/build/outputs/apk/preview/release/app-preview-release.apk "release-artifacts/${release_apk}"
           (
             cd release-artifacts
             sha256sum "$release_apk" > "${release_apk}.sha256"

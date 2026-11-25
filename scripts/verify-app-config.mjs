@@ -24,11 +24,8 @@ const releaseMetadata = {
 
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
 const previewBuild = packageJson.scripts?.['build:android:preview']
-if (
-  typeof previewBuild !== 'string'
-  || previewBuild.match(/APP_VARIANT=preview/g)?.length !== 2
-) {
-  throw new Error('Android Preview 构建必须在 prebuild 与 Gradle bundle 两阶段保持 APP_VARIANT=preview')
+if (!previewBuild?.includes(':app:assemblePreviewLocal') || !previewBuild.includes('native-android')) {
+  throw new Error('Android 预览包必须使用原生工程的 preview flavor')
 }
 
 for (const [variant, expectedIdentifier] of Object.entries(variants)) {

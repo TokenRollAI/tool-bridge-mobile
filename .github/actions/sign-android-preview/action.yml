@@ -1,0 +1,24 @@
+name: Build signed Android Preview
+description: Build the verified checkout with the project's distribution key
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v5.7.0
+      with:
+        distribution: temurin
+        java-version: 17
+    - name: Build and verify the signed APK
+      shell: bash
+      run: |
+        set -euo pipefail
+        : "${TB_ANDROID_SIGNING_BASE64:?Missing private preview signing key}"
+        : "${TB_ANDROID_STORE_PASSWORD:?Missing keystore password}"
+        : "${TB_ANDROID_KEY_ALIAS:?Missing signing alias}"
+        : "${TB_ANDROID_KEY_PASSWORD:?Missing key password}"
+        umask 077
+        TB_ANDROID_KEYSTORE=$(mktemp "${RUNNER_TEMP}/tb-preview.XXXXXXXX")
+        export TB_ANDROID_KEYSTORE
+        trap 'rm -f "$TB_ANDROID_KEYSTORE"' EXIT
+        printf '%s' "$TB_ANDROID_SIGNING_BASE64" | base64 --decode > "$TB_ANDROID_KEYSTORE"
+        native-android/gradlew -p native-android :app:assemblePreviewRelease
+        "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify native-android/app/build/outputs/apk/preview/release/app-preview-release.apk

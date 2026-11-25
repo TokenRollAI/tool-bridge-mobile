@@ -47,11 +47,12 @@ jobs:
           java-version: 17
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify:doctor
+      - run: pnpm test:android
       - run: pnpm build:android:preview
       - name: Prepare preview artifact
         run: |
           mkdir -p artifacts
-          cp android/app/build/outputs/apk/release/app-release.apk artifacts/tool-bridge-mobile-preview.apk
+          cp native-android/app/build/outputs/apk/preview/local/app-preview-local.apk artifacts/tool-bridge-mobile-preview.apk
           sha256sum artifacts/tool-bridge-mobile-preview.apk > artifacts/tool-bridge-mobile-preview.apk.sha256
       - name: Upload preview APK
         uses: actions/upload-artifact@v7.0.1

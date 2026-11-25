@@ -126,13 +126,19 @@ jobs:
           java-version: 17
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify:doctor
-      - run: pnpm build:android:preview
+      - name: Build signed native preview
+        uses: ./.github/actions/sign-android-preview
+        env:
+          TB_ANDROID_SIGNING_BASE64: ${{ secrets.TB_ANDROID_SIGNING_BASE64 }}
+          TB_ANDROID_STORE_PASSWORD: ${{ secrets.TB_ANDROID_STORE_PASSWORD }}
+          TB_ANDROID_KEY_ALIAS: ${{ secrets.TB_ANDROID_KEY_ALIAS }}
+          TB_ANDROID_KEY_PASSWORD: ${{ secrets.TB_ANDROID_KEY_PASSWORD }}
       - name: Prepare versioned preview APK
         run: |
           set -euo pipefail
           release_apk="tool-bridge-mobile-preview-${RELEASE_TAG}.apk"
           mkdir -p artifacts
-          cp android/app/build/outputs/apk/release/app-release.apk "artifacts/${release_apk}"
+          cp native-android/app/build/outputs/apk/preview/release/app-preview-release.apk "artifacts/${release_apk}"
           (
             cd artifacts
             sha256sum "$release_apk" > "${release_apk}.sha256"
