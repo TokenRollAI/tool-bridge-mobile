@@ -1,4 +1,7 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native'
+
+import { darkColors } from '@/ui/theme'
 
 import { CameraCaptureModal } from '../CameraCaptureModal'
 
@@ -7,6 +10,11 @@ import type { CameraCaptureRequestSnapshot } from '@/capabilities/camera/capture
 const mockTakePictureAsync = jest.fn()
 const mockGetCameraPermissionsAsync = jest.fn()
 const mockRequestCameraPermissionsAsync = jest.fn()
+
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
+  __esModule: true,
+  default: () => 'light',
+}))
 
 jest.mock('expo-camera', () => {
   const React = jest.requireActual<typeof import('react')>('react')
@@ -111,6 +119,10 @@ describe('CameraCaptureModal', () => {
     })
     const accept = await waitFor(() => rendered.getByRole('button', { name: '使用并上传' }))
     expect(onSubmit).not.toHaveBeenCalled()
+    const retake = rendered.getByRole('button', { name: '重新拍摄' })
+    expect(StyleSheet.flatten(retake.props.style).backgroundColor).toBe(darkColors.panelElevated)
+    expect(StyleSheet.flatten(accept.props.style).backgroundColor).toBe(darkColors.primary)
+    expect(StyleSheet.flatten(rendered.getByText('使用并上传').props.style).color).toBe(darkColors.onPrimary)
     await fireEvent.press(accept)
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })

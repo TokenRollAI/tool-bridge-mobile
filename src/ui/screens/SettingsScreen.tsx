@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
@@ -46,6 +46,7 @@ export function SettingsScreen({
   const styles = useThemedStyles(createStyles)
   const disabled = snapshot.controlMode === 'disabled'
   const connected = snapshot.transportState === 'ready'
+  const connectionLabel = connected ? '已连接网关' : snapshot.transportState === 'suspended' ? '连接已暂停' : '网关尚未就绪'
   const deviceId = snapshot.deviceId ?? snapshot.defaultDeviceId
   const availableCount = snapshot.capabilities.filter(item => item.availability.status === 'available').length
 
@@ -57,21 +58,27 @@ export function SettingsScreen({
   return (
     <Screen focused={focused} title="设备">
       <View style={styles.identity}>
-        <View style={styles.deviceMark}><Icon color={colors.primary} name="device" size={44} /></View>
-        <Text style={styles.deviceCaption}>当前设备</Text>
-        <Text selectable style={styles.deviceId}>{deviceId ?? '设备身份准备中'}</Text>
+        <Text style={styles.deviceCaption}>本机设备 ID</Text>
+        <Text selectable accessibilityHint={deviceId === null ? undefined : '长按设备 ID 可复制'} style={styles.deviceId}>
+          {deviceId ?? '设备身份准备中'}
+        </Text>
         <View style={styles.connectionStatus}>
-          <Icon color={connected ? colors.success : colors.muted} name={connected ? 'positive' : 'connection'} size={16} />
-          <Text style={[styles.connectionLabel, connected ? styles.connectedLabel : null]}>{connected ? '已连接网关' : '网关尚未就绪'}</Text>
+          <View style={[styles.connectionPill, connected ? styles.connectedPill : null]}>
+            <Icon color={connected ? colors.success : colors.muted} name={connected ? 'positive' : 'connection'} size={14} />
+            <Text style={[styles.connectionLabel, connected ? styles.connectedLabel : null]}>{connectionLabel}</Text>
+          </View>
+          {snapshot.gatewayOrigin === null ? null : (
+            <Text style={styles.gateway}>{snapshot.gatewayOrigin.replace(/^https:\/\//u, '')}</Text>
+          )}
         </View>
-        <Text style={styles.identityNote}>{deviceId === null ? '初始化完成后显示本机设备 ID。' : '这是 Agent 连接与识别这台设备时使用的 ID。'}</Text>
       </View>
 
-      <SectionHeading title="连接与授权" />
-      <View style={styles.group}>
-        <NavRow description={snapshot.gatewayOrigin ?? '设置网关地址与 API key'} icon="connection" label="连接配置" onPress={onOpenConnection} />
-        <NavRow description={MODE_LABELS[snapshot.controlMode]} icon="shield" label="授权与安全" onPress={onOpenControls} />
-      </View>
+      {disabled ? (
+        <View style={styles.locked}>
+          <Text style={styles.lockedTitle}>远程能力已停用</Text>
+          <Text style={styles.safetyNote}>新命令当前均被拒绝。恢复后，仍需在本机逐次确认。</Text>
+        </View>
+      ) : null}
 
       {snapshot.controlMode === 'direct_call' ? (
         <View style={styles.warning}>
@@ -80,12 +87,21 @@ export function SettingsScreen({
         </View>
       ) : null}
 
-      <SectionHeading title="能力与运行" />
-      <View style={styles.group}>
-        <NavRow description={`${availableCount} 项可用 · ${snapshot.capabilities.length} 项已探测`} icon="capabilities" label="设备能力" onPress={onOpenCapabilities} />
-        <NavRow description="连接状态、设备提示与计时器" icon="home" label="运行详情" onPress={onOpenStatus} />
-        <NavRow description={snapshot.mediaSession === null ? '当前没有媒体会话' : snapshot.mediaSession.title} icon="media" label="媒体会话" onPress={onOpenMedia} />
-        <NavRow description="查看调用记录与本地执行结果" icon="activity" label="活动记录" onPress={onOpenActivity} />
+      <View style={styles.section}>
+        <SectionHeading title="连接与授权" />
+        <View style={styles.group}>
+          <NavRow description={disabled ? '恢复为每次确认后可编辑' : '网关地址和本机凭证'} icon="connection" label="连接配置" onPress={onOpenConnection} />
+          <NavRow description={MODE_LABELS[snapshot.controlMode]} icon="shield" label="授权与安全" onPress={onOpenControls} />
+        </View>
+      </View>
+      <View style={styles.section}>
+        <SectionHeading title="能力与运行" />
+        <View style={styles.group}>
+          <NavRow description={`${availableCount} 项可用 · ${snapshot.capabilities.length} 项已探测`} icon="capabilities" label="设备能力" onPress={onOpenCapabilities} />
+          <NavRow description="连接状态、设备提示与计时器" icon="home" label="运行详情" onPress={onOpenStatus} />
+          <NavRow description={snapshot.mediaSession === null ? '当前没有媒体会话' : snapshot.mediaSession.title} icon="media" label="媒体会话" onPress={onOpenMedia} />
+          <NavRow description="查看调用记录与本地执行结果" icon="activity" label="活动记录" onPress={onOpenActivity} />
+        </View>
       </View>
 
       <View style={styles.safetyControl}>
@@ -96,7 +112,7 @@ export function SettingsScreen({
           onPress={disabled ? onEnable : onEmergencyDisable}
           variant={disabled ? 'primary' : 'danger'}
         />
-        <Text style={styles.safetyNote}>{disabled ? '新命令当前均被拒绝。恢复后，仍需在本机逐次确认。' : '立即拒绝新命令，并停止仍可撤销的本地操作。'}</Text>
+        {disabled ? null : <Text style={styles.safetyNote}>立即拒绝新命令，并停止仍可撤销的本地操作。</Text>}
       </View>
     </Screen>
   )
@@ -118,7 +134,7 @@ function NavRow({ description, icon, label, onPress }: Readonly<{
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed ? styles.pressed : null]}
     >
-      <Icon color={colors.primary} name={icon} size={22} />
+      <Icon color={colors.muted} name={icon} size={18} />
       <View style={styles.rowCopy}>
         <Text style={styles.rowTitle}>{label}</Text>
         <Text numberOfLines={2} style={styles.rowDescription}>{description}</Text>
@@ -129,22 +145,26 @@ function NavRow({ description, icon, label, onPress }: Readonly<{
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  identity: { alignItems: 'center', paddingVertical: spacing.xxl, paddingHorizontal: spacing.lg, gap: spacing.sm },
-  deviceMark: { alignItems: 'center', justifyContent: 'center', width: 88, height: 88, borderRadius: 28, backgroundColor: colors.primarySoft, marginBottom: spacing.md },
+  identity: { gap: spacing.xs },
   deviceCaption: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  deviceId: { color: colors.text, fontSize: 25, fontWeight: '700', textAlign: 'center' },
-  connectionStatus: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs },
+  deviceId: { color: colors.text, fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }), fontSize: 21, fontWeight: '600' },
+  connectionStatus: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.xs },
+  connectionPill: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, backgroundColor: colors.panelElevated, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
+  connectedPill: { backgroundColor: colors.successSoft },
   connectionLabel: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   connectedLabel: { color: colors.success },
-  identityNote: { color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center' },
+  gateway: { color: colors.muted, flexShrink: 1, fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }), fontSize: 12 },
+  section: { gap: spacing.sm },
+  locked: { backgroundColor: colors.dangerSoft, borderRadius: radius.lg, padding: spacing.md, gap: spacing.xs },
+  lockedTitle: { color: colors.danger, fontSize: 15, fontWeight: '600' },
   group: { backgroundColor: colors.panel, borderRadius: radius.lg, overflow: 'hidden' },
-  row: { minHeight: 76, paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, gap: spacing.lg, flexDirection: 'row', alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
-  rowCopy: { flex: 1, gap: spacing.xs },
-  rowTitle: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  rowDescription: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  row: { minHeight: 52, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.md, flexDirection: 'row', alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
+  rowCopy: { flex: 1, gap: 2 },
+  rowTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  rowDescription: { color: colors.muted, fontSize: 12, lineHeight: 16 },
   pressed: { backgroundColor: colors.panelElevated },
   warning: { flexDirection: 'row', gap: spacing.sm, backgroundColor: colors.warningSoft, borderRadius: radius.md, padding: spacing.md },
   warningText: { flex: 1, color: colors.warning, fontSize: 13, lineHeight: 20 },
   safetyControl: { gap: spacing.sm, paddingTop: spacing.sm },
-  safetyNote: { color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center' },
+  safetyNote: { color: colors.muted, fontSize: 12, lineHeight: 18 },
 })

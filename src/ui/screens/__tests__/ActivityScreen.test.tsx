@@ -42,6 +42,24 @@ describe('ActivityScreen', () => {
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 
+  test('将执行成功、获准后失败与结果未知分开显示', async () => {
+    const rendered = await render(
+      <ActivityScreen
+        onClearAuditHistory={jest.fn()}
+        records={[
+          record,
+          { ...record, id: 'audit_02', outcomeCode: 'permission_denied' },
+          { ...record, id: 'audit_03', outcomeCode: 'result_unknown' },
+        ]}
+      />,
+    )
+
+    rendered.getByText('执行成功')
+    rendered.getByText('已允许 · 执行失败')
+    rendered.getByText('已允许 · 结果未知')
+    rendered.getByLabelText('结果：permission_denied')
+  })
+
   test('清除前明确二次确认；取消不会删除', async () => {
     const focus = jest.spyOn(accessibility, 'focusAccessibilityElement')
       .mockResolvedValue(undefined)

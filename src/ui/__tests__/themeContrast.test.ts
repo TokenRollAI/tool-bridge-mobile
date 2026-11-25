@@ -22,6 +22,11 @@ describe.each([['light', lightColors], ['dark', darkColors]] as const)('%s theme
     ['muted/background', colors.muted, colors.background],
     ['text/panel', colors.text, colors.panel],
     ['muted/panel', colors.muted, colors.panel],
+    ['text/slab', colors.text, colors.slab],
+    ['muted/slab', colors.muted, colors.slab],
+    ['text/elevated', colors.text, colors.panelElevated],
+    ['muted/selected filter', colors.muted, colors.primarySoft],
+    ['signal/signalSoft', colors.signal, colors.signalSoft],
     ['muted/elevated', colors.muted, colors.panelElevated],
     ['primary/soft', colors.primary, colors.primarySoft],
     ['success/soft', colors.success, colors.successSoft],
@@ -39,6 +44,12 @@ describe.each([['light', lightColors], ['dark', darkColors]] as const)('%s theme
     ['outline/panel', colors.outline, colors.panel],
     ['outline/background', colors.outline, colors.background],
     ['outline/elevated', colors.outline, colors.panelElevated],
+    ['outline/slab', colors.outline, colors.slab],
+    ['unread signal/background', colors.signal, colors.background],
+    ['unread signal/slab', colors.signal, colors.slab],
+    ['unread signal/selected tab', colors.signal, colors.primarySoft],
+    ['switch on thumb/track', colors.onPrimary, colors.primary],
+    ['switch off thumb/track', colors.text, colors.panelElevated],
   ])('%s 交互边界对比不低于 3:1', (_name, foreground, background) => {
     expect(contrast(foreground, background)).toBeGreaterThanOrEqual(3)
   })

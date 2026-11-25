@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { EmptyState } from '@/ui/components/EmptyState'
@@ -16,6 +16,7 @@ export function CapabilitiesScreen({
 }: Readonly<{ capabilities: readonly CapabilitySnapshot[]; focused?: boolean; onBack?: (() => void) | undefined }>) {
   const { colors } = useTheme()
   const styles = useThemedStyles(createStyles)
+  const availableCount = capabilities.filter(item => item.availability.status === 'available').length
   const availabilityKey = capabilities.map(({ availability, descriptor }) => (
     `${descriptor.path}.${descriptor.tool}:${availability.status}:${'reason' in availability
       ? availability.reason
@@ -34,17 +35,7 @@ export function CapabilitiesScreen({
       onBack={onBack}
       title="能力"
     >
-      <View style={styles.summary}>
-        <View style={styles.summaryMetric}>
-          <Text style={styles.metric}>{capabilities.filter(item => item.availability.status === 'available').length}</Text>
-          <Text style={styles.metricLabel}>当前可用</Text>
-        </View>
-        <View style={styles.summaryMetric}>
-          <Text style={styles.metric}>{capabilities.length}</Text>
-          <Text style={styles.metricLabel}>已探测能力</Text>
-        </View>
-      </View>
-      <SectionHeading title="能力清单" detail="以设备实际探测为准" />
+      <SectionHeading title="能力清单" detail={`${availableCount} 项可用 · ${capabilities.length} 项已探测`} />
       {capabilities.map(({ availability, descriptor }) => {
         const capability = `${descriptor.path}.${descriptor.tool}`
         const available = availability.status === 'available'
@@ -74,11 +65,7 @@ export function CapabilitiesScreen({
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  summary: { flexDirection: 'row', gap: spacing.md, backgroundColor: colors.primarySoft, borderRadius: radius.lg, padding: spacing.xl },
-  summaryMetric: { flex: 1, gap: spacing.xs },
-  metric: { color: colors.primary, fontSize: 32, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  metricLabel: { color: colors.muted, fontSize: 13 },
-  availabilityBadge: { alignSelf: 'flex-start', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, fontSize: 12, fontWeight: '600' },
+  availabilityBadge: { alignSelf: 'flex-start', borderRadius: radius.pill, overflow: 'hidden', paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, fontSize: 12, fontWeight: '600' },
   description: {
     color: colors.text,
     lineHeight: 20,

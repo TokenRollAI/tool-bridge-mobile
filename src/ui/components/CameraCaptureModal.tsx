@@ -3,6 +3,7 @@ import {
   CameraView,
 } from 'expo-camera'
 import { File } from 'expo-file-system'
+import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Image,
@@ -14,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
-import { radius, spacing, useThemedStyles, type ThemeColors } from '@/ui/theme'
+import { darkColors as colors, radius, spacing } from '@/ui/theme'
 
 import type {
   CameraCaptureFailure,
@@ -42,7 +43,6 @@ export function CameraCaptureModal({
   onSubmit,
   request,
 }: CameraCaptureModalProps) {
-  const styles = useThemedStyles(createStyles)
   const cameraRef = useRef<CameraView>(null)
   const automaticCommandRef = useRef<string | null>(null)
   const reviewPhotoRef = useRef<CameraCapturedPicture | null>(null)
@@ -160,6 +160,7 @@ export function CameraCaptureModal({
       visible
     >
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
         <View style={styles.header}>
           <Text accessibilityRole="header" style={styles.heading}>相机请求</Text>
           <Text style={styles.detail}>调用方：{caller}</Text>
@@ -177,12 +178,14 @@ export function CameraCaptureModal({
               必须先授予系统相机权限。Tool Bridge 不会请求麦克风、后台相机或照片图库权限。
             </Text>
             <AccessibleAction
+              darkSurface
               accessibilityHint="打开系统相机权限请求"
               icon="camera"
               label="允许使用相机"
               onPress={() => { void requestPermission() }}
             />
             <AccessibleAction
+              darkSurface
               accessibilityHint="拒绝并结束当前拍摄请求"
               icon="danger"
               label="取消拍摄"
@@ -200,6 +203,7 @@ export function CameraCaptureModal({
             />
             <View style={styles.actions}>
               <AccessibleAction
+                darkSurface
                 accessibilityHint="删除当前临时照片并返回相机预览"
                 icon="camera"
                 label="重新拍摄"
@@ -207,6 +211,7 @@ export function CameraCaptureModal({
                 variant="secondary"
               />
               <AccessibleAction
+                darkSurface
                 accessibilityHint="处理并上传当前照片，只向调用方返回对象引用与元数据"
                 icon="positive"
                 label="使用并上传"
@@ -238,6 +243,7 @@ export function CameraCaptureModal({
               </Text>
               <View style={styles.actions}>
                 <AccessibleAction
+                  darkSurface
                   accessibilityHint="结束当前拍摄请求"
                   icon="danger"
                   label="取消拍摄"
@@ -246,6 +252,7 @@ export function CameraCaptureModal({
                 />
                 {request.automatic ? null : (
                   <AccessibleAction
+                    darkSurface
                     accessibilityHint="拍摄一张照片并进入上传确认"
                     busy={phase === 'capturing'}
                     disabled={!cameraReady}
@@ -272,7 +279,7 @@ function discardPhoto(photo: Readonly<{ uri: string }>): void {
   }
 }
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
+const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -290,7 +297,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flex: 1,
   },
   cameraContainer: {
-    backgroundColor: '#000000',
+    backgroundColor: colors.background,
     flex: 1,
   },
   centered: {
@@ -315,7 +322,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   heading: {
     color: colors.text,
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.6,
   },
   mode: {
@@ -328,10 +335,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     padding: spacing.md,
   },
   overlay: {
-    backgroundColor: 'rgba(8, 17, 31, 0.9)',
+    backgroundColor: colors.slab,
   },
   preview: {
-    backgroundColor: '#000000',
+    backgroundColor: colors.background,
     borderRadius: radius.md,
     flex: 1,
     margin: spacing.lg,
@@ -344,7 +351,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flex: 1,
   },
   statusText: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
     paddingHorizontal: spacing.lg,

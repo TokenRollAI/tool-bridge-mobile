@@ -3,12 +3,12 @@ import { StyleSheet, Text, View } from 'react-native'
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction, type ActionVariant } from '@/ui/components/AccessibleAction'
 import { EmptyState } from '@/ui/components/EmptyState'
-import { Icon, type IconName } from '@/ui/components/Icon'
 import { Screen } from '@/ui/components/Screen'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
-import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/ui/theme'
+import { spacing, useThemedStyles, type ThemeColors } from '@/ui/theme'
 
 import type { MediaSessionSnapshot } from '@/capabilities/media/controller'
+import type { IconName } from '@/ui/components/Icon'
 
 type MediaScreenProps = Readonly<{
   focused?: boolean
@@ -27,7 +27,6 @@ export function MediaScreen({
   onStop,
   session,
 }: MediaScreenProps) {
-  const { colors } = useTheme()
   const styles = useThemedStyles(createStyles)
   useDiscreteAccessibilityAnnouncement(
     `media:${session?.sessionId ?? 'none'}:${session?.state ?? 'none'}`,
@@ -45,11 +44,7 @@ export function MediaScreen({
       {session === null ? (
         <EmptyState icon="media" title="暂无 App 自有媒体会话。" description="Agent 发起播放后，你可以在这里暂停、继续或停止。" />
       ) : (
-        <StatusCard title={session.title}>
-          <View style={styles.artwork}>
-            <View style={styles.disc}><Icon color={colors.primary} name="media" size={56} /></View>
-            <Text style={styles.source}>{session.sourceHost}</Text>
-          </View>
+        <StatusCard icon="media" title={session.title}>
           <StatusRow label="状态" value={session.state} />
           <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${session.durationSeconds !== null && session.durationSeconds > 0 ? Math.max(0, Math.min(100, session.currentTimeSeconds / session.durationSeconds * 100)) : 0}%` }]} />
@@ -123,9 +118,6 @@ function Action({
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  artwork: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft, borderRadius: radius.lg, paddingVertical: spacing.xxl, gap: spacing.lg },
-  disc: { alignItems: 'center', justifyContent: 'center', width: 132, height: 132, borderRadius: 66, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.panel },
-  source: { color: colors.primary, fontSize: 13 },
   progressTrack: { height: 6, borderRadius: 3, backgroundColor: colors.panelElevated, overflow: 'hidden' },
   progressFill: { height: 6, borderRadius: 3, backgroundColor: colors.primary },
   privacyNote: { color: colors.muted, fontSize: 12, lineHeight: 18 },

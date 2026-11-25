@@ -17,9 +17,7 @@ export function StatusCard({
     <View style={[styles.card, tone === 'danger' ? styles.cardDanger : null]}>
       <View style={styles.header}>
         {icon === undefined ? null : (
-          <View style={styles.iconBadge}>
-            <Icon color={tone === 'danger' ? colors.danger : colors.primary} name={icon} size={16} />
-          </View>
+          <Icon color={tone === 'danger' ? colors.danger : colors.muted} name={icon} size={16} />
         )}
         <Text accessibilityRole="header" style={styles.title}>{title}</Text>
       </View>
@@ -58,28 +56,17 @@ export function StatusRow({ label, value }: Readonly<{ label: string; value: str
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     backgroundColor: colors.panel,
-    borderColor: colors.border,
     borderRadius: radius.lg,
-    borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg,
   },
   cardDanger: {
     backgroundColor: colors.dangerSoft,
-    borderColor: colors.danger,
   },
   header: {
     alignItems: 'center',
     columnGap: spacing.sm,
     flexDirection: 'row',
-  },
-  iconBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.sm,
-    height: 30,
-    justifyContent: 'center',
-    width: 30,
   },
   row: {
     columnGap: spacing.md,

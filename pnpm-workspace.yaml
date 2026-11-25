@@ -6,15 +6,30 @@ allowBuilds:
   unrs-resolver: false
 
 patchedDependencies:
+  decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
   image-size@1.2.1: patches/image-size@1.2.1.patch
 
-# GHSA 对应的修复版本 2.0.3 尚未发布，且 Metro 仍要求 image-size 1.x。
-# 下列豁免仅在 patches/image-size@1.2.1.patch 与恶意样本验证同时存在时成立。
+overrides:
+  '@xmldom/xmldom@>=0.7.0 <=0.8.14': 0.8.15
+  '@xmldom/xmldom@>=0.9.0-beta.1 <=0.9.11': 0.9.12
+  'brace-expansion@<1.1.20': 1.1.22
+  'brace-expansion@>=4.0.0 <5.0.11': 5.1.0
+  'compression@<1.8.2': 1.8.2
+  'js-yaml@>=3.0.0 <3.15.2': 3.15.2
+  'js-yaml@>=4.0.0 <4.3.2': 4.3.2
+  'node-forge@<=1.4.0': 1.4.4
+  'shell-quote@>=1.8.4 <1.11.0': 1.12.0
+  'source-map-js@>=1.0.0 <1.2.2': 1.2.4
+
+# image-size 修复版 2.0.3 尚未发布且 Metro 仍要求 1.x；query-string@7.1.3 仍以 CommonJS require
+# 调用 decode-uri-component@0.2.2（0.5.1 已改为纯 ESM）。下列豁免仅在对应 patches/*.patch
+# 与 scripts/verify-dependency-mitigations.mjs 的恶意样本验证同时存在时成立。
 audit:
   level: high
   ignore:
     - GHSA-w3rx-r6r6-pgpr
     - GHSA-5p2g-fcmc-qvqq
+    - GHSA-qr28-fpjm-wq7f
 
 strictPeerDependencies: true
 

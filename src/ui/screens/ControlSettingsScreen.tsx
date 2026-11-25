@@ -238,8 +238,8 @@ export function ControlSettingsScreen({
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   modeList: { gap: spacing.md },
-  modeOption: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 80, borderWidth: 1, borderColor: colors.outline, borderRadius: radius.md, padding: spacing.lg },
-  modeOptionActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  modeOption: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 56, backgroundColor: colors.panel, borderRadius: radius.lg, padding: spacing.md },
+  modeOptionActive: { backgroundColor: colors.primarySoft },
   modeCopy: { flex: 1, gap: spacing.xs },
   modeTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
   modeTitleActive: { color: colors.primary },

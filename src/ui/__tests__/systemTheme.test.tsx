@@ -4,6 +4,7 @@ import { StyleSheet, useColorScheme } from 'react-native'
 import { AccessibleAction } from '../components/AccessibleAction'
 import { GatewayConfigurationCard } from '../components/GatewayConfigurationCard'
 import { Screen } from '../components/Screen'
+import { SettingToggle } from '../components/SettingToggle'
 import { darkColors, lightColors } from '../theme'
 
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
@@ -38,6 +39,29 @@ describe('系统主题切换', () => {
     await rendered.rerender(ui())
     expect(input().props.value).toBe('https://draft.example.com')
     expect(StyleSheet.flatten(input().props.style).color).toBe(lightColors.text)
+  })
+
+  test.each([['light', lightColors], ['dark', darkColors]] as const)('%s 开关滑块使用与轨道配对的前景色', async (scheme, colors) => {
+    colorScheme.mockReturnValue(scheme)
+    const onToggle = jest.fn()
+    const toggle = (value: boolean) => (
+      <SettingToggle description="退到后台时保持连接" label="允许后台运行" onToggle={onToggle} value={value} />
+    )
+    const rendered = await render(toggle(true))
+
+    for (const checked of [true, false]) {
+      await rendered.rerender(toggle(checked))
+      const element = rendered.getByRole('switch', { name: '允许后台运行' })
+      const track = element.queryAll(view => StyleSheet.flatten(view.props.style)?.width === 52)[0]
+      expect(StyleSheet.flatten(track?.props.style)).toMatchObject(checked
+        ? { backgroundColor: colors.primary }
+        : { backgroundColor: colors.panelElevated, borderColor: colors.outline })
+      const thumb = track?.queryAll(view => StyleSheet.flatten(view.props.style)?.width === 22)[0]
+      expect(StyleSheet.flatten(thumb?.props.style)?.backgroundColor).toBe(checked ? colors.onPrimary : colors.text)
+      expect(element.props.accessibilityState.checked).toBe(checked)
+      await fireEvent.press(element)
+      expect(onToggle).toHaveBeenLastCalledWith(!checked)
+    }
   })
 
   test.each([['light', lightColors], ['dark', darkColors]] as const)('%s 危险按钮使用专用前景色', async (scheme, colors) => {

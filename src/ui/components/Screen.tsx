@@ -9,6 +9,8 @@ import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/
 
 import type { PropsWithChildren, ReactNode } from 'react'
 
+const SCREEN_GUTTER = 24
+
 type ScreenProps = PropsWithChildren<Readonly<{
   backLabel?: string
   description?: string
@@ -34,7 +36,6 @@ export function Screen({
   title,
   titlePlacement = 'header',
   titleSize = 'large',
-  tone = 'default',
   toolbar,
 }: ScreenProps) {
   const { colors } = useTheme()
@@ -62,10 +63,10 @@ export function Screen({
   return (
     <SafeAreaView
       edges={onBack === undefined ? ['top', 'left', 'right'] : ['top', 'left', 'right', 'bottom']}
-      style={[styles.safeArea, tone === 'reading' ? styles.reading : null]}
+      style={styles.safeArea}
     >
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
-        <View style={styles.chrome}>
+        <View>
           <View style={styles.header}>
             {onBack === undefined ? null : (
               <Pressable
@@ -112,19 +113,18 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   backLabel: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  chrome: { backgroundColor: colors.panel, borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
   compactHeading: { fontSize: 21, letterSpacing: 0 },
   content: {
     alignSelf: 'center',
     gap: spacing.xl,
     maxWidth: 720,
     paddingBottom: spacing.xxl,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: SCREEN_GUTTER,
     paddingTop: spacing.xl,
     width: '100%',
   },
   description: { color: colors.muted, fontSize: 14, lineHeight: 21 },
-  eyebrow: { color: colors.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
+  eyebrow: { color: colors.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
   fill: { flex: 1 },
   header: {
     alignItems: 'center',
@@ -132,15 +132,14 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     maxWidth: 720,
-    minHeight: 72,
-    paddingHorizontal: spacing.xl,
+    minHeight: 58,
+    paddingHorizontal: SCREEN_GUTTER,
     paddingVertical: spacing.md,
     width: '100%',
   },
-  heading: { color: colors.text, fontSize: 32, fontWeight: '700', letterSpacing: -0.8 },
+  heading: { color: colors.text, fontSize: 28, fontWeight: '600', letterSpacing: -0.6 },
   headingBlock: { flexShrink: 1, flexGrow: 1, gap: spacing.sm },
   pressed: { opacity: 0.6 },
-  reading: { backgroundColor: colors.panel },
   safeArea: { backgroundColor: colors.background, flex: 1 },
-  toolbar: { alignSelf: 'center', maxWidth: 720, paddingHorizontal: spacing.xl, paddingBottom: spacing.md, width: '100%' },
+  toolbar: { alignSelf: 'center', maxWidth: 720, paddingHorizontal: SCREEN_GUTTER, paddingBottom: spacing.md, width: '100%' },
 })

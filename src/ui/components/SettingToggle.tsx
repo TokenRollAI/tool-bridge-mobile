@@ -62,16 +62,17 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     gap: 3,
   },
   thumb: {
-    backgroundColor: '#ffffff',
     borderRadius: 11,
     height: 22,
     width: 22,
   },
   thumbOff: {
     alignSelf: 'flex-start',
+    backgroundColor: colors.text,
   },
   thumbOn: {
     alignSelf: 'flex-end',
+    backgroundColor: colors.onPrimary,
   },
   track: {
     flexShrink: 0,
@@ -81,7 +82,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     width: 52,
   },
   trackOff: {
-    backgroundColor: colors.outline,
+    backgroundColor: colors.panelElevated,
+    borderColor: colors.outline,
+    borderWidth: 1,
+    padding: 3,
   },
   trackOn: {
     backgroundColor: colors.primary,

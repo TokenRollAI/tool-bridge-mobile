@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 
+import { normalizeManualGatewayOrigin, type ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
 import { useDiscreteAccessibilityAnnouncement } from '@/ui/accessibility'
 import { AccessibleAction } from '@/ui/components/AccessibleAction'
 import { Icon } from '@/ui/components/Icon'
 import { StatusCard, StatusRow } from '@/ui/components/StatusCard'
 import { radius, spacing, useTheme, useThemedStyles, type ThemeColors } from '@/ui/theme'
-
-import type { ManualGatewayConfigurationInput } from '@/identity/manualGatewayCredential'
 
 type GatewayConfigurationCardProps = Readonly<{
   appearance?: 'card' | 'page'
@@ -17,8 +16,9 @@ type GatewayConfigurationCardProps = Readonly<{
   onSave(input: ManualGatewayConfigurationInput): Promise<void>
 }>
 
-function safeFeedback(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback
+function safeFeedback(error: unknown, fallback: string, apiKey: string): string {
+  if (!(error instanceof Error) || (apiKey !== '' && error.message.includes(apiKey))) return fallback
+  return error.message
 }
 
 export function GatewayConfigurationCard({
@@ -37,18 +37,27 @@ export function GatewayConfigurationCard({
   const [isBusy, setIsBusy] = useState(false)
   const [originDirty, setOriginDirty] = useState(false)
   const [originInput, setOriginInput] = useState('')
+  const [originError, setOriginError] = useState<string | null>(null)
   const displayedOrigin = originDirty ? originInput : (currentOrigin ?? '')
 
+  const announcement = originError ?? feedback
   useDiscreteAccessibilityAnnouncement(
-    feedback === null ? null : `gateway-config:${feedback}`,
-    feedback,
-    feedback?.startsWith('无法') === true ? 'assertive' : 'polite',
+    announcement === null ? null : `gateway-config:${announcement}`,
+    announcement,
+    originError !== null || feedback?.startsWith('无法') === true ? 'assertive' : 'polite',
   )
 
   const save = async () => {
     if (isBusy) return
-    setIsBusy(true)
     setFeedback(null)
+    try {
+      normalizeManualGatewayOrigin(displayedOrigin)
+    } catch (error) {
+      setOriginError(safeFeedback(error, '请输入有效的 HTTPS 网关地址。', apiKey))
+      return
+    }
+    setOriginError(null)
+    setIsBusy(true)
     try {
       const customDeviceId = deviceIdInput.trim()
       await onSave({
@@ -60,7 +69,7 @@ export function GatewayConfigurationCard({
       setOriginDirty(false)
       setFeedback('连接配置已保存；App 会在前台通过官方 SDK 建立连接。')
     } catch (error) {
-      setFeedback(safeFeedback(error, '无法保存连接配置；API key 未被确认写入。'))
+      setFeedback(safeFeedback(error, '无法保存连接配置；API key 未被确认写入。', apiKey))
     } finally {
       setIsBusy(false)
     }
@@ -77,7 +86,7 @@ export function GatewayConfigurationCard({
       setConfirmingClear(false)
       setFeedback('已停止当前连接并清除本机 API key。')
     } catch (error) {
-      setFeedback(safeFeedback(error, '无法确认 API key 已从系统安全存储清除。'))
+      setFeedback(safeFeedback(error, '无法确认 API key 已从系统安全存储清除。', apiKey))
     } finally {
       setIsBusy(false)
     }
@@ -109,13 +118,15 @@ export function GatewayConfigurationCard({
           onChangeText={value => {
             setOriginInput(value)
             setOriginDirty(true)
+            setOriginError(null)
           }}
           placeholder="https://gateway.example.com"
           placeholderTextColor={colors.muted}
           spellCheck={false}
-          style={styles.input}
+          style={[styles.input, originError === null ? null : styles.invalidInput]}
           value={displayedOrigin}
         />
+        {originError === null ? null : <Text style={styles.fieldError}>{originError}</Text>}
       </View>
       <View style={styles.field}>
         <Text style={styles.label}>API key</Text>
@@ -199,6 +210,7 @@ export function GatewayConfigurationCard({
           label="清除网关连接配置"
           onPress={() => {
             setFeedback(null)
+            setOriginError(null)
             setConfirmingClear(true)
           }}
           variant="secondary"
@@ -278,7 +290,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   input: {
     backgroundColor: colors.panelElevated,
-    borderColor: colors.border,
+    borderColor: colors.outline,
     borderRadius: radius.md,
     borderWidth: 1,
     color: colors.text,
@@ -287,6 +299,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
+  invalidInput: { borderColor: colors.danger },
+  fieldError: { color: colors.danger, fontSize: 13, lineHeight: 20 },
   label: {
     color: colors.text,
     fontSize: 14,

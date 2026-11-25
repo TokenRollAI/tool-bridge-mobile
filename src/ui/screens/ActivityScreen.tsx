@@ -78,21 +78,26 @@ export function ActivityScreen({
         <EmptyState icon="activity" title="暂无远程调用记录。" description="Agent 调用这台设备后，可在这里查看本地决策和执行结果。" />
       ) : (
         <View style={styles.timeline}>
-          {records.map(record => (
-            <StatusCard icon="activity" key={record.id} title={`${record.path}.${record.tool}`}>
-              <Text accessibilityLabel={`时间：${record.occurredAt}`} style={styles.timestamp}>{record.occurredAt}</Text>
-              <StatusRow label="来源" value={record.callerSubjectId} />
-              <View style={styles.resultBlock}>
+          {records.map(record => {
+            const outcome = record.outcomeCode === 'succeeded'
+              ? { style: styles.resultSuccess, label: '执行成功' }
+              : record.outcomeCode === 'result_unknown'
+                ? { style: styles.resultUnknown, label: '已允许 · 结果未知' }
+                : { style: styles.resultFailure, label: '已允许 · 执行失败' }
+            return (
+              <StatusCard icon="activity" key={record.id} title={`${record.path}.${record.tool}`}>
+                <Text accessibilityLabel={`时间：${record.occurredAt}`} style={styles.timestamp}>{record.occurredAt}</Text>
+                <StatusRow label="来源" value={record.callerSubjectId} />
                 <StatusRow label="决策" value={record.decision} />
                 <StatusRow label="结果" value={record.outcomeCode} />
-              </View>
-              <View style={styles.boundaries}>
                 <StatusRow label="影响" value={record.effect} />
                 <StatusRow label="风险" value={record.risk} />
-              </View>
-              <Text style={styles.timeHint}>决策允许不代表执行成功，请以结果为准。</Text>
-            </StatusCard>
-          ))}
+                {record.decision !== 'allowed' ? null : (
+                  <Text style={[styles.resultBadge, outcome.style]}>{outcome.label}</Text>
+                )}
+              </StatusCard>
+            )
+          })}
         </View>
       )}
       <Text style={styles.timeHint}>显示最近 100 条，本机最多保留 5,000 条；不展示参数、正文或结果载荷。</Text>
@@ -154,8 +159,10 @@ export function ActivityScreen({
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   timeline: { gap: spacing.md },
   timestamp: { color: colors.muted, fontSize: 12 },
-  resultBlock: { backgroundColor: colors.panelElevated, borderRadius: radius.sm, padding: spacing.md, gap: spacing.sm },
-  boundaries: { gap: spacing.xs },
+  resultBadge: { alignSelf: 'flex-start', borderRadius: radius.pill, overflow: 'hidden', paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, fontSize: 12, fontWeight: '600' },
+  resultSuccess: { color: colors.success, backgroundColor: colors.successSoft },
+  resultUnknown: { color: colors.warning, backgroundColor: colors.warningSoft },
+  resultFailure: { color: colors.danger, backgroundColor: colors.dangerSoft },
   timeHint: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   actionRow: {
     flexDirection: 'row',
@@ -168,10 +175,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     lineHeight: 22,
   },
   confirmation: {
-    backgroundColor: colors.panel,
-    borderColor: colors.danger,
+    backgroundColor: colors.dangerSoft,
     borderRadius: radius.lg,
-    borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg,
   },
@@ -181,10 +186,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontWeight: '800',
   },
   feedback: {
-    backgroundColor: colors.panel,
-    borderColor: colors.warning,
+    backgroundColor: colors.warningSoft,
     borderRadius: radius.md,
-    borderWidth: 1,
     color: colors.warning,
     fontSize: 14,
     lineHeight: 20,

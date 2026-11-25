@@ -13,21 +13,25 @@ export function Pill({
 }: Readonly<{ label: string; tone?: PillTone; value: string }>) {
   const { colors } = useTheme()
   const styles = useThemedStyles(createStyles)
-  const toneColor: Readonly<Record<PillTone, string>> = {
-    caution: colors.warning, danger: colors.danger, neutral: colors.muted, positive: colors.success,
+  const tones: Readonly<Record<PillTone, readonly [string, string]>> = {
+    caution: [colors.warning, colors.warningSoft],
+    danger: [colors.danger, colors.dangerSoft],
+    neutral: [colors.muted, colors.panelElevated],
+    positive: [colors.success, colors.successSoft],
   }
+  const [foreground, background] = tones[tone]
   return (
     <View
       accessibilityLabel={`${label}：${value}`}
       accessibilityRole="text"
       accessible
-      style={styles.pill}
+      style={[styles.pill, { backgroundColor: background }]}
     >
       <View style={styles.head}>
         <View
           accessibilityElementsHidden
           importantForAccessibility="no"
-          style={[styles.dot, { backgroundColor: toneColor[tone] }]}
+          style={[styles.dot, { backgroundColor: foreground }]}
         />
         <Text
           accessibilityElementsHidden
@@ -40,7 +44,7 @@ export function Pill({
       <Text
         accessibilityElementsHidden
         importantForAccessibility="no"
-        style={[styles.value, { color: toneColor[tone] }]}
+        style={[styles.value, { color: foreground }]}
       >
         {value}
       </Text>
@@ -65,20 +69,17 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontWeight: '600',
   },
   pill: {
-    backgroundColor: colors.panelElevated,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.lg,
     flexGrow: 1,
     flexShrink: 1,
     gap: spacing.xs,
     flexBasis: 130,
     minWidth: 96,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
   value: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
 })

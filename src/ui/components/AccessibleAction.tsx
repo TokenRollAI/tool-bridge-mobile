@@ -1,8 +1,8 @@
-import { forwardRef } from 'react'
+import { forwardRef, useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { Icon, type IconName } from '@/ui/components/Icon'
-import { useTheme, useThemedStyles, type ThemeColors, radius, spacing } from '@/ui/theme'
+import { darkColors, useTheme, type ThemeColors, radius, spacing } from '@/ui/theme'
 
 import type { AccessibilityRole, StyleProp, TextStyle, ViewStyle } from 'react-native'
 
@@ -12,6 +12,7 @@ export type ActionVariant = 'primary' | 'secondary' | 'danger'
 
 type AccessibleActionProps = Readonly<{
   accessibilityHint?: string
+  darkSurface?: boolean
   busy?: boolean
   disabled?: boolean
   icon?: IconName
@@ -30,6 +31,7 @@ type AccessibleActionProps = Readonly<{
 export const AccessibleAction = forwardRef<React.ElementRef<typeof Pressable>, AccessibleActionProps>(function AccessibleAction({
   accessibilityHint,
   busy = false,
+  darkSurface = false,
   disabled = false,
   icon,
   label,
@@ -41,9 +43,10 @@ export const AccessibleAction = forwardRef<React.ElementRef<typeof Pressable>, A
   variant = 'primary',
   visualLabel = label,
 }: AccessibleActionProps, ref) {
-  const { colors } = useTheme()
-  const styles = useThemedStyles(createStyles)
-  const variantStyles = useThemedStyles(createVariantStyles)
+  const theme = useTheme()
+  const colors = darkSurface ? darkColors : theme.colors
+  const styles = useMemo(() => createStyles(colors), [colors])
+  const variantStyles = useMemo(() => createVariantStyles(colors), [colors])
   const textColors: Readonly<Record<ActionVariant, string>> = {
     danger: colors.onDanger, primary: colors.onPrimary, secondary: colors.text,
   }
@@ -123,8 +126,6 @@ const createVariantStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.primary,
   },
   secondary: {
-    backgroundColor: colors.panel,
-    borderColor: colors.outline,
-    borderWidth: 1,
+    backgroundColor: colors.panelElevated,
   },
 })

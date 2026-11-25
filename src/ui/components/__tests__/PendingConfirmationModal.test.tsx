@@ -1,8 +1,16 @@
 import { fireEvent, render } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native'
+
+import { lightColors } from '@/ui/theme'
 
 import { PendingConfirmationModal } from '../PendingConfirmationModal'
 
 import type { PendingConfirmationSnapshot } from '@/policy/localConfirmationCoordinator'
+
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
+  __esModule: true,
+  default: () => 'light',
+}))
 
 const confirmations: readonly PendingConfirmationSnapshot[] = [{
   callerDisplayName: 'Fixture Caller',
@@ -51,6 +59,7 @@ describe('PendingConfirmationModal', () => {
       />,
     )
 
+    expect(rendered.getAllByRole('header')).toHaveLength(1)
     rendered.getByRole('header', { name: '等待本地确认' })
     rendered.getByText('2 条命令等待处理；当前显示最早的一条')
     rendered.getByLabelText('调用方：Fixture Caller')
@@ -66,9 +75,18 @@ describe('PendingConfirmationModal', () => {
     })
     expect(`${approve.props.accessibilityLabel} ${reject.props.accessibilityLabel}`)
       .not.toContain('Sensitive message')
+    expect(StyleSheet.flatten(reject.props.style).backgroundColor).toBe(lightColors.panelElevated)
+    expect(StyleSheet.flatten(approve.props.style).backgroundColor).toBe(lightColors.primary)
     await fireEvent.press(approve)
     await fireEvent.press(reject)
     expect(onApprove).toHaveBeenCalledWith('command_a')
     expect(onReject).toHaveBeenCalledWith('command_a')
+
+    await rendered.rerender(
+      <PendingConfirmationModal confirmations={confirmations.slice(1)} onApprove={onApprove} onReject={onReject} />,
+    )
+    rendered.getByText('1 条命令等待处理')
+    await fireEvent.press(rendered.getByRole('button', { name: '拒绝 caller_b 调用 phone/location.open_map' }))
+    expect(onReject).toHaveBeenLastCalledWith('command_b')
   })
 })
