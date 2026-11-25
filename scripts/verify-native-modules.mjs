@@ -45,7 +45,7 @@ if (!iosSystem?.modules?.some(module => module.class === 'ToolBridgeSystemModule
 }
 
 if (
-  androidNotifications?.packageVersion !== '57.0.17'
+  androidNotifications?.packageVersion !== '57.0.26'
   || !androidNotifications.projects?.some(project => (
     project.modules?.some(module => (
       module.classifier === 'expo.modules.notifications.permissions.NotificationPermissionsModule'
@@ -57,39 +57,39 @@ if (
       module.classifier === 'expo.modules.notifications.notifications.scheduling.NotificationScheduler'
     ))
   ))
-) throw new Error('Android expo-notifications 57.0.17 权限/channel/scheduler 模块未被正确发现')
+) throw new Error('Android expo-notifications 57.0.26 权限/channel/scheduler 模块未被正确发现')
 
 if (
-  iosNotifications?.packageVersion !== '57.0.17'
+  iosNotifications?.packageVersion !== '57.0.26'
   || !iosNotifications.pods?.some(pod => pod.podName === 'ExpoNotifications')
   || !iosNotifications.modules?.some(module => module.class === 'PermissionsModule')
   || !iosNotifications.modules?.some(module => module.class === 'SchedulerModule')
-) throw new Error('iOS ExpoNotifications 57.0.17 权限/scheduler 模块未被正确发现')
+) throw new Error('iOS ExpoNotifications 57.0.26 权限/scheduler 模块未被正确发现')
 
 if (
-  androidCamera?.packageVersion !== '57.0.4'
+  androidCamera?.packageVersion !== '57.0.6'
   || !androidCamera.projects?.some(project => project.modules?.some(
     module => module.classifier === 'expo.modules.camera.CameraViewModule',
   ))
-) throw new Error('Android expo-camera 57.0.4 CameraViewModule 未被正确发现')
+) throw new Error('Android expo-camera 57.0.6 CameraViewModule 未被正确发现')
 
 if (
-  iosCamera?.packageVersion !== '57.0.4'
+  iosCamera?.packageVersion !== '57.0.6'
   || !iosCamera.pods?.some(pod => pod.podName === 'ExpoCamera')
   || !iosCamera.modules?.some(module => module.class === 'CameraViewModule')
-) throw new Error('iOS expo-camera 57.0.4 CameraViewModule 未被正确发现')
+) throw new Error('iOS expo-camera 57.0.6 CameraViewModule 未被正确发现')
 
 if (
-  androidImageManipulator?.packageVersion !== '57.0.16'
+  androidImageManipulator?.packageVersion !== '57.0.23'
   || !androidImageManipulator.projects?.some(project => project.modules?.some(
     module => module.classifier === 'expo.modules.imagemanipulator.ImageManipulatorModule',
   ))
-) throw new Error('Android expo-image-manipulator 57.0.16 未被正确发现')
+) throw new Error('Android expo-image-manipulator 57.0.23 未被正确发现')
 
 if (
-  iosImageManipulator?.packageVersion !== '57.0.16'
+  iosImageManipulator?.packageVersion !== '57.0.23'
   || !iosImageManipulator.pods?.some(pod => pod.podName === 'ExpoImageManipulator')
   || !iosImageManipulator.modules?.some(module => module.class === 'ImageManipulatorModule')
-) throw new Error('iOS expo-image-manipulator 57.0.16 未被正确发现')
+) throw new Error('iOS expo-image-manipulator 57.0.23 未被正确发现')
 
 console.log('原生模块验证通过：ToolBridgeAttention、ToolBridgeSystem、通知、相机与图片重编码模块已被 Android/iOS autolinking 发现。')
