@@ -20,6 +20,7 @@
 ## 产品与安全底线
 
 - 系统权限、用户拒绝、设备状态和平台限制高于远程命令。
+- Android 远控须由用户在已解锁的手机上选择 App 并开始五分钟在线会话。仅操作所选 App 的活动窗口；截图限 Android 14+ 单窗口。禁止远程开启、离线补执行、整屏回退或提供旧版 shell 命令。
 - 不实现隐藏录音、隐藏拍摄、绕过锁屏、后台常驻监控或任意 App UI 自动化。
 - SK、设备私钥、push token 等凭证只进入系统安全存储，不进 AsyncStorage、日志、崩溃报告或仓库。
 - 高风险能力默认拒绝；每个能力必须声明 effect、确认策略、前台/后台条件和平台支持。
@@ -28,9 +29,8 @@
 ## 工程规则
 
 - 包管理器使用仓库锁定的 pnpm，不混用 npm/yarn。
-- React Native 使用 Expo development build / prebuild；Expo Go 不是验收环境。
-- 通用业务逻辑写 TypeScript；必须访问平台专有 API 时，优先用成熟 Expo 模块，
-  再用 Expo Modules API 写 Kotlin / Swift。
+- Android 以 `native-android/` 的独立 Gradle 工程为准，使用 Kotlin 和原生 Views；APK 不依赖 RN、Expo 或 Metro。iOS 继续使用 TypeScript、React Native 与 Expo development build/prebuild，需要平台 API 时优先使用成熟 Expo 模块。
+- 对外分发的原生 Android Preview 使用独立包名与项目私有发布签名。旧 Expo Preview 和数据保留在原包；核验 APK 包名与签名者后才可发布。
 - 任何新依赖都要说明用途、维护状态、平台支持和为什么已有依赖不能满足。
 - 原生能力必须提供 capability probe，不能只用 OS 名称推断可用性。
 
@@ -39,6 +39,7 @@
 - 文档阶段：`pnpm verify` 全绿。
 - App 代码阶段：`pnpm verify` 至少覆盖 typecheck、lint、unit、协议契约测试。
 - 改原生代码或权限配置：Android 与 iOS 构建都要过；平台专有代码至少过对应平台构建。
+- Android 另跑 `pnpm test:android` 与对应 Gradle 构建；远控、跨窗口拒绝、锁屏/断线撤销及单窗口截图须有适用 Android 真机证据。
 - 改 push、相机、音频、后台任务或深链：模拟器不足以验收，必须按
   `llmdoc/delivery/definition-of-done.mdx` 留下真机证据。
 - 测试失败或未执行必须明确报告，不能用文字宣称替代验证结果。

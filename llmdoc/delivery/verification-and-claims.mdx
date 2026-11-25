@@ -35,14 +35,9 @@ code:
 typecheck、lint 和 Jest。若变更触及生成的 native tree，确认 clean prebuild 后的 manifest/Info.plist 与
 `app.config.ts` 一致，且没有提交证书、token、SDK 缓存或产物。
 
-Android 权限变更需要同时检查三层：Expo config introspection、clean prebuild 的 merged manifest，以及
-安装后的 `dumpsys package`。`blockedPermissions` 能移除依赖 manifest 声明，但 development debug
-manifest 仍可能以更高优先级重新引入权限；不能只凭 config 输出作最终结论。
+Android 原生权限按源码 Manifest、对应 Gradle 变体 merged manifest、已安装包权限逐层核对，特别检查无障碍服务绑定与用户可见的结束入口。iOS 继续检查 Expo 生成配置。
 
-要交付不依赖 Metro 的内部 Android 安装包，使用 `pnpm build:android:preview`，并验证 package 是
-`ai.tokenroll.toolbridgemobile.preview`、APK 含 `assets/index.android.bundle`、签名可验证且显式
-MainActivity 能冷启动。当前 release build 使用 debug test key，只能称为 preview/internal artifact；
-远端 workflow 未成功前也不能把本地产物写成 CI artifact。
+本地/CI 的 `pnpm build:android:preview` 生成独立包名、调试签名的 PreviewLocal。分发时验收项目私有签名的 PreviewRelease：核对 `ai.tokenroll.toolbridgemobile.nativepreview`、实际证书指纹、APK 摘要与 MainActivity 冷启动；不再以 JS bundle 为 Android 产物条件。
 
 ## 3. 写证据记录
 

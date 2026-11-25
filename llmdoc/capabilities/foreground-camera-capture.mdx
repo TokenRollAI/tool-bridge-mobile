@@ -12,6 +12,7 @@ relations:
     - runtime/accessibility-semantics.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/features/SensorMediaCamera.kt
     - modules/tool-bridge-attention/**
     - src/capabilities/camera/**
     - src/ui/components/CameraCaptureModal.tsx
@@ -22,6 +23,8 @@ code:
 ---
 
 # 仅前台相机拍摄参考
+
+Android 原生包通过 Kotlin 相机处理器与可见预览拍摄。下文的 Expo 组件、SDK 调用顺序和日期化旧 Android 实验限于对应实现；原生相机和远控窗口截图分别验证。
 
 ## 能力契约
 

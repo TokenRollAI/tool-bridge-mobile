@@ -22,13 +22,15 @@ code:
 1. **本地已实现**：代码与注入式 unit/component/contract 测试证明本地边界或状态机。
 2. **SDK consumer 已集成**：精确使用上游发布的公共入口，且 export/产物、consumer contract 和目标
    bundler 通过；这不等于真实 gateway 已兼容。
-3. **Android 已构建**：clean Expo prebuild 后 Gradle 成功产出 debug APK，证明该工作树的 Android
+3. **Android 已构建**：独立 native-android Gradle 工程成功产出指定变体 APK，证明该工作树的 Android
    原生依赖与配置可编译；不证明设备行为。
 4. **Gateway 已兼容**：只有通过真实 gateway wire/兼容矩阵后才能声称已接通对应服务端。
 5. **平台已验收**：只有对应 iOS 构建、模拟器/仪器测试以及 DOD 要求的双端真机证据齐全后才能声称。
 
 这些层级不能互相替代。尤其不能把 fake/injected adapter 的 contract test 写成网关端到端证据，
 也不能把 generated native 配置写成后台、锁屏、DND、位置精度或音频中断已经在真机有效。
+
+Android 原生远控按本地测试、模拟器、真实网关、真机授权/拒绝及签名分发分别留证。下列 SDK、RN 与 Metro 证据只适用于 Expo 工程及其日期化旧包。
 
 ## 设备信箱的五层证据
 
@@ -59,7 +61,7 @@ code:
 2. **当前 SDK Store consumer**：使用 0.21.0 提供的 `DeviceCallHandler.uploadObject`，且真实 SDK supervisor + mocked
    `expo/fetch` 覆盖 `system/store/create_upload`、`x-tb-store-capability`、relay Blob PUT 与
    `StoreObjectDescriptor` 核对；这不等于真实 Gateway/storage。
-3. **原生配置与 bundle**：双端 clean prebuild/autolinking 和 production Metro 成功只证明生成配置与 JS
+3. **原生配置与 bundle**：Expo 工程的 clean prebuild/autolinking 和 production Metro 成功只证明生成配置与 JS
    bundle；不能替代 Android/iOS native build 或真机相机行为。
 4. **真实 Gateway/Store**：必须单独验证 call-scoped capability、create-upload/relay PUT、稳定
    `store://default/...` URI、stat、受保护读取与保留；本地 filename/idempotency key/10 MiB 和单次成功不是
@@ -78,7 +80,7 @@ call-scoped options 不接受 controller 的额外 AbortSignal，未取得服务
   `新 device call path/context 本地适配已实现`、
   `相机 call-scoped Store URI upload consumer 本地已集成`、
   `本机 URL/API key fallback 已实现`、
-  `本地 executor 已实现持久化去重`、`当前 commit 的双端 clean prebuild 与 production Metro 已成功`、
+  `本地 executor 已实现持久化去重`、`指定平台与变体已构建（须有对应记录）`、
   `设备在线 direct call，或 Gateway operation 在 App 显式前台 drain 中被 consumer claim 并到达本地
   executor 后，本机可安全保存并查询富内容消息；图片需用户逐图点按后按本地 policy 有界加载，并可
   best-effort 请求固定本地提醒`。

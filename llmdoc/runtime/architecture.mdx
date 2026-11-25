@@ -13,6 +13,9 @@ relations:
     - runtime/command-retention.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/runtime/PhoneRuntime.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/ConnectionService.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/PhoneControlService.kt
     - src/runtime/applicationRuntime.ts
     - modules/tool-bridge-system/android/src/main/java/ai/tokenroll/toolbridge/system/ToolBridgeForegroundService.kt
     - modules/tool-bridge-system/android/src/main/java/ai/tokenroll/toolbridge/system/ToolBridgeSystemModule.kt
@@ -47,12 +50,12 @@ code:
 
 ## 目的
 
-本地安全执行边界独立于 transport：最初可由 fake dispatcher 驱动，现在也由
+在 iOS 的 Expo 实现中，最初可由 fake dispatcher 驱动，现在也由
 `@tool-bridge/sdk/device@0.21.0` realtime call adapter 与显式 durable mailbox processor 驱动；重复投递、
 用户等待、崩溃和日志处理都不能因
 transport 变化产生隐蔽副作用或泄漏敏感参数。
 
-## 核心组件
+## iOS 与旧 Expo 工程的核心组件
 
 - `src/runtime/applicationRuntime.ts` (`ApplicationRuntime`)：组装 registry、SQLite、策略、确认、SDK
   transports 与 UI snapshot；AppState 变化时刷新 probe、UI 与策略输入。realtime 不因短暂 AppState 变化
@@ -100,25 +103,15 @@ transport 变化产生隐蔽副作用或泄漏敏感参数。
 - `src/ui/components/SafeMarkdown.tsx` 与 `src/inbox/imageSource.ts`：只在用户逐图点按后进入 HTTPS
   结构 policy/有界下载/私有 cache 的图片路径；没有 inbox image hostname config 或 runtime set。
 
-## Android 后台运行服务
+## Android 原生执行与会话撤销
 
-当前 Android 后台运行开关保存的是用户意图；`ApplicationRuntime` 经 system adapter 请求启动或停止
-`dataSync` 前台服务，config plugin 只负责 manifest 声明。该服务用可见通知辅助提高进程优先级，不承载
-WebSocket、SDK lifecycle 或命令执行，也不能重建 JS runtime/device connection。Android 与 JS 之间没有
-服务实况回传：平台停服不会清除持久化开关，因此 UI 意图、原生服务状态和设备是否后台可达可能彼此脱节。
+`PhoneRuntime` 使用 Kotlin 命令目录检查输入与投递方式，以 SQLite 按命令及调用主体去重，再执行限流、本地确认或远控授权、处理器与输出校验。远控成功结果不写入持久化 command outcome。只有信箱投递接受 mailbox；应用在前台且连接 ready 时可显式拉取。
 
-本项目 targetSdk 36，适用 Android 15+/targetSdk 35+ 的 `dataSync` 限制：应用在后台时，同类型所有服务
-共享滚动 24 小时内 6 小时配额；用户把应用带到前台会重置计时预算。预算耗尽后，系统通过 `onTimeout`
-给出短暂退出窗口；当前服务立即 `stopSelf()`，并返回 `START_NOT_STICKY`，因为被回收后重建空服务既不能
-恢复 JS 连接，也可能在额度仍耗尽时再次启动失败。这些退出策略只切断超时与 sticky 重启故障链，不增加
-后台预算，也不证明锁屏、Doze、OEM 省电、force-stop 或进程回收后仍可达。
+五分钟授权只在进程内存中，以单调时钟计时。离开 Tool Bridge 切到所选 App 时，`ConnectionService` 用可见的前台服务通知提供“结束控制”。页面或通知结束、超时、熄屏、无障碍服务中断、离开网关 ready 或停用调用都会撤销会话；进程重启后需重新选择。切到未授权窗口时拒绝该次读写。授权撤销会丢弃观察引用并请求取消正在执行的远控调用。
 
-`test/contract/android-background-runtime.contract.test.ts` 只静态检查 Kotlin 源码包含
-`onTimeout -> stopSelf()` 与 `START_NOT_STICKY`；它不是 Android framework 行为、6 小时额度或真机后台
-可达证据。当前已有 U-5 移动 consumer 接线，但 Android service 不触发 mailbox drain；只携带不透明引用的
-APNs/FCM wake 仍未实现。当前本地服务、本地通知或前台 drain 都不能冒充 push/后台必达链路。
+后台连接开关只表示保持连接的意图。服务使用 `dataSync`，系统超时会结束会话并停服，返回 `START_NOT_STICKY`。服务本身不会唤醒已终止的进程完成远控或离线投递。锁屏、省电及厂商系统下的表现须由真机记录。
 
-## 执行顺序
+## Expo 运行时执行顺序
 
 ```text
 envelope schema

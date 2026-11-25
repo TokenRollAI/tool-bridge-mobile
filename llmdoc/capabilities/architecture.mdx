@@ -1,5 +1,5 @@
 ---
-description: 当前本地能力切片的共同模式、平台实现、配置来源与证据上限。
+description: Android 五分钟在线远控、单窗口截图及本地能力的平台实现与证据上限。
 kind: architecture
 relations:
   requires:
@@ -17,6 +17,10 @@ relations:
     - delivery/definition-of-done.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/ControlActivity.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/WindowCapture.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/runtime/CommandCatalog.kt
+    - native-android/app/src/main/assets/contracts.json
     - src/capabilities/**
     - src/inbox/**
     - src/gateway/sdkDeviceMailboxTransport.ts
@@ -35,21 +39,21 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 持有 gateway credential。依赖静态 allowlist 且配置为空的能力不公开 command，但仍发送对应空 node 来
 覆盖旧注册；真实网关是否正确移除旧命令需单独验证。
 
-## Android 原生控制面现状
+## Android 原生远控
 
-- 仓库自有 Expo native module `modules/tool-bridge-attention` 当前提供 haptic probe/执行、torch 闪光灯
-  probe/enable/disable，以及相机前/后镜头的只读枚举。镜头枚举在 Android 走 Camera2
-  `CameraManager.cameraIdList` + `CameraCharacteristics.LENS_FACING`，在 iOS 走 AVFoundation
-  `AVCaptureDevice.default(... position:)`；只返回 schema 支持的 `front | back`，不创建采集 session、
-  不打开采集流、不读取照片，也不请求 Camera 权限。其余已实现能力通过受限 Expo API、App 内状态机或
-  系统 handoff 提供。
-- 当前没有 AccessibilityService、MediaProjection、notification-listener 或 DevicePolicyManager/device-owner
-  控制实现，也没有对应 service/config；因此不能跨 App 操作任意 UI、捕获屏幕或管理专用设备。
-- 当前原生权限面仍按已实现切片最小化：相机切片通过 `expo-camera` 声明 Android CAMERA 与 iOS
-  `NSCameraUsageDescription`；未声明麦克风、录音、图库或后台位置权限。Android 更高权限控制路线尚未
-  决定，也未实现，不能从现有 capability 或构建配置推断其可用。
+在独立 Kotlin App 中，`phone/control` 提供五个仅限实时调用的工具。用户先在已解锁的手机上启用系统无障碍服务、允许显示结束通知，选择本次开放的可启动 App 并点“开始 5 分钟”。网关必须 ready，设备调用已启用。选择列表排除本 App、桌面及设置、系统 UI 等系统入口。
 
-## 当前实现
+| 工具 | 成功的含义与限制 |
+| --- | --- |
+| `observe` | 返回获准 App 当前活动应用窗口内可见节点的有限摘要和短期元素引用，跳过密码节点及系统标记的敏感节点。 |
+| `tap`、`type`、`scroll` | 仅接受本次观察所得的元素引用，复核窗口、包、可见性与支持的操作。内容变化或操作后须重新观察；成功表示控件接受操作。 |
+| `screenshot` | 仅 Android 14+ 注册。使用系统单窗口 API，回调及上传前复核会话、包名和窗口；系统拒绝时结束。通过本次调用的 Store 授权上传 JPEG，返回受保护 URI、媒体类型及尺寸。低版本和受保护窗口均无整屏回退。 |
+
+本机会话在首次授权检查时绑定调用主体标识（有网关 caller 时取其 keyId，缺失时回退当前凭证标识）；观察和截图是高风险读取，点击、输入和滚动是高风险写入。Direct call 或后台连接开关都不能代替本机开启会话。远控不接受 mailbox 投递，也不提供旧 Expo Android 的 `phone/system.exec_shell`。iOS 没有这组远控工具。真机拒绝路径与截图回读见[验收条件](../delivery/definition-of-done.mdx)。
+
+## 其他能力与 Expo 实现
+
+Android 原生包以 `CommandCatalog` 和运行时 probe 为准，包含信箱、状态、提醒、计时器、前台相机和位置等能力，媒体与链接工具受构建时主机名单约束。下列 Expo API、SDK 接口及其历史 Android 行为描述的是 iOS 现用及旧 Android 实现，各项验收按平台分别记录。
 
 ### `phone/status.get`
 

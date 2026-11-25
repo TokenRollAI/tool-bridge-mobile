@@ -1,5 +1,5 @@
 ---
-description: GitHub Preview 的版本真源、tag 发布顺序、权限最小化和 production 证据边界。
+description: main 自动发布与 tag 恢复如何重建项目签名的 Android PreviewRelease，以及 PreviewLocal 的用途。
 kind: guide
 relations:
   requires:
@@ -9,9 +9,11 @@ relations:
     - delivery/verification-evidence.mdx
 code:
   paths:
+    - .github/actions/sign-android-preview/action.yml
     - .github/workflows/auto-release.yml
     - .github/workflows/release.yml
     - .github/workflows/verify.yml
+    - native-android/app/build.gradle.kts
     - CHANGELOG.md
     - package.json
     - app.config.ts
@@ -21,17 +23,22 @@ code:
 
 # GitHub Preview 发布
 
+## 安装身份与签名
+
+旧 Expo Preview 为 `ai.tokenroll.toolbridgemobile.preview`，其 release 构建使用公开 Expo 模板内的调试 keystore。新原生分发包使用 `ai.tokenroll.toolbridgemobile.nativepreview` 与项目私有发布签名。由于包名与签名均已变更，旧 Expo 包无法原地升级。两个包独立安装，新包没有旧包的信箱、设置、安装身份、会话授权或凭证；用户可保留旧包并单独配置新包。今后更新原生分发包需要保持新包名及签名连续。
+
 ## 定位
 
 仓库有两条收敛到同一内部 GitHub Pre-release 的路径：
 
 - `.github/workflows/auto-release.yml` 在 `main` 的 `verify` push run 成功后，确认 verified SHA 仍是最新
-  `main`，从 App version 派生 tag，复用该 run 的 APK artifact，并在无冲突时创建 annotated tag/Release；
+  `main`，从 App version 派生 tag，从该提交构建分发包，并在无冲突时创建 annotated tag/Release；
 - `.github/workflows/release.yml` 接受 `vX.Y.Z` tag push，也提供必填 `release_tag` 的
   `workflow_dispatch`，重新 checkout 不可移动的既有 tag、执行验证与双端 build，并发布或修复 Release。
 
-两条路径都交付不依赖 Metro 的 Android Preview APK 和 SHA-256，以 iOS simulator build 作为共同代码/
-原生配置门禁；都不是 production/store release。
+两条路径都从各自已验证的提交调用 `.github/actions/sign-android-preview`。该动作要求 CI 提供项目私有签名材料，执行 `:app:assemblePreviewRelease`，再用 `apksigner verify` 检查生成的 APK。缺少签名材料、构建失败或验签失败都会阻止发布。分发时另行核对最终 APK 的包名和实际证书指纹。
+
+普通 verify 构建 PreviewLocal（`ai.tokenroll.toolbridgemobile.nativepreview.local`），使用本机调试签名且不可调试，仅供本地和 CI 验证。
 
 ## 版本不变量
 
@@ -47,28 +54,30 @@ code:
 实际 tag 完全一致，`--notes` 只提取首个版本段供 GitHub Release 使用。不要让脚本自行读取通用
 `GITHUB_REF_NAME`，因为 branch/PR workflow 同样设置该变量。
 
-## 发布顺序
+## 当前工作流顺序
 
 1. 同步 package、App、平台 build number与 `CHANGELOG.md` 最新版本段，在功能分支运行 frozen install、
    `pnpm verify`、peer check 与 dependency audit；
-2. 合并到 `main` 后，`verify` 从 clean checkout 产出以 verified SHA 命名的 Preview APK artifact，并完成
+2. 合并到 `main` 后，`verify` 从 clean checkout 产出以 verified SHA 命名的 PreviewLocal 验证产物，并完成
    iOS simulator gate；
 3. 自动路径只处理成功的 `main` push run，并在 prepare 与实际创建 tag 前两次确认 verified SHA 仍为远端
    `main` HEAD，避免连续 main push 之间的 TOCTOU；目标 tag 只要已经存在就幂等跳过，绝不移动、复用或
    用新 main artifact 补发旧 tag；
-4. tag 尚不存在时，自动路径复用已验证 run 的 APK、重算版本化资产 SHA-256、创建指向 verified SHA 的
+4. tag 尚不存在时，自动路径从已验证的 main 提交重建并验签 PreviewRelease，计算该 APK 的 SHA-256，创建指向同一提交的
    annotated tag 并发布；若准备与发布之间 tag 被其他流程占用，也安全退出并交给 tag workflow；
 5. 已有 tag 缺少 Release 时，以 `.github/workflows/release.yml` 的 `workflow_dispatch(release_tag)` 恢复：
-   它精确 checkout 该 tag、验证 tag commit 可从 main 到达，重新运行 verify、Android Preview 与 iOS
+   它精确 checkout 该 tag、验证 tag commit 可从 main 到达，重新运行 verify、Android PreviewRelease 签名构建与 iOS
    simulator 后创建 Release；如 Release 已存在，则覆盖上传同名资产并刷新 title/notes/prerelease 状态；
 6. 下载 Release 的 APK 与 `.sha256`，独立核对 digest，并记录路径、workflow run、verified/tag commit 和
    asset URL。
 
 验证/build job 只需只读权限；自动 prepare 只读 actions/contents，只有 publish job 使用
-`contents: write`，并仅为下载已验证 artifact 增加 `actions: read`。仓库不得保存 GitHub token、keystore、
+`contents: write` 创建 tag 或更新 Release。仓库不得保存 GitHub token、keystore、
 Apple certificate/profile 或 Gateway credential。
 
 ## 证据边界
+
+只有分发 APK 的 signer 与预期项目证书一致，且已验证新旧包共存、旧数据留存以及新包同签更新，才能声称签名迁移已验收。CI 配置不能证明签名材料已配置或签名私钥可用。
 
 GitHub Preview 成功只证明指定 tag 可从 clean checkout 通过仓库自动门禁并产出可追溯内部 APK。它不证明：
 

@@ -10,41 +10,17 @@
 设备上的状态、提醒、媒体、位置、相机等能力，以可发现、可授权、可审计的 Tool Bridge
 节点暴露给 Agent。
 
-> 当前状态：**P0 本地安全运行时已开始实现，尚未达到 MVP**。仓库已有 Expo development-build
-> 双端脚手架、本地状态页、SecureStore `installationId`、SQLite command/audit、动态 probe、
-> policy、跨标签页全局单命令本地确认、前台内置提示音/haptic attention、受 HTTPS allowlist、
-> 25 MiB 流式下载与 2 小时播放时长上限约束且支持 seek 的 App 自有媒体会话，
-> 受控 HTTPS App handoff、只接受结构化目标的地图 handoff、逐次确认的一次性前台位置、由用户在
-> App 内主动授权的即时本地通知、以 SQLite 为真源的单次 App 内计时器、可解释且可由用户单独清除的
-> 本机活动审计，以及由 Agent 通过在线 direct call，或由 Gateway durable mailbox 入队并在
-> App 启动/回到前台后显式拉取投递、在 SQLite 中保留最近 1,000 条并可选发出
-> 固定隐私提醒的设备本地信箱；单条正文支持最多 64,000 字符的 Markdown、用户主动安全加载的 HTTPS
-> 图片、用户点按后交给系统打开的有界 HTTPS 链接、紧急程度、可选 Agent 发送时间、全文搜索、列表排序、
-> 未读筛选与单条/全部已读。页面支持跟随系统的浅深主题，具有无障碍语义自动化基线与持久化/并发幂等测试。
-> 本地执行还包含确认前 caller/global admission、inline 结果字节上限、claim 后取消/到期复检和
-> emergency disable 的进行中命令取消。
-> SDK expose 现在为每个公开工具同时提供输入/输出 JSON Schema，并只注册静态配置完整的 App/媒体
-> 工具；`phone/runtime.capabilities/pending_commands/cancel` 提供当前 credential principal 范围内的
-> 本地能力、活动命令与取消控制。
-> 当前还实现了仅前台的 `phone/camera.capture_photo`：Ask every time / Trusted session 会在可见预览中
-> 由用户按快门并复核，用户主动选择的 Direct call 会在可见预览就绪后自动拍摄；照片重编码为有界 JPEG，
-> 通过本次 call 的窄 Store capability 上传，协议结果只含受保护的 `store://default/...` 引用与元数据。
-> 当前已精确锁定并接入 `@tool-bridge/sdk/device@0.21.0`：Android/iOS realtime transport 使用官方
-> hello/ready/call/result、心跳、重连与 cancel，支持命令叶子并入 path 的新 device wire 与网关签发
-> invocation context，并使用官方 call-scoped Store upload。`phone/inbox.deliver` 另声明
-> `delivery: both`，并通过官方 mailbox processor 执行 claim/lease/complete；调用继续经过本地安全
-> 执行链，只有收到 gateway ready
-> 才显示 online。Android Preview 0.0.6 已通过当前 Railway Gateway 的单次真机
-> `status/get` 直连读调用；该证据不外推到其他能力、iOS、后台、弱网或完整 pairing。
-> 当前内测入口允许用户在本机填写 Gateway HTTPS URL 与 API key，secret 只进入
-> SecureStore；这不等于 pairing、最小权限设备凭证或短期 ticket。设备本地信箱是正文存储域，
-> Gateway command mailbox 是 durable operation 投递域；当前只在 App 启动/回到前台时有界拉取，
-> 没有远程 push、隐式后台轮询或后台必达。通用 object 读取/生命周期契约仍等待
-> [上游交付](llmdoc/integration/upstream-and-platform-gaps.mdx)。
+**现状**　Android 在 `native-android/` 中使用 Kotlin 和 Android 原生 Views，APK 无需 React Native、Expo 或 Metro。iOS 沿用 React Native、Expo development build 和官方 device SDK。两端都提供本机信箱与设备页面，通过 Gateway 连接；项目仍处于 P0。
+
+信箱支持实时投递和显式前台拉取，正文保存在设备本地。响铃、媒体、位置、相机、通知和计时器的可用性取决于本机配置、系统权限与设备状态，调用方可通过能力列表查询。只有收到网关 ready 才显示在线。
+
+**Android 远控**　在手机解锁且网关在线时，用户进入“设备 → 远控配置”，在系统设置中启用无障碍服务，允许显示结束控制通知，勾选本次允许的 App，再点“开始 5 分钟”。Agent 只能实时读取或操作所选 App 当前的应用窗口。手机页面或通知都能结束控制；到时、熄屏或断线后需在本机重新开始。Android 14 及以上可对该窗口截图，调用方收到受保护的图片引用。旧版的 `phone/system.exec_shell` 未在原生 App 注册。iOS 沿用原有能力集。
+
+**安装原生 Preview**　旧 Expo Preview（`ai.tokenroll.toolbridgemobile.preview`）使用 Expo 模板随附的公开调试证书。原生 Preview 的包名为 `ai.tokenroll.toolbridgemobile.nativepreview`，对外分发须使用项目私有发布签名。安装新包时保留旧 App 即可，原有信箱、设置和凭证继续留在旧包内；首次打开新包需重新配置连接和授权。
 
 ## 它解决什么问题
 
-Agent 今天大多只能调用云端 API。这个项目让 Agent 在用户许可范围内继续完成现实世界任务：
+项目围绕以下用户场景开发，各能力的实现与验收状态见下方知识地图。
 
 - “帮我找手机”——让指定设备响铃、震动、闪灯，并返回是否已被用户找到；
 - “在手机上放首歌”——控制本 App 的播放队列，或打开用户选择的音乐 App；
@@ -66,7 +42,7 @@ Agent 今天大多只能调用云端 API。这个项目让 Agent 在用户许可
 | [SDK device transport](llmdoc/integration/sdk-device-transport.mdx) | 当前 SDK 事实、移动端接入方式和兼容边界 |
 | [安全边界](llmdoc/runtime/safety-boundaries.mdx) | 凭证、授权、审计、隐私和平台限制 |
 | [上游缺口](llmdoc/integration/upstream-and-platform-gaps.mdx) | Tool Bridge 与 HTBP 需要同步交付的能力 |
-| [工程基线](llmdoc/delivery/engineering-baseline.mdx) | React Native / Expo 取舍、版本和构建环境 |
+| [工程基线](llmdoc/delivery/engineering-baseline.mdx) | Android 原生与 iOS Expo 工程、版本和构建环境 |
 | [Definition of Done](llmdoc/delivery/definition-of-done.mdx) | 仓库、能力、版本与场景验收闸门 |
 | [Changelog](CHANGELOG.md) | 最新发布说明和历史版本摘要 |
 
@@ -110,25 +86,19 @@ corepack enable
 corepack prepare pnpm@11.21.0 --activate
 pnpm install --frozen-lockfile
 pnpm verify
-pnpm start
+pnpm test:android
 ```
 
-`pnpm start` 面向 development build，不以 Expo Go 为验收环境。`pnpm verify` 当前覆盖文档链接、
+Android 接好设备或启动模拟器后运行 `pnpm android`，安装并打开原生开发版。iOS 使用 `pnpm ios` 运行 development build，`pnpm start` 启动其 Metro 服务。`pnpm verify` 当前覆盖文档链接、
 三环境配置、SDK RN 子入口漂移、secret/license/dependency 检查、Expo 依赖一致性、strict typecheck、
 零 warning lint、unit/component 和本地/SDK transport 契约测试。
 
 主导航为信箱、设备。信箱提供固定搜索/筛选工具栏和独立阅读页，排序与批量操作进入本地操作面板；
 设备总览分别进入连接配置、授权与安全、能力、运行详情和活动记录。
 
-安装 App 后可在“设备 → 连接配置”中填写纯 HTTPS origin 和 Tool Bridge API key。API key 不应写入
-`.env`、`EXPO_PUBLIC_*`、源码或 URL；保存时 App 会先停止旧连接，再把 key 写入系统 SecureStore。
-SDK `deviceId` 默认由设备硬件标识（Android ID / iOS IDFV）经单向摘要派生为稳定短 ID，跨重装保持
-不变；也可在同一表单中自定义（字母、数字、`.`、`_`、`-`，最长 64 字符）。设备声明挂载到
-`device/phone/<deviceId>`。该 deviceId 不是网关签发身份，手工入口只是 pairing 交付前的内测通道。
+在“设备 → 连接配置”填写 Gateway HTTPS origin 和 API key。Android 用 Android Keystore 保护凭证，iOS 使用 SecureStore。不要把 key 写入 URL、源码或构建变量。设备声明的挂载路径为 `device/phone/<deviceId>`，该 ID 可在本机自定义。手工配置是配对功能交付前的内测入口。
 
-相机上传要求目标 Gateway 支持 SDK 0.21.0 兼容的 call-scoped Store，并为本次 device call 注入有界、短期 upload capability。
-App 不接收 capability token、signed upload URL，也不会把照片字节放进 HTBP JSON result；缺少该 capability
-时会在本地确认和打开相机前拒绝。
+前台相机和 Android 窗口截图都需要本次调用的 Store 上传授权，结果只返回受保护对象引用与元数据。2026-08-26 的 Android 后置相机上传与受保护回读、2026-09-03 的 Preview 安装和冷启动记录属于旧 Expo 包；2026-11-25，原生 Android 在 Android 16（API 36）隔离模拟器上接通本地 Tool Bridge 网关和 S3，验证了授权窗口操作、截图上传、越界拒绝和信箱投递。本轮未使用物理真机，也未向商店发布。[验收记录](llmdoc/delivery/verification-evidence.mdx)
 
 原生构建命令：
 
@@ -138,46 +108,13 @@ pnpm build:android:preview
 pnpm build:ios:sim
 ```
 
-`build:android:preview` 生成 application id 为 `ai.tokenroll.toolbridgemobile.preview`、内嵌 JS 的内部体验
-APK。GitHub Actions 的 `android-preview-apk` job 会上传 APK 与 SHA-256，artifact 保留 14 天。该包使用
-生成的 debug test key 签名，只用于内部试用；它不是生产签名、商店 release 或 release DOD 证据。
-验证口径和已知证据边界见
-[验证证据索引](llmdoc/delivery/verification-evidence.mdx)。
+`build:android:debug` 构建开发版。`build:android:preview` 构建 PreviewLocal（`ai.tokenroll.toolbridgemobile.nativepreview.local`），使用本机调试签名，关闭调试，供本地和 CI 检查。对外分发须用项目私有发布签名构建 PreviewRelease（`pnpm build:android:release`），并核对 APK 包名、签名证书及 SHA-256。Android 需要 Java 17，iOS simulator 构建需要 macOS、Xcode 与 CocoaPods。
 
 ## 版本与 GitHub 预发布
 
-当前 App/package 版本为 `0.0.14`。版本变更合并到 `main` 后，[`verify`](.github/workflows/verify.yml)
-全绿会触发 [`auto-release-preview`](.github/workflows/auto-release.yml)：当 `package.json` 对应 tag 尚不存在时，
-它复用该次已通过双端门禁的 Android artifact，核对 package、Expo App 版本与 `CHANGELOG.md` 最新版本段，
-再创建版本 tag 和 GitHub Pre-release，并附带版本化 APK 与 SHA-256。版本已发布时幂等跳过；新的 main
-提交已经出现时，由更新 commit 的 verify run 决定是否发布，避免发布过期 SHA。
+版本取自 `package.json`，tag 与 `CHANGELOG.md` 首个版本段须一致。main 自动发布使用通过 verify 的 main 提交，tag 发布或手工恢复使用重新验证的 tag 提交。两条路径共用 `.github/actions/sign-android-preview` 重建 PreviewRelease，使用项目私有发布签名，APK 验签和 iOS simulator 门禁通过后才发布 GitHub Pre-release。分发时还须核对实际签名证书指纹。[发布流程](llmdoc/delivery/github-preview-release.mdx) · [验证证据](llmdoc/delivery/verification-evidence.mdx) · [GitHub Releases](https://github.com/TokenRollAI/tool-bridge-mobile/releases)
 
-手工推送匹配 `vX.Y.Z` 的 tag 仍可触发 [`release-preview`](.github/workflows/release.yml) 作为恢复路径；
-该路径会重新执行 frozen install、全量 verify、peer/dependency gate、Android Preview APK clean build 与
-iOS simulator build。如果自动流程已经创建 tag、但发布资产阶段失败，也可以通过该 workflow 的
-`workflow_dispatch` 输入现有 tag 重新验证并补发。两条路径都只提取 [CHANGELOG](CHANGELOG.md) 最上方、
-与版本一致的段落作为 Release 正文。
-
-版本页面：[GitHub Releases](https://github.com/TokenRollAI/tool-bridge-mobile/releases)。当前自动发布仍是
-内部 Preview：APK 使用 debug test key，且不会自动上传商店、创建 production AAB/IPA 或假装满足
-[Release DOD](llmdoc/delivery/definition-of-done.mdx)。
-
-仓库同时绑定到 Expo 项目 [`@tokenroll/tool-bridge`](https://expo.dev/accounts/tokenroll/projects/tool-bridge)，
-development / preview / production 共用 EAS Project ID，但继续使用不同的 application id、bundle id、
-scheme 和显示名称。验证绑定或触发 EAS 内部分发 APK：
-
-```bash
-mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas project:info
-mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas build --platform android --profile preview
-```
-
-EAS `preview` profile 固定 Node 22.23.1、`APP_VARIANT=preview`、preview environment 与 APK 输出。EAS
-环境中的 `EXPO_PUBLIC_*` 都会进入客户端，不能存放凭证、token 或私钥；
-`EXPO_PUBLIC_GATEWAY_ORIGIN` 只可作为非秘密 URL 预置，本机连接配置优先。未配置 media/link
-变量时，相应能力保持 unavailable。
-
-Android 需要 Java 17；iOS 需要 macOS、Xcode 26.4+ 与 CocoaPods。涉及 push、后台、相机、音频、
-位置或权限的功能仍必须按 [DOD](llmdoc/delivery/definition-of-done.mdx) 留下双端真机证据。
+iOS 的 Expo/EAS 项目仍为 `@tokenroll/tool-bridge`，配置按 development、preview 和 production 隔离。涉及远控、相机、音频、权限或后台的行为按适用平台分别留下真机证据。[验收条件](llmdoc/delivery/definition-of-done.mdx)
 
 ## License
 

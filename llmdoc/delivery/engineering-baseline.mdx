@@ -1,5 +1,5 @@
 ---
-description: React Native、Expo CNG、版本平台、依赖分层、状态、协议、测试与交付的工程基线。
+description: Android 原生 Gradle、iOS React Native/Expo CNG、版本平台、依赖分层、状态、协议、测试与交付的工程基线。
 kind: architecture
 relations:
   requires:
@@ -15,6 +15,8 @@ code:
     - pnpm-lock.yaml
     - pnpm-workspace.yaml
     - .node-version
+    - native-android/app/build.gradle.kts
+    - native-android/app/src/main/AndroidManifest.xml
     - app.config.ts
     - eas.json
     - src/**
@@ -25,7 +27,8 @@ code:
 
 ## 已决定的栈
 
-- React Native + strict TypeScript，Expo Framework 采用 development build 与 CNG/prebuild；Expo Go 只可
+- Android 在独立 Gradle 工程中用 Kotlin 和原生 Views 实现，OkHttp 驱动 Gateway 连接，Android Keystore 保护加密凭证；APK 不包含 RN/Expo 运行时。
+- iOS 使用 React Native + strict TypeScript，Expo Framework 采用 development build 与 CNG/prebuild；Expo Go 只可
   做无原生依赖的临时 UI 实验，不能作为验收环境。
 - Expo Router 管理页面；协议、schema、policy、command 状态机和跨平台 handler 优先写纯 TypeScript；
   React 组件不直接发送协议帧或调用任意原生对象。
@@ -34,7 +37,7 @@ code:
 - SQLite 是 command、audit、timer、inbox 与 device operation journal 等持久域的事实真源；SecureStore/
   平台安全存储只保存身份与 credential material；所有远端输入从 `unknown` 开始并经 Zod strict schema
   校验。
-- 官方 `@tool-bridge/sdk/device` 提供 device wire、realtime session、durable mailbox processor 和
+- iOS 的官方 `@tool-bridge/sdk/device` 提供 device wire、realtime session、durable mailbox processor 和
   call-scoped Store upload；移动仓库不复制 `@tool-bridge/core` 私有协议源码，也不手写第二份 wire schema。
 - Android 先形成首个端到端切片，iOS 从第一天保持工程可构建和共有协议对等。
 
@@ -48,24 +51,15 @@ target 是 16.4。
 本文记录为何选择和如何使用，不替代这些文件；升级必须 frozen install、核对 Expo 兼容性并重新运行
 SDK/bundler/native gate。
 
-三种安装变体独立：
+| 环境 | Android applicationId | iOS bundle id |
+| --- | --- | --- |
+| development | `ai.tokenroll.toolbridgemobile.dev` | `ai.tokenroll.toolbridgemobile.dev` |
+| preview | `ai.tokenroll.toolbridgemobile.nativepreview` | `ai.tokenroll.toolbridgemobile.preview` |
+| production | `ai.tokenroll.toolbridgemobile` | `ai.tokenroll.toolbridgemobile` |
 
-| 环境 | Android applicationId / iOS bundle id |
-| --- | --- |
-| development | `ai.tokenroll.toolbridgemobile.dev` |
-| preview | `ai.tokenroll.toolbridgemobile.preview` |
-| production | `ai.tokenroll.toolbridgemobile` |
+Android 的包名、flavor 和签名由 `native-android/app/build.gradle.kts` 决定，版本名取自 `package.json`，versionCode 取自 `app.config.ts`。iOS 保留 Expo prebuild 与 EAS 变体配置。旧 Android Expo Preview 的包名、公开调试签名和私有数据归属见[发布说明](github-preview-release.mdx)。
 
-原生工程由 `expo prebuild --clean` 生成并保持未跟踪。变体共用 Expo/EAS 项目
-`@tokenroll/tool-bridge`，slug `tool-bridge` 与 project id `378c7a3e-437a-49a6-ae20-fef5af6f6188`；项目
-身份不是 secret，也不替代 application id、transport 环境、签名或 production 配置隔离。
-
-Preview Android 构建必须在 clean prebuild 与 Gradle/Metro 两个 shell 阶段都显式传
-`APP_VARIANT=preview`；只在 prebuild 设置会生成“原生 package 是 Preview、内嵌 JS config 是 Development”
-的分裂 artifact。配置 gate 必须检查脚本的两次传递，产物验收还要同时反查 `aapt` package/version 与
-`assets/app.config` 的 name、scheme、appVariant 和 `productionTransport`。
-
-## 代码与状态组织
+## iOS 与原 Expo 工程的代码与状态组织
 
 - `app/`：Expo Router 页面；`src/ui/`：共享 UI、accessibility 和用户确认；
 - `src/runtime/`、`src/policy/`、`src/commands/`：组装、唯一执行入口、本地裁决和命令生命周期；
@@ -78,7 +72,7 @@ P0 不引入大型全局状态框架：持久数据以 repository 为真源；co
 React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/retry 默认值不能自动重试副作用；只有
 明确的 commandId/idempotency 状态机可重放。
 
-## 依赖职责
+## Expo 工程依赖职责
 
 | 领域 | 选择与边界 |
 | --- | --- |
@@ -101,14 +95,14 @@ React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/ret
 
 ## 网络与后台目标
 
-- 前台 realtime 使用官方 SDK 与 React Native WebSocket header adapter；当前手工 origin/API key 只是
+- iOS 前台 realtime 使用官方 SDK 与 React Native WebSocket header adapter；当前手工 origin/API key 只是
   pairing/ticket 前 fallback。
-- durable mailbox 使用官方 0.21.0 pull processor。宿主只在初始化/配置完成且 App active 或回到 active 时
+- iOS durable mailbox 使用官方 0.21.0 pull processor。宿主只在初始化/配置完成且 App active 或回到 active 时
   显式执行最多 20 项的 drain；后台/inactive、Disabled、换配置和 credential 失效会中止。没有轮询 timer、
   push 或后台自启动。
 - HTTP 由受控 adapter 包装 timeout、错误与 redaction；有副作用请求不用通用自动重试。
 - 大对象通过 Gateway 为当前 call 签发的短期 Store capability 直传对象存储；相机已有 0.17 upload
-  consumer，并完成一次 Android 真实 Store 上传/stat/受保护回读。完整服务端强绑定、通用读取和其余矩阵
+  consumer，并在旧 Android Expo Preview 上完成一次真实 Store 上传/stat/受保护回读。完整服务端强绑定、通用读取和其余矩阵
   仍待上游/联合验收。
 - SQLite v5 operation journal 在副作用前 durable 写 `executing` barrier，只保存 operation id、状态、
   completion 与时间，不保存 arguments/正文/credential；crash 后提交 `result_unknown` 而不重放 handler。
@@ -119,10 +113,7 @@ React 通过细粒度 adapter / `useSyncExternalStore` 订阅。通用 query/ret
 
 ## CNG、权限与资产
 
-config/plugin 是原生配置事实入口；验证必须检查 clean prebuild 后的 merged Android manifest 与 iOS
-entitlement/Info.plist，不能只看 `app.config.ts`。当前配置有可见媒体 foreground service、Camera、
-foreground location、local notification 等已实现入口，并明确阻止 boot/exact alarm、overlay、存储、
-APNs/FCM 及不需要的 badge/remote transport。每次 Expo 模块升级都要复核 final 生成结果。
+Android 权限从原生 Manifest、服务声明和资源追溯到变体合并结果及已安装包；iOS 从 Expo config/plugin 追溯到生成的 Info.plist 与 entitlements。依赖升级后核实最终权限和服务入口。
 
 应用图标以 `assets/icon/brand-mark.svg` 为唯一品牌形状源，`pnpm icons:generate` 导出已提交 PNG；CI 只
 验证这些资产的尺寸、透明通道、引用和 Android adaptive icon 安全区，不在 runner 重新依赖系统图形工具。
@@ -143,10 +134,10 @@ native test 和双端真机。精确门禁及证据写法见 `delivery/definitio
 `delivery/verification-evidence.mdx`。
 
 GitHub Actions 负责 verify、Android Preview APK、iOS simulator 和 GitHub Preview；EAS 是可替换的构建
-执行器，不是架构依赖。Preview 使用 preview application id 与内部测试签名，不生成 production AAB/IPA，
+执行器，不是架构依赖。Android Preview 分发要求独立包名与项目私有发布签名，不生成 production AAB/IPA，
 不替代正式签名、商店、Gateway、真机、安全或 rollout 门禁。
 
-## 被否决方案与复核触发
+## 原 Expo 架构的历史取舍与复核触发
 
 - Flutter 会增加 Dart 与协议类型生成链，降低现有 TypeScript SDK 复用；
 - 双端纯原生会在 P0 重复协议、策略、状态机和 UI；必要能力可渐进下沉，不需预先维护两套业务层；

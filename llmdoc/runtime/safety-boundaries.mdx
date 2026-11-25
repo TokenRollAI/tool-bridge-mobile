@@ -12,6 +12,8 @@ relations:
     - delivery/definition-of-done.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/PhoneControlService.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/WindowCapture.kt
     - app.config.ts
     - app/controls.tsx
     - src/ui/screens/ControlSettingsScreen.tsx
@@ -23,6 +25,10 @@ code:
 ---
 
 # 安全与产品边界
+
+## Android 远控授权
+
+只有本机控制页可以用明确的 App 选择建立五分钟会话。系统无障碍权限仅提供能力，后台连接或 Direct call 均不能代替用户的本次选择。执行时须复核解锁状态、调用主体与活动应用窗口；禁止远程开通或续期、离线排队、任意坐标或 shell 操作。系统拒绝单窗口截图时直接返回失败。观察内容、输入文本、截图与上传凭证不得进入普通日志。
 
 ## 不可绕过的不变量
 
@@ -36,7 +42,7 @@ code:
 - 用户确认后仍要重新检查过期、取消、probe 和 policy，避免等待期间状态变化造成越权执行。
 - SQLite claim 返回后必须最后复检取消/到期；每个本地 capability 的 admission 必须在 confirmation 前
   执行，inline 结果必须在持久化前做 UTF-8 字节上限检查。
-- command `complete` 必须把终态 UPDATE 与 retention prune 放在同一 exclusive transaction；10,000 是
+- command `complete` 必须把终态 UPDATE 与 retention prune 放在同一 exclusive transaction；Expo 实现中 10,000 是
   全部终态总 cap，受保护的当前完成项和活动 timer source 仍计入 cap，只是不作为本次删除候选。
 - command deadline 必须传给可持续/等待型 handler；emergency disable 必须取消进行中的可中断 handler。
 - 远程 `phone/apps` 与地图 handoff 的 `Linking.canOpenURL` 是异步安全边界：必须受调用方取消、
@@ -44,6 +50,8 @@ code:
   并在真正调用 `openURL` 前再次复检取消/到期；probe 成功不能视为永久授权。
 
 ## 凭证与敏感数据
+
+Android 使用 Android Keystore 保护本应用沙箱中的加密凭证。以下涉及 SecureStore、SDK、React Native 或 Expo 的实现细节适用于 iOS 和旧 Android 包。
 
 - 设备凭证、私钥和 push token 只进入系统安全存储，不进入 SQLite、普通日志、崩溃报告或仓库。
 - SDK device credential 的 `audienceOrigin` 必须与当前选中的 HTTPS gateway origin 完全一致；secret 只进

@@ -16,6 +16,7 @@ code:
     - test/**
     - src/**/__tests__/**
     - .github/workflows/**
+    - native-android/app/src/androidTest/RemoteControlAcceptance.sh
 ---
 
 # 验证证据工作法
@@ -33,6 +34,17 @@ code:
 
 结果采用“已验证 / 未验证 / 受阻”三段式。受阻必须写清外部服务、工具链或上游契约缺口；失败和未运行
 不能归类为成功。日期化记录可以证明某个历史 commit/artifact，但不能作为当前工作树的持续事实。
+
+## 2026-11-25 原生 Android 模拟器验收
+
+本轮使用 Android 16（API 36）隔离模拟器、本地真实 Tool Bridge 网关和本地 S3。物理真机尚待验收，本轮未向商店发布。
+
+- **网关和窗口授权**　状态查询返回 HTTP 200。在本机选择便签并开始会话后，输入中文、点击保存，可读回保存的正文，滚动后可读到新的列表项。单窗口 JPEG 上传到本地 S3 后返回受保护对象引用。访问未选窗口返回 HTTP 403。手动结束后读取和旧控件操作被拒绝，另一次会话实际等待五分钟自然到期后，两项操作也被拒绝。
+- **信箱**　在线投递后可在设备信箱读到消息。设备离线时投递到网关邮箱，回到前台取回后，消息出现在本机信箱。
+- **数据迁移**　仪器测试在同一包的数据目录内验证旧数据迁移。旧 Expo Preview 与原生分发包的包名和签名均不同，无法原地升级。旧数据保留在旧包，新包需要重新配置。
+- **本机日志**　`/tmp/tb-native-remote-acceptance.log` 记录便签操作、越界拒绝、手动结束与自然到期。`/tmp/tb-native-final-build.log` 记录原生单元测试任务和 PreviewLocal 构建成功。`/tmp/tb-native-instrumentation-final.log` 记录 14 项仪器测试通过，含同包迁移。`/tmp/tb-native-verify.log` 记录仓库验证通过，Jest 共 467 项通过。
+
+下列 8 月和 9 月的记录属于旧 Expo Preview。
 
 ## 2026-09-03：SDK 0.21.0 Android Preview 构建、安装与冷启动
 
@@ -176,34 +188,22 @@ Gateway E2E、对象存储兼容或真机行为。
 
 ## 原生生成与构建
 
-Expo config、依赖、plugin、权限或 native module 变化时，至少执行对应的 clean prebuild/build：
+Android 从独立 Gradle 工程验证 Kotlin 单测与对应变体构建；iOS 保留 clean prebuild、Xcode simulator 构建及 Info.plist/entitlements 核对。
 
 ```sh
-APP_VARIANT=development pnpm exec expo config --type public
+pnpm test:android
 pnpm build:android:debug
+pnpm build:android:preview
 pnpm build:ios:sim
 ```
 
-Android 权限需检查三层：Expo config introspection、clean prebuild 的 merged manifest、安装后的
-`dumpsys package`。`blockedPermissions` 可移除依赖声明，但 debug manifest 或其他高优先级 manifest 仍可能
-重新引入；只看 config 不能下最终结论。iOS 同理检查 generated Info.plist、entitlements、background modes
-和 usage descriptions。
-
-clean prebuild/autolinking/Metro export 只证明生成配置或 bundle；Gradle/Xcode build 才证明对应原生工作树
-可编译；模拟器 build 不证明真机签名、权限和物理行为。构建受网络或本机工具链阻塞时，记录已完成层级，
-不要把 prebuild 提升为 native build。
+Android 需核对源 Manifest、对应变体的 merged manifest、安装后的权限与系统服务。构建成功、模拟器交互、真机行为、真实 Gateway 兼容与私有签名发布分别取证。
 
 ## Android Preview APK
 
-内部 Android 离线安装包使用 `pnpm build:android:preview`。验收至少确认：
-
-- package 是 preview application id；
-- APK 包含 `assets/index.android.bundle`，不依赖 Metro；
-- 签名可验证并明确是否为测试 key；
-- 显式 MainActivity 可冷启动；
-- 记录 artifact SHA-256。
-
-本地产物不自动成为 CI/Release artifact；preview test key 不能称 production signer。
+- verify 的 PreviewLocal 使用独立的 `.nativepreview.local` 包名和调试签名，供本地验证。分发要求 `pnpm build:android:release` 构建的私有签名 PreviewRelease，测量最终 APK 的 SHA-256，用 `apksigner verify --print-certs` 将实际证书指纹与项目预期证书比对。
+- 检查包名 `ai.tokenroll.toolbridgemobile.nativepreview`、版本、冷启动与原生页面；保留旧 Expo 包 `ai.tokenroll.toolbridgemobile.preview` 及其中的数据，验证两者可独立打开，并验证原生包的同签更新。
+- 新包远控的允许、拒绝、撤销与 Android 14+ 单窗口截图回读均按[真机验收条目](definition-of-done.mdx)留证。在证据齐备前标记待验证。
 
 ## 真实 Gateway、对象存储与真机
 

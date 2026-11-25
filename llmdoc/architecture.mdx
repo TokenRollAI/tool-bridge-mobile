@@ -15,6 +15,8 @@ relations:
     - delivery/verification-and-claims.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/MainActivity.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/runtime/PhoneApp.kt
     - package.json
     - app.config.ts
     - app/**
@@ -26,9 +28,7 @@ code:
 
 ## 产品定位
 
-`tool-bridge-mobile` 是 HTBP / Tool Bridge 生态的移动设备运行时，基于 React Native 与 Expo
-development build 面向 Android 和 iOS。它让 Agent 在用户明确授权、系统权限和平台限制之内调用手机能力，
-不是远程桌面、监控软件、MDM 或任意第三方 App UI 自动化工具。
+Android 从 `native-android/` 构建，使用 Kotlin、原生 Views、SQLite 与 OkHttp。iOS 继续使用 React Native、Expo development build 和 TypeScript。两端都在手机上执行权限与策略裁决；Android 另允许用户在本机给所选 App 开启五分钟在线远控。
 
 代码、HTBP 正式规范和 Tool Bridge 已发布 API 是事实真源；`llmdoc/` 只保存跨任务复用的高密度知识。
 设计文档、历史验证记录与实现冲突时，应先核实代码和正式契约，再同步知识面，不能把目标态或示例写成
@@ -39,6 +39,8 @@ development build 面向 Android 和 iOS。它让 Agent 在用户明确授权、
 本仓库拥有移动 App、移动端运行时、本地策略与确认、安全存储、SQLite 持久化、UI 和必要的 Kotlin/Swift
 原生模块。主要区域是：
 
+- `native-android/`：独立 Android 应用，拥有原生页面、本地命令执行、系统服务与 Gateway 客户端。
+- 以下目录为 iOS 现用的 Expo 工程，同时保留旧 Android Expo 实现与测试。
 - `app/`、`src/ui/`：Expo Router 页面、全局确认、前台相机、媒体控制、本地信箱、Activity 和设置界面；
 - `src/runtime/`、`src/policy/`：应用生命周期、唯一命令执行入口、本地撤销、确认和裁决；
 - `src/gateway/`、`src/identity/`：官方 device SDK transport、Gateway 配置和 SecureStore 身份/凭证；
@@ -47,11 +49,15 @@ development build 面向 Android 和 iOS。它让 Agent 在用户明确授权、
 - `test/contract/`：本地执行边界的注入式契约测试，不是 Gateway wire 或真机端到端测试。
 
 本仓库不拥有 HTBP 通用协议、Tool Bridge Gateway、跨运行时公共 SDK、服务端异步 command mailbox、push
-registration/dispatch、动态 capability profile、对象存储或浏览器扩展；只拥有正式 SDK mailbox API 的
+registration/dispatch、动态 capability profile、对象存储或浏览器扩展；只拥有设备端的
 移动 consumer wiring 与 installation-local operation journal。缺失的通用能力必须在上游交付，不能复制
 `@tool-bridge/core` 私有源码建立长期分叉。
 
 ## 整体数据流
+
+Android：原生 Gateway 连接或前台信箱拉取 → `PhoneRuntime` → 本地命令目录与 SQLite 去重 → 平台处理器 → 结果与脱敏审计。远控还须通过内存会话和活动窗口校验。
+
+iOS 的 SDK 执行链如下。
 
 ```text
 官方 SDK realtime device call / durable mailbox claim / 本地测试 dispatcher
@@ -71,6 +77,8 @@ deadline/cancel、逐次确认和 emergency disable 始终高于远程命令或 
 存储；普通审计不记录位置、照片、消息正文、完整 URL 或其他敏感载荷。
 
 ## 现状
+
+以下 SDK、相机与历史验证描述属于 Expo 实现；Android 原生能力以 [能力架构](capabilities/architecture.mdx) 为准。
 
 - P0 本地安全运行时、官方 `@tool-bridge/sdk/device@0.21.0` realtime 与 durable mailbox consumer wiring、
   手工 Gateway HTTPS origin/API key 内测入口和若干能力纵向切片已经实现。
@@ -97,7 +105,7 @@ deadline/cancel、逐次确认和 emergency disable 始终高于远程命令或 
   不能仅凭 OS 名称推断可用。
 - 未来 trusted grant 绑定已认证 Gateway Credential 实例及其 audience/identity/generation，不绑定具体
   Agent；该方向已决定但尚未实现，详见 `integration/trusted-grants.mdx`。
-- 通用逻辑优先 TypeScript；平台 API 优先成熟 Expo 模块，必要时才使用 Expo Modules API。
+- Android 使用独立 Gradle 工程；iOS 业务逻辑使用 TypeScript，平台 API 优先使用成熟 Expo 模块。
 - 包管理器使用仓库锁定的 pnpm；Expo Go 不是验收环境。
 
 ## 未实现与未验证

@@ -21,6 +21,8 @@ code:
 
 ## 现状：上游
 
+以下 SDK 接线适用于 iOS 现用和旧 Android Expo 工程。独立 Android 客户端按相同网关契约单独验证，详见[接入边界](sdk-device-transport.mdx)。
+
 U-1 已解阻：当前正式入口是 `@tool-bridge/sdk/device@0.21.0`，移动仓库已消费官方 realtime supervisor、
 frame/TBError、RN WebSocket header adapter、durable mailbox processor/journal/delivery metadata 与 AppState
 lifecycle。精确用法与证据边界见 `llmdoc/integration/sdk-device-transport.mdx`。
@@ -31,7 +33,7 @@ lifecycle。精确用法与证据边界见 `llmdoc/integration/sdk-device-transp
 
 0.17.0 已用 call-scoped Store capability 替代旧 context upload：每个 handler 可调用
 `call.uploadObject`，稳定结果是 `store://default/...` descriptor，wire token/relay URL 留在 SDK 内部。
-移动端相机 consumer 已迁移并在 2026-08-26 完成一次 Android 真实 Gateway 上传、stat 和受保护回读；这
+移动端相机 consumer 已迁移并在 2026-08-26 在旧 Android Preview 完成一次真实 Gateway 上传、stat 和受保护回读；这
 解除的是上传入口并证明该单一现场路径，不是完整 U-7、通用读取或全平台 Gateway/storage 兼容证明。
 
 0.21.0 的 `CallUploadObjectOptions` 仍没有 caller-provided `signal`。SDK 只传播原始 device call signal，
@@ -42,7 +44,7 @@ lifecycle。精确用法与证据边界见 `llmdoc/integration/sdk-device-transp
 仍未交付或未联合验收：
 
 - U-2 pairing session、设备签发/重命名/轮换/撤销；
-- U-3 单次短期 WebSocket ticket；当前原生 RN 使用既有 device SK header；
+- U-3 单次短期 WebSocket ticket；当前 iOS RN 使用既有 device SK header；
 - 调用 context 与当前已认证 device credential/session 的可验证 identity/generation 绑定；
 - U-4 动态 capability profile/version/change report；
 - U-5 真实 Gateway enqueue/claim/renew/complete、cancel/expiry/awaiting_user/result 与移动端联合验收；SDK
@@ -64,8 +66,7 @@ origin 无 credential 为 `credentials_required`；只有收到真实 SDK ready 
 通道并清 credential。
 
 用户可见的 `inbox_messages` 内容信箱与 Gateway operation mailbox 是不同层。当前没有 timer 驱动的新
-drain、后台轮询、APNs/FCM token 或进程终止后的唤醒；只有本地 consumer contract，没有真实 Gateway/
-双端真机 mailbox 证据。因此 U-5 只能称“移动 consumer 接入”，不能称完整验收；U-6 仍未实现。
+drain、后台轮询、APNs/FCM token 或进程终止后的唤醒；iOS 现用和旧 Expo 客户端的 SDK 验证限于本地 consumer contract。原生 Android 已在隔离模拟器上通过本地真实网关验证在线投信、离线入队后前台取回并显示。U-5 的完整生命周期和双端真机联合验收仍待完成，U-6 仍未实现。[模拟器验收记录](../delivery/verification-evidence.mdx)
 
 信箱 Markdown 的显式 HTTPS 链接是另一条本地用户交互边界：远程投递只能存储 Markdown，裸 URL
 不会自动 linkify，也不会在渲染时打开系统处理器。只有用户点按通过本地结构 policy 的链接后，
@@ -92,7 +93,7 @@ U-1 至 U-7 的当前责任、依赖和验收边界由本文维护；已发布 A
 
 - prebuild/autolink/Metro、Android/iOS native build 与真机是不同证据层；任一当前状态必须从对应 commit/
   artifact 的有效记录判断，历史机器或单次构建不作为持续事实。
-- SDK transport 仍需完整验证双端真机能力矩阵、前后台转换、弱网、重连、系统挂起和长期稳定性；历史
+- Android 原生 transport 与 iOS SDK transport 仍需分别验证真机能力矩阵、前后台转换、弱网、重连、系统挂起和长期稳定性；历史
   Android `status/get` 单次结果不能外推。
 - 音频、位置、深链、权限、后台与锁屏按项目 DOD 需要双端真机；本地 contract、生成配置或模拟器不能
   替代。

@@ -10,6 +10,7 @@ relations:
     - delivery/verification-evidence.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/ui/NativeWidgets.kt
     - src/ui/components/Screen.tsx
     - src/ui/components/StatusCard.tsx
     - src/ui/components/SectionHeading.tsx
@@ -28,6 +29,8 @@ code:
 ---
 
 # 系统主题与 Accessibility semantics 基线
+
+以下组件语义与自动化属于 iOS 现用的 React Native 工程及旧 Android Expo 包。Android 原生 Views 的读屏、焦点和操作需在原生包上重新验收；用户为远控启用的 AccessibilityService 是独立授权。
 
 ## 系统外观
 

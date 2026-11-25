@@ -10,6 +10,7 @@ relations:
     - runtime/command-retention.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/features/DeviceToolsTimers.kt
     - src/capabilities/productivity/timerSchema.ts
     - src/capabilities/productivity/timerCapabilities.ts
     - src/capabilities/productivity/timerController.ts
@@ -20,6 +21,8 @@ code:
 ---
 
 # App 内本地 timer 参考
+
+Android 原生包用 AlarmManager 的非精确定时与应用内 receiver 处理到点事件。下文的 Expo Notifications 调度与恢复顺序限于 Expo 工程，真机到点行为按平台分别验收。
 
 ## 能力与输入
 

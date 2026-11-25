@@ -14,6 +14,8 @@ code:
 
 # EAS 项目绑定参考
 
+本页描述保留的 Expo 工程。iOS 继续使用这些配置；独立 Android 工程按 Gradle flavor 与项目签名构建，EAS 的旧 Android profile 不用于交付原生 Preview。
+
 ## 稳定身份
 
 - Expo account/owner：`tokenroll`
@@ -29,7 +31,7 @@ personal access token、Android keystore、Apple certificate/profile、APNs/FCM 
 development、preview、production 共用 owner、slug 和 Project ID。以下字段按变体隔离：
 
 - application display name；
-- Android application id；
+- 旧 Expo 工程的 Android application id；
 - iOS bundle identifier；
 - URL scheme；
 - `APP_VARIANT` 与 EAS environment。
@@ -42,12 +44,12 @@ production 保持 store-oriented 默认产物。不要在尚未评审 runtime/ch
 
 ```bash
 mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas project:info
-mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas config --platform android --profile preview
+mise exec node@22.23.1 -- pnpm --package=eas-cli@22.0.0 dlx eas config --platform ios --profile preview
 pnpm verify
 ```
 
 预期 `project:info` 返回 `@tokenroll/tool-bridge` 与上述 UUID；preview resolved profile 返回
-`environment=preview`、`APP_VARIANT=preview`、Node 22.23.1、`distribution=internal` 与 `buildType=apk`。
+`environment=preview`、`APP_VARIANT=preview`、Node 22.23.1、`distribution=internal`（Android APK 字段仅属旧 Expo profile）。
 
 ## 证据边界
 

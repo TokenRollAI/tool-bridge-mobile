@@ -12,6 +12,7 @@ relations:
     - delivery/github-preview-release.mdx
 code:
   paths:
+    - native-android/app/src/androidTest/java/ai/tokenroll/toolbridge/mobile/RemoteControlInstrumentation.kt
     - package.json
     - app.config.ts
     - .github/workflows/**
@@ -40,14 +41,14 @@ run 或测试数量快照。证据层级和记录格式见 `delivery/evidence-la
 - 使用独立 pnpm workspace、明确 license，Node/pnpm/Expo/RN/TS 版本由事实文件与 frozen lockfile 锁定；
 - strict TypeScript、零 warning lint、unit/component/local contract、secret/license/dependency/config/native
   module/SDK entry 等仓库 gate 全绿；
-- development/preview/production 的 application id、bundle id、scheme、名称和环境隔离；
+- development/preview/production 的 Android Gradle application id 与 iOS Expo bundle id/变体配置分别核对；
 - Android debug/preview 与 iOS simulator 能从 clean checkout 可复现；关键路径不依赖 Expo Go；
 - 仓库没有 certificate、profile、service account、APNs/FCM key、Gateway credential 或生成的 secret。
 
 运行时基础完成要求：
 
 - installation identity 与 credential 使用系统安全存储，pairing ticket 短期、单次、目标 origin 可见；
-- realtime 使用官方 React Native device SDK 与短期 ticket，mailbox 状态可持久化；
+- Android 原生客户端和 iOS 官方 device SDK 分别验证 realtime 与短期 ticket，mailbox 状态可持久化；
 - registry 来自实际 probe，policy 在每次执行前运行，emergency disable 立即阻止新执行；
 - pairing revoke 后 realtime 与 mailbox 都失效，crash/restart 后命令状态不被猜测或重复执行；
 - online、background-reachable、offline、disabled 有对应 transport/mailbox/push 证据，不能靠进程存活推断。
@@ -82,6 +83,13 @@ pairing、短期 ticket、真实 Gateway、mailbox/push 或撤销闭环。
 - 纯逻辑 unit、UI component、正式 Gateway wire、Android native、iOS native、双端真机、前后台/锁屏、
   弱网/离线/未送达均按能力适用性留证据；
 - 平台专有能力可把另一端标为明确 unavailable，但不能删掉协议、probe 和降级测试。
+
+## Android 远控验收（待真机验证）
+
+- 从原生包本机开始一次完整会话：启用无障碍、开启可见结束通知、选 App、开始五分钟，在所选 App 中观察并操作，检查结果与页面变化。记录设备、系统、包名、签名及网关环境。
+- 验证无授权、未选择的 App、系统窗口、过期元素引用、其他调用主体及 mailbox 请求均被拒绝。分别从页面和通知结束，再检查五分钟到期、熄屏/锁屏、断线、关闭服务、进程重启后无法继续或自动恢复。
+- 在 Android 14+ 核实截图只有所选活动窗口，覆盖窗口切换、系统保护、无上传授权及受保护 URI 的授权回读；在较低版本确认截图工具未公开。核查普通日志和持久化命令历史没有屏幕内容或输入文本。另测撤销后重复调用的结果可见性，覆盖实时连接的内存结果缓存。
+- 核对原生工具发现面无旧 shell。iOS 单独执行原有 simulator 与适用真机回归。Jest、Kotlin 单测、模拟器或旧 Expo APK 的记录仅支持各自测试范围。
 
 ## Golden scenario 的额外门禁
 
@@ -134,8 +142,7 @@ MVP release candidate 还需有设备、OS、build、网络和样本数明确的
 
 ## Preview 与 production release DOD
 
-GitHub Preview 只需满足 `delivery/github-preview-release.mdx` 的双路径 gate，并明确使用 Preview application
-id、内部测试签名、APK 与 iOS simulator 门禁。它不是 production/store release，不能提前关闭以下条件。
+Android Preview 分发要求独立包名、项目私有发布签名、APK 与 SHA-256 可追溯，且 iOS simulator 门禁通过。须验证新旧包并存、旧数据保留和新包同签更新。PreviewLocal APK 只供验证；两条工作流产物是否符合要求见[发布流程](github-preview-release.mdx)。
 
 Production release 必须：
 
@@ -153,6 +160,7 @@ Production release 必须：
 | 仅文档 | `pnpm verify` |
 | 纯 TypeScript | typecheck + lint + unit + local contract |
 | React UI | 上述 + component + 双端截图/交互 |
+| Android 原生 Views / Gradle | Kotlin 单测 + 对应变体构建 + 已安装包界面/交互 smoke |
 | Expo config / native dependency | 上述 + Android/iOS clean build + 最终生成配置 |
 | Kotlin / Swift | 上述 + 对应 native test + 真机场景 |
 | push / background | 双端真机前后台、锁屏、kill、过期/未送达 |

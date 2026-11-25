@@ -12,6 +12,7 @@ relations:
     - delivery/evidence-language.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/ui/NativeArticle.kt
     - src/inbox/**
     - src/gateway/sdkDeviceMailboxTransport.ts
     - src/storage/migrations/0003_inbox.ts
@@ -29,6 +30,8 @@ code:
 ---
 
 # 设备本地信箱参考
+
+Android 原生包使用自己的 SQLite 信箱和原生 Views 阅读页。下文涉及 SDK processor、RN Markdown 和 Expo 的实现细节适用于 iOS 及旧 Android 包；原生 Preview 独立安装后不会出现旧包信件。
 
 ## 定义与边界
 

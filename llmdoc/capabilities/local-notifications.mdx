@@ -9,6 +9,7 @@ relations:
     - capabilities/local-timers.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/features/DeviceToolsNotifications.kt
     - src/capabilities/productivity/notificationSchema.ts
     - src/capabilities/productivity/notificationCapability.ts
     - src/capabilities/productivity/notificationController.ts
@@ -20,6 +21,8 @@ code:
 ---
 
 # Local-only 通知参考
+
+Android 原生包使用 NotificationManager 和本地通知 channel，权限以独立工程的 Manifest 及安装结果为准。下文的 Expo plugin、权限状态与 final config 检查适用于 iOS 及旧 Android 包。
 
 ## 范围
 

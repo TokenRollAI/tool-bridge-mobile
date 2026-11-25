@@ -9,6 +9,7 @@ relations:
     - integration/upstream-and-platform-gaps.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/features/SensorMediaSource.kt
     - src/capabilities/media/sourcePolicy.ts
     - src/capabilities/media/sourceResolver.ts
     - src/capabilities/media/expoMediaCacheStore.ts
@@ -17,6 +18,8 @@ code:
 ---
 
 # 受控 HTTPS 媒体源参考
+
+Android 原生客户端由 Kotlin 下载器校验并缓存媒体，再交给系统 MediaPlayer。下文涉及 Expo 的适配器与测试适用于 iOS 和旧 Android 包。
 
 ## 范围
 

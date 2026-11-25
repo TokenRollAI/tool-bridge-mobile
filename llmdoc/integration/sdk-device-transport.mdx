@@ -1,5 +1,5 @@
 ---
-description: 官方 React Native device SDK 的入口、凭证、call 归一化、生命周期、诊断与兼容证据。
+description: Android Kotlin Gateway 客户端与 iOS React Native device SDK 的接入及兼容证据。
 kind: architecture
 relations:
   requires:
@@ -12,6 +12,10 @@ relations:
     - delivery/evidence-language.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/wire/GatewayConnection.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/wire/GatewayMailbox.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/wire/WireUpload.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/wire/WireDevice.kt
     - package.json
     - src/gateway/sdkDeviceMailboxTransport.ts
     - src/gateway/sdkDeviceTransport.ts
@@ -24,9 +28,15 @@ code:
 
 # SDK device transport 参考
 
-## 已发布事实
+## Android 原生 Gateway 客户端
 
-- 移动端精确依赖正式发布的 `@tool-bridge/sdk@0.21.0`，生产代码只从 `@tool-bridge/sdk/device` 导入。
+Android 以 OkHttp 建立设备 WebSocket，hello 中声明设备挂载路径与命令 schema，收到 ready 才显示在线。Kotlin 客户端处理实时调用、取消与结果，前台的 mailbox 客户端只为信箱投递走 claim/lease/complete。相机和 Android 14+ 单窗口截图只使用当前调用授予的 Store 上传能力。
+
+`phone/control` 只接受实时调用，网关连通和本机授权缺一不可。2026-11-25，原生客户端在 API 36 隔离模拟器上通过本地真实网关验证了状态调用、窗口操作与拒绝、截图上传并取得受保护引用，以及在线投信和离线邮件的前台取回。发现、取消、断线撤销和受保护对象回读仍需各自的验证记录。[模拟器验收记录](../delivery/verification-evidence.mdx)
+
+## iOS 与原 Expo 工程的已发布 SDK
+
+- Expo 工程精确依赖正式发布的 `@tool-bridge/sdk@0.21.0`，生产代码只从 `@tool-bridge/sdk/device` 导入。
 - `/device` 导出 `connectDevice`、`createReactNativeWebSocketFactory`、DeviceExpose/frame/TBError 类型与
   codec；0.21.0 继续为每个 `DeviceCallHandler` call 提供 `uploadObject`，并正式导出
   `createDeviceMailboxProcessor`、`DeviceOperationJournal` 与 command `delivery` metadata。包根仍是 Node
@@ -42,7 +52,7 @@ code:
 - React Native 目标运行时缺失浏览器完整 `MessageEvent` 与 `AbortSignal.throwIfAborted()`；App 入口在加载
   router/SDK 前只补齐缺失成员，避免 ready 后的 message/cancel 路径因运行时差异抛出 `internal`。
 
-## 移动 wiring
+## Expo 工程接线
 
 `src/gateway/sdkDeviceTransport.ts` 负责：
 

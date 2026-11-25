@@ -10,6 +10,7 @@ relations:
     - integration/upstream-and-platform-gaps.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/data/CredentialStore.kt
     - src/identity/manualGatewayCredential.ts
     - src/identity/deviceIdentity.ts
     - src/gateway/manualGatewayConfigurationController.ts
@@ -25,8 +26,7 @@ code:
 
 ## 当前用途
 
-正式 pairing/U-2 尚未交付时，设备总览的“连接配置”二级页允许用户手工输入 Gateway HTTPS origin 与 API key，直接驱动
-`@tool-bridge/sdk/device@0.21.0` realtime 连接和 active-only mailbox drain。它是内测 fallback，不是
+正式 pairing/U-2 尚未交付时，设备总览的“连接配置”二级页允许用户手工输入 Gateway HTTPS origin 与 API key，Android 通过 Kotlin 客户端连接，iOS 使用官方 device SDK。它是内测 fallback，不是
 pairing、设备凭证签发、最小 scope、
 rotation/revoke 或 U-3 短期 ticket。
 
@@ -36,14 +36,18 @@ rotation/revoke 或 U-3 短期 ticket。
 - API key 长度为 1..16,384，只允许不含空白的 printable ASCII；不静默 trim 或规范化 secret。
 - API key 输入框遮蔽，保存成功立即清空；UI snapshot 和 announcement 不包含 secret。
 - 客户端声明的 SDK deviceId 默认由设备硬件标识（Android ID / iOS IDFV）加域分隔盐经 SHA-256 截断
-  派生为 12 位十六进制短 ID，跨重装稳定；硬件标识不可用时回退 SecureStore `installation_<uuid>` 派生。
+  派生为 12 位十六进制短 ID，包名或签名变化时不能假定身份连续；硬件标识不可用时回退 SecureStore `installation_<uuid>` 派生。
   用户可在表单自定义 deviceId，只接受 `[A-Za-z0-9._-]{1,64}`（与网关 `assertDeviceId` DO 路由约束一致）。
 - 设备在 hello 中声明 `mountPath: device/phone/<deviceId>`；expose node 去掉 `phone/` 前缀，
   新 call `path` 将命令放在最后一段，adapter 拆出 node path 后再补回 `phone/`，本地规范
   命名空间与 SQLite 历史格式不变。
 - `manual_api_key_<uuid>` 只是同一安装实例的 gateway principal/local caller bucket，不是具体 Agent 身份。
 
-## 存储与优先级
+## Android 原生凭证存储
+
+原生 Preview 在自己的应用沙箱中保存加密 envelope，AES 密钥由 Android Keystore 管理。新包需要重新配置 Gateway；即使封装格式兼容，也不会读取旧 Expo Preview 的凭证、安装身份或信箱数据。
+
+## iOS 与原 Expo 工程的存储与优先级
 
 - `audienceOrigin/deviceId/keyId/material/version` 使用现有 `DeviceCredentialEnvelope` 写入
   `expo-secure-store`；API key 不进入 SQLite、AsyncStorage、普通审计、日志、crash report、源码或
