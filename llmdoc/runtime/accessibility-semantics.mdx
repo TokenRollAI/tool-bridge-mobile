@@ -31,9 +31,8 @@ code:
 
 ## 系统外观
 
-- 已决定：系统外观是唯一主题来源，不保存独立主题偏好。共享语义色覆盖浅色和深色，页面、导航、
-  状态栏及全局弹窗同步跟随；切换主题只更新样式，不重挂载页面或运行时，不丢弃未提交表单与待确认状态。
-- 主操作和危险操作分别使用配对的前景/背景语义色；危险操作不能复用浅色面板文字颜色推断可读性。
+- 已决定：系统外观是唯一主题来源，不保存独立主题偏好。共享语义色与 Web Dashboard 对齐为两层中性实底（Stage 与 Canvas，弹层用 `slab`）、单色高对比主操作，以及严控配额的琥珀金信号色 `signal` / `signalSoft`（仅用于信箱未读圆点、远程待确认门禁指示等关键状态），页面、悬浮胶囊底栏、状态栏及全局弹窗同步跟随；切换主题只更新样式，不重挂载页面或运行时，不丢弃未提交表单与待确认状态。
+- 主操作、开关开启态（`primary` 轨道配 `onPrimary` 滑块）和危险操作分别使用配对的前景/背景语义色；远程确认弹窗的「拒绝」使用中性次级样式，危险色仅用于不可逆清除等破坏性动作，不能复用浅色面板文字颜色推断可读性。
   颜色回归必须检查组件实际采用的文字组合，而不是未用于渲染的候选配色。
 
 ## 共享语义
@@ -96,5 +95,5 @@ code:
 - tests：`src/ui/components/__tests__/accessibilityComponents.test.tsx`、
   `src/ui/components/__tests__/PendingConfirmationModal.test.tsx`、`src/ui/__tests__/accessibility.test.tsx`、
   `src/ui/components/__tests__/CameraCaptureModal.test.tsx`、`src/ui/components/__tests__/SafeMarkdown.test.tsx`、
-  `src/ui/__tests__/themeContrast.test.ts`、`src/ui/__tests__/systemTheme.test.tsx`
+  `src/ui/__tests__/themeContrast.test.ts`、`src/ui/__tests__/systemTheme.test.tsx`、`src/ui/__tests__/tabLayout.test.tsx`
 - 验收：`llmdoc/delivery/definition-of-done.mdx`、`llmdoc/delivery/verification-evidence.mdx`
