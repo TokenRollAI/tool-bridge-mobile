@@ -1,0 +1,10 @@
+<resources>
+    <string name="control_description">仅在你开始的限时会话内读取、点击和填写你选择的 App。你可以随时从通知结束控制。</string>
+    <color name="iconBackground">#08111f</color>
+    <style name="ToolBridgeTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:colorAccent">#28554c</item>
+    </style>
+</resources>

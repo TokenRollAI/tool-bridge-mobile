@@ -1,0 +1,2211 @@
+{
+  "inbox/deliver": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "maxLength": 64000
+        },
+        "category": {
+          "default": "message",
+          "type": "string",
+          "enum": [
+            "message",
+            "subscription",
+            "news",
+            "update"
+          ]
+        },
+        "format": {
+          "default": "markdown",
+          "type": "string",
+          "const": "markdown"
+        },
+        "notify": {
+          "default": false,
+          "type": "boolean"
+        },
+        "sentAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+        },
+        "sourceLabel": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "urgency": {
+          "default": "normal",
+          "type": "string",
+          "enum": [
+            "low",
+            "normal",
+            "high",
+            "critical"
+          ]
+        }
+      },
+      "required": [
+        "body",
+        "title"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "messageId": {
+          "type": "string"
+        },
+        "notification": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "const": "not_requested"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "const": "not_attempted"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "const": "permission_required"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "const": "unavailable"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "const": "status_unknown"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "notificationId": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "const": "scheduled"
+                }
+              },
+              "required": [
+                "notificationId",
+                "status"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "receivedAt": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "const": "stored"
+        }
+      },
+      "required": [
+        "messageId",
+        "notification",
+        "receivedAt",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "status/get": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "appState": {
+          "type": "string"
+        },
+        "battery": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "availability": {
+                  "type": "string",
+                  "const": "available"
+                },
+                "value": {
+                  "type": "object",
+                  "properties": {
+                    "charging": {
+                      "type": "boolean"
+                    },
+                    "level": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "lowPowerMode": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "charging",
+                    "level",
+                    "lowPowerMode"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "availability",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "availability": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "availability",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "controlMode": {
+          "type": "string"
+        },
+        "installationId": {
+          "type": "string"
+        },
+        "network": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "availability": {
+                  "type": "string",
+                  "const": "available"
+                },
+                "value": {
+                  "type": "object",
+                  "properties": {
+                    "internetReachable": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "internetReachable",
+                    "type"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "availability",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "availability": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "availability",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "observedAt": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string",
+          "enum": [
+            "android",
+            "ios",
+            "unknown"
+          ]
+        },
+        "reachability": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "appState",
+        "battery",
+        "controlMode",
+        "installationId",
+        "network",
+        "observedAt",
+        "platform",
+        "reachability"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "runtime/capabilities": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "availability": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "const": "available"
+                      }
+                    },
+                    "required": [
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "permission": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "const": "permission_required"
+                      }
+                    },
+                    "required": [
+                      "permission",
+                      "reason",
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "reason": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "const": "unavailable"
+                      }
+                    },
+                    "required": [
+                      "reason",
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "confirmation": {
+                "type": "string",
+                "enum": [
+                  "always",
+                  "never",
+                  "when_locked"
+                ]
+              },
+              "description": {
+                "type": "string"
+              },
+              "effect": {
+                "type": "string",
+                "enum": [
+                  "read",
+                  "write",
+                  "destructive"
+                ]
+              },
+              "effectiveConfirmation": {
+                "type": "string",
+                "enum": [
+                  "required",
+                  "not_required"
+                ]
+              },
+              "path": {
+                "type": "string"
+              },
+              "risk": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "tool": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "availability",
+              "confirmation",
+              "description",
+              "effect",
+              "effectiveConfirmation",
+              "path",
+              "risk",
+              "tool"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "observedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capabilities",
+        "observedAt"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "runtime/pending_commands": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "commandId": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "expiresAt": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "awaiting_user"
+                ]
+              },
+              "tool": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "commandId",
+              "createdAt",
+              "expiresAt",
+              "path",
+              "state",
+              "tool"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "identityScope": {
+          "type": "string",
+          "const": "gateway_credential_principal"
+        }
+      },
+      "required": [
+        "commands",
+        "identityScope"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "runtime/cancel": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "commandId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "commandId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "commandId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "cancellation_requested",
+            "not_active"
+          ]
+        }
+      },
+      "required": [
+        "commandId",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "system/accessibility_status": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "system/clipboard_get": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "system/clipboard_set": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 64000
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "set"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "system/open_intent": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "handed_off"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "productivity/notify": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "purpose": {
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "message",
+        "purpose"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "notificationId": {
+          "type": "string"
+        },
+        "presentation": {
+          "type": "string",
+          "const": "system_determined"
+        },
+        "scheduledAt": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "const": "scheduled"
+        }
+      },
+      "required": [
+        "notificationId",
+        "presentation",
+        "scheduledAt",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "productivity/timer_start": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "firesAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+        },
+        "purpose": {
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "firesAt",
+        "purpose"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "accuracy": {
+          "type": "string",
+          "const": "system_determined"
+        },
+        "firesAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+        },
+        "scheduling": {
+          "type": "string",
+          "const": "system_accepted"
+        },
+        "state": {
+          "type": "string",
+          "const": "scheduled"
+        },
+        "timerId": {
+          "type": "string",
+          "pattern": "^timer_[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "accuracy",
+        "firesAt",
+        "scheduling",
+        "state",
+        "timerId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "productivity/timer_cancel": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "timerId": {
+          "type": "string",
+          "pattern": "^timer_[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "timerId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "presentation": {
+          "type": "string",
+          "const": "unknown"
+        },
+        "state": {
+          "type": "string",
+          "const": "cancelled"
+        },
+        "timerId": {
+          "type": "string",
+          "pattern": "^timer_[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "presentation",
+        "state",
+        "timerId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "productivity/timer_status": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "timerId": {
+          "type": "string",
+          "pattern": "^timer_[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "timerId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "firesAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+        },
+        "observedAt": {
+          "type": "string"
+        },
+        "presentation": {
+          "type": "string",
+          "enum": [
+            "system_determined",
+            "unknown"
+          ]
+        },
+        "scheduling": {
+          "type": "string",
+          "enum": [
+            "pending_observed",
+            "not_pending",
+            "unknown"
+          ]
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "scheduled",
+            "schedule_missing",
+            "deadline_elapsed",
+            "cancelled",
+            "status_unknown"
+          ]
+        },
+        "timerId": {
+          "type": "string",
+          "pattern": "^timer_[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "firesAt",
+        "observedAt",
+        "presentation",
+        "scheduling",
+        "state",
+        "timerId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "attention/ring": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "durationSeconds": {
+          "default": 30,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        },
+        "flash": {
+          "default": false,
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "sound": {
+          "default": "find_device",
+          "type": "string",
+          "const": "find_device"
+        },
+        "vibrate": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "channels": {
+          "type": "object",
+          "properties": {
+            "flash": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "const": "requested"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "reason": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "const": "unavailable"
+                    }
+                  },
+                  "required": [
+                    "reason",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "sound": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "const": "requested"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "reason": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "const": "unavailable"
+                    }
+                  },
+                  "required": [
+                    "reason",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "vibration": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "const": "requested"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "reason": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "const": "unavailable"
+                    }
+                  },
+                  "required": [
+                    "reason",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "flash",
+            "sound",
+            "vibration"
+          ],
+          "additionalProperties": false
+        },
+        "expiresAt": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "channels",
+        "expiresAt",
+        "sessionId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "attention/stop": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "stopped",
+            "not_active"
+          ]
+        }
+      },
+      "required": [
+        "sessionId",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "apps/can_open_url": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "canOpen": {
+          "type": "boolean"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "https"
+            }
+          },
+          "required": [
+            "host",
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "canOpen",
+        "target"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "apps/open_url": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "handed_off"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "https"
+            }
+          },
+          "required": [
+            "host",
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "status",
+        "target"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "location/current": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "accuracy": {
+          "default": "balanced",
+          "type": "string",
+          "enum": [
+            "balanced",
+            "high"
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "timeoutSeconds": {
+          "default": 15,
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 30
+        }
+      },
+      "required": [
+        "purpose"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "capturedAt": {
+          "type": "string"
+        },
+        "coordinate": {
+          "type": "object",
+          "properties": {
+            "latitude": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "longitude": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          "required": [
+            "latitude",
+            "longitude"
+          ],
+          "additionalProperties": false
+        },
+        "horizontalAccuracyMeters": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mocked": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "permissionAccuracy": {
+          "type": "string",
+          "enum": [
+            "precise",
+            "approximate",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "capturedAt",
+        "coordinate",
+        "horizontalAccuracyMeters",
+        "mocked",
+        "permissionAccuracy"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "location/open_map": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "target": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "coordinate"
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "latitude": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "longitude": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "zoom": {
+                  "type": "integer",
+                  "minimum": 2,
+                  "maximum": 21
+                }
+              },
+              "required": [
+                "kind",
+                "latitude",
+                "longitude"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "query"
+                },
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "kind",
+                "query"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "purpose",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "handed_off"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "map"
+            },
+            "provider": {
+              "type": "string",
+              "enum": [
+                "android_geo_handler",
+                "apple_map_link"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "provider"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "status",
+        "target"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "camera/capture_photo": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "facing": {
+          "default": "back",
+          "type": "string",
+          "enum": [
+            "front",
+            "back"
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "quality": {
+          "default": "medium",
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      "required": [
+        "purpose"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 10485760
+        },
+        "height": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "mimeType": {
+          "type": "string",
+          "const": "image/jpeg"
+        },
+        "objectRef": {
+          "type": "string",
+          "pattern": "^store:\\/\\/default\\/[A-Za-z0-9_-]{22,64}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "width": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "bytes",
+        "height",
+        "mimeType",
+        "objectRef",
+        "sha256",
+        "width"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "media/play": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "artist": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "https"
+            },
+            "url": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "kind",
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "source",
+        "title"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "artist": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "callerSubjectId": {
+          "type": "string"
+        },
+        "currentTimeSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "durationSeconds": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sourceHost": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "loading",
+            "playing",
+            "paused",
+            "interrupted",
+            "stopped",
+            "failed"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artist",
+        "callerSubjectId",
+        "currentTimeSeconds",
+        "durationSeconds",
+        "mimeType",
+        "sessionId",
+        "sizeBytes",
+        "sourceHost",
+        "state",
+        "title"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "media/pause": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "artist": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "callerSubjectId": {
+          "type": "string"
+        },
+        "currentTimeSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "durationSeconds": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sourceHost": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "loading",
+            "playing",
+            "paused",
+            "interrupted",
+            "stopped",
+            "failed"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artist",
+        "callerSubjectId",
+        "currentTimeSeconds",
+        "durationSeconds",
+        "mimeType",
+        "sessionId",
+        "sizeBytes",
+        "sourceHost",
+        "state",
+        "title"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "media/resume": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "artist": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "callerSubjectId": {
+          "type": "string"
+        },
+        "currentTimeSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "durationSeconds": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sourceHost": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "loading",
+            "playing",
+            "paused",
+            "interrupted",
+            "stopped",
+            "failed"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artist",
+        "callerSubjectId",
+        "currentTimeSeconds",
+        "durationSeconds",
+        "mimeType",
+        "sessionId",
+        "sizeBytes",
+        "sourceHost",
+        "state",
+        "title"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "media/seek": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "positionMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7200000
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "positionMs",
+        "sessionId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "artist": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "callerSubjectId": {
+          "type": "string"
+        },
+        "currentTimeSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "durationSeconds": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sourceHost": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "loading",
+            "playing",
+            "paused",
+            "interrupted",
+            "stopped",
+            "failed"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artist",
+        "callerSubjectId",
+        "currentTimeSeconds",
+        "durationSeconds",
+        "mimeType",
+        "sessionId",
+        "sizeBytes",
+        "sourceHost",
+        "state",
+        "title"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "media/stop": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "artist": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "callerSubjectId": {
+          "type": "string"
+        },
+        "currentTimeSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "durationSeconds": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sourceHost": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "loading",
+            "playing",
+            "paused",
+            "interrupted",
+            "stopped",
+            "failed"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artist",
+        "callerSubjectId",
+        "currentTimeSeconds",
+        "durationSeconds",
+        "mimeType",
+        "sessionId",
+        "sizeBytes",
+        "sourceHost",
+        "state",
+        "title"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "media/status": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "artist": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "callerSubjectId": {
+          "type": "string"
+        },
+        "currentTimeSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "durationSeconds": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sourceHost": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "loading",
+            "playing",
+            "paused",
+            "interrupted",
+            "stopped",
+            "failed"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artist",
+        "callerSubjectId",
+        "currentTimeSeconds",
+        "durationSeconds",
+        "mimeType",
+        "sessionId",
+        "sizeBytes",
+        "sourceHost",
+        "state",
+        "title"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "control/observe": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "package": {
+          "type": "string"
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "element": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "label": {
+                "type": "string"
+              },
+              "clickable": {
+                "type": "boolean"
+              },
+              "editable": {
+                "type": "boolean"
+              },
+              "scrollable": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "element",
+              "label",
+              "clickable",
+              "editable",
+              "scrollable"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "package",
+        "elements"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "control/screenshot": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "uri": {
+          "type": "string"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "height": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "contentType": {
+          "type": "string",
+          "const": "image/jpeg"
+        }
+      },
+      "required": [
+        "uri",
+        "width",
+        "height",
+        "contentType"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "control/tap": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "element": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "accepted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "accepted"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "control/type": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "element": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "element",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "accepted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "accepted"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "control/scroll": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "element": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "forward",
+            "backward"
+          ]
+        }
+      },
+      "required": [
+        "element",
+        "direction"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "accepted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "accepted"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
