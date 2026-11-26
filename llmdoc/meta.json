@@ -6,10 +6,10 @@
   },
   "documents": {
     "architecture.mdx": {
-      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
+      "validatedRevision": "dad75e5698bbd06b19eca901950dc4aa18b509cd"
     },
     "capabilities/architecture.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "dad75e5698bbd06b19eca901950dc4aa18b509cd"
     },
     "capabilities/bounded-linking-handoffs.mdx": {
       "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
@@ -45,7 +45,7 @@
       "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "integration/sdk-device-transport.mdx": {
-      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
+      "validatedRevision": "dad75e5698bbd06b19eca901950dc4aa18b509cd"
     },
     "integration/trusted-grants.mdx": {
       "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
@@ -60,13 +60,13 @@
       "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
     },
     "runtime/architecture.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "dad75e5698bbd06b19eca901950dc4aa18b509cd"
     },
     "runtime/command-retention.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "dad75e5698bbd06b19eca901950dc4aa18b509cd"
     },
     "runtime/safety-boundaries.mdx": {
-      "validatedRevision": "874aa3bb580c8946006c6c0bd28e3d04e69ca041"
+      "validatedRevision": "dad75e5698bbd06b19eca901950dc4aa18b509cd"
     },
     "product/requirements-and-roadmap.mdx": {
       "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
@@ -75,7 +75,7 @@
       "validatedRevision": "4770c6a58f67bcc73e75e4abb2bfbc65b482d12c"
     },
     "delivery/definition-of-done.mdx": {
-      "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
+      "validatedRevision": "dad75e5698bbd06b19eca901950dc4aa18b509cd"
     },
     "delivery/verification-evidence.mdx": {
       "validatedRevision": "17ccdab3a596c80ae5edd8e19266bff8e6299dc6"
