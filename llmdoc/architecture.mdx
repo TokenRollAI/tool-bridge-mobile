@@ -28,7 +28,7 @@ code:
 
 ## 产品定位
 
-Android 从 `native-android/` 构建，使用 Kotlin、原生 Views、SQLite 与 OkHttp。iOS 继续使用 React Native、Expo development build 和 TypeScript。两端都在手机上执行权限与策略裁决；Android 另允许用户在本机给所选 App 开启五分钟在线远控。
+Android 从 `native-android/` 构建，使用 Kotlin、原生 Views、SQLite 与 OkHttp。iOS 继续使用 React Native、Expo development build 和 TypeScript。两端都在手机上执行权限与策略裁决。Android 用户可在本机为所选 App 开启五分钟在线远控，也可明确授权当前全部可控 App，持续至会话结束。
 
 代码、HTBP 正式规范和 Tool Bridge 已发布 API 是事实真源；`llmdoc/` 只保存跨任务复用的高密度知识。
 设计文档、历史验证记录与实现冲突时，应先核实代码和正式契约，再同步知识面，不能把目标态或示例写成
@@ -55,7 +55,7 @@ registration/dispatch、动态 capability profile、对象存储或浏览器扩�
 
 ## 整体数据流
 
-Android：原生 Gateway 连接或前台信箱拉取 → `PhoneRuntime` → 本地命令目录与 SQLite 去重 → 平台处理器 → 结果与脱敏审计。远控还须通过内存会话和活动窗口校验。
+Android：原生 Gateway 连接或前台信箱拉取 → `PhoneRuntime` → 本地命令目录与 SQLite 去重 → 平台处理器 → 结果与脱敏审计。远控的授权操作还须通过内存会话校验，窗口读写另须匹配当前活动的获准应用窗口。
 
 iOS 的 SDK 执行链如下。
 

@@ -1,5 +1,5 @@
 ---
-description: 仓库、单项能力、平台矩阵、PR 与 production release 的规范性完成条件。
+description: 仓库、单项能力、平台矩阵、PR 与 production release 门禁，含 Android 远控 v2 真机验收。
 kind: guide
 relations:
   requires:
@@ -13,6 +13,11 @@ relations:
 code:
   paths:
     - native-android/app/src/androidTest/java/ai/tokenroll/toolbridge/mobile/RemoteControlInstrumentation.kt
+    - native-android/app/src/androidTest/java/ai/tokenroll/toolbridge/mobile/V2RemoteControlChecks.kt
+    - native-android/app/src/androidTest/java/ai/tokenroll/toolbridge/mobile/ControlGatewayContractTest.kt
+    - native-android/app/src/test/java/ai/tokenroll/toolbridge/mobile/control/SemanticSnapshotsTest.kt
+    - native-android/app/src/test/java/ai/tokenroll/toolbridge/mobile/control/ScopedActionTest.kt
+    - native-android/app/src/test/java/ai/tokenroll/toolbridge/mobile/control/BroadAppControlTest.kt
     - package.json
     - app.config.ts
     - .github/workflows/**
@@ -86,10 +91,17 @@ pairing、短期 ticket、真实 Gateway、mailbox/push 或撤销闭环。
 
 ## Android 远控验收（待真机验证）
 
-- 从原生包本机开始一次完整会话：启用无障碍、开启可见结束通知、选 App、开始五分钟，在所选 App 中观察并操作，检查结果与页面变化。记录设备、系统、包名、签名及网关环境。
-- 验证无授权、未选择的 App、系统窗口、过期元素引用、其他调用主体及 mailbox 请求均被拒绝。分别从页面和通知结束，再检查五分钟到期、熄屏/锁屏、断线、关闭服务、进程重启后无法继续或自动恢复。
-- 在 Android 14+ 核实截图只有所选活动窗口，覆盖窗口切换、系统保护、无上传授权及受保护 URI 的授权回读；在较低版本确认截图工具未公开。核查普通日志和持久化命令历史没有屏幕内容或输入文本。另测撤销后重复调用的结果可见性，覆盖实时连接的内存结果缓存。
-- 核对原生工具发现面无旧 shell。iOS 单独执行原有 simulator 与适用真机回归。Jest、Kotlin 单测、模拟器或旧 Expo APK 的记录仅支持各自测试范围。
+以下为验收条件。记录对应版本、Android 系统与机型、包名与签名、网关环境，区分本地契约、模拟器、真实网关与物理真机证据。
+
+- **两种本机授权**　在已解锁的真机启用无障碍与可见的结束通知。五分钟入口覆盖空选拒绝、单选并打开、多选后指定打开目标或仅开始。独立按钮可直接开启「全部可控 App · 不限时」。跨过五分钟后分别验证定时授权已撤销、不限时授权仍可用。覆盖页面、通知主动结束，以及熄屏或锁屏、断线、停用调用、关闭无障碍服务、前台连接服务被系统终止及进程死亡。两种模式恢复后都须在手机重新授权。
+- **状态可见性**　用两个调用方查询 `status`，确认查询本身不占用会话。在等待和就绪状态分别核对 `selected_timed` 返回剩余毫秒数、`all_apps_until_stopped` 返回 `remainingMs: null`。未获准的活动包名不可见。会话被其他调用方占用、未授权、锁屏或服务不可用时，省略 `mode/app`、剩余时间为零且只提供 `status`。
+- **列出与启动**　在不限时会话等待窗口时调用 `apps`，按包名顺序翻页，核对冻结范围、默认和边界页长、末页无游标。授权后新增的包名、已失去启动入口的 App 和排除的系统入口均不可列出或启动。用本轮 `session` 打开另一获准 App，核对 `dispatch: "sent"`，再由 `status` 确认目标包名和 `ready`，以 `observe` 取得新引用。验证旧窗口引用失效、重新授权后旧游标与旧启动请求被拒绝。覆盖定时会话、其他调用方、撤销后、离线投递、指定组件或 URI 的拒绝。启动失败、重复请求或回包丢失后核查无自动重发。
+- **观察与定位**　在有多个滚动区域且控件同名的页面，对照全窗口、指定区域和增量观察。验证增改及删除后可还原当前视图，基线淘汰、范围不匹配或截断时按协议恢复。确认密码及系统标记敏感的子树被过滤。覆盖唯一目标位置改变、同区域重名、滚动复用、内容超预算、跨 App／窗口／会话和另一调用方使用旧引用。用目标实际变化和旁边控件无变化检验定位。
+- **动作与回执**　分别检查 `tap/type/scroll`、窗口内返回与播放／暂停。核对 `visible/transition/regionChanged` 在完整同窗前后读数上的正反例，包含目标原已可见、预期未发生、零等待、超时和截断。动作发出后切窗、断线、取消或丢回包时，独立核对实际动作次数与回执；未知结果不得自动重放。另测撤销后重复调用的结果可见性，覆盖实时连接内存缓存。
+- **截图**　在 Android 14+ 对获准活动窗口的受保护 URI 做授权回读，解码 JPEG 对照 `width/height`、1280 像素最长边及原图比例；分别核对 `sourcePx`、`windowBoundsPx`、旋转与窗口引用。覆盖切窗、旋转、系统保护及缺少上传授权，确认没有整屏回退。较低版本的发现面不应公开截图。
+- **集成与隐私**　从真实网关分别验证旧版和 v2 的发现、输入及返回值，拒绝缺少网关调用身份、未授权读写及 mailbox 远控；核查发现面无旧 shell。检查普通日志和持久化命令历史无屏幕内容、输入文本、图像或上传凭证。iOS 单独执行适用回归。
+
+**2026-11-26 验收记录**　在小米 Pad 6S Pro 12.4（Android 16）真机上，Tool Bridge 检测到用户已在本机开启 `all_apps_until_stopped`，`remainingMs` 为 `null`。用 `apps` 列出获准应用，再用 `open_app` 打开哔哩哔哩 HD。对视频执行一次语义点击，回执为 `sent/result_unknown`。重新 `observe` 后看到右侧评论与详情，未重发点击。隔离 Android 16+ 本地网关实测通过跨 App 切换、单窗口截图和本机手动结束会话。此前隔离测试中，动态重建 20 次，误点 0 次。同一台隔离 Android 16 模拟器按真实时钟走完两段五分钟：限时授权期满后，读取和使用旧控件的操作均被拒绝；不限时授权跨过五分钟后仍可用。手动结束会话、锁屏后再解锁均会撤销授权，旧授权随即失效。
 
 ## Golden scenario 的额外门禁
 

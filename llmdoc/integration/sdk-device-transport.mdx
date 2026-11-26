@@ -1,5 +1,5 @@
 ---
-description: Android Kotlin Gateway 客户端与 iOS React Native device SDK 的接入及兼容证据。
+description: Android Kotlin Gateway 客户端的远控 v2 调用身份、版本兼容与重放边界，以及 iOS device SDK 接入。
 kind: architecture
 relations:
   requires:
@@ -16,6 +16,7 @@ code:
     - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/wire/GatewayMailbox.kt
     - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/wire/WireUpload.kt
     - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/wire/WireDevice.kt
+    - scripts/android-control-contracts.mjs
     - package.json
     - src/gateway/sdkDeviceMailboxTransport.ts
     - src/gateway/sdkDeviceTransport.ts
@@ -32,7 +33,11 @@ code:
 
 Android 以 OkHttp 建立设备 WebSocket，hello 中声明设备挂载路径与命令 schema，收到 ready 才显示在线。Kotlin 客户端处理实时调用、取消与结果，前台的 mailbox 客户端只为信箱投递走 claim/lease/complete。相机和 Android 14+ 单窗口截图只使用当前调用授予的 Store 上传能力。
 
-`phone/control` 只接受实时调用，网关连通和本机授权缺一不可。2026-11-25，原生客户端在 API 36 隔离模拟器上通过本地真实网关验证了状态调用、窗口操作与拒绝、截图上传并取得受保护引用，以及在线投信和离线邮件的前台取回。发现、取消、断线撤销和受保护对象回读仍需各自的验证记录。[模拟器验收记录](../delivery/verification-evidence.mdx)
+网关发现沿用设备挂载点下的 `control/<tool>`。v2 通过调用参数中的数字 `v: 2` 选择。旧五项工具继续接受原参数；`status`、`back`、`media`、`apps` 和 `open_app` 要求显式版本。`control` 的实时调用必须携带网关上下文和 `caller.keyId`，缺少调用身份即拒绝。查询 `status` 可以先于本机授权，不会占用会话。新会话中，不带 `region/since` 的 v2 `observe` 可绑定调用方；区域读取、增量读取和 v2 窗口动作只能沿用已有绑定。截图及旧工具也会在授权检查时绑定调用方。不限时会话允许在等待窗口时用 `apps` 首次绑定。翻页和 `open_app` 使用本次列表返回的会话标识，重新授权后旧游标和旧标识失效。[窗口、版本与回执契约](../capabilities/architecture.mdx)
+
+调用方分别处理传输结果与动作回执。v2 窗口动作须检查 `dispatch` 和 `outcome`。`open_app` 成功只返回已派发，客户端须另查 `status` 的状态和目标包名，进入目标后重新观察。回包丢失、中止或 `result_unknown` 时，先查询就绪状态并重新观察；不得换一个调用 ID 自动补发。设备的 SQLite 命令记录防止保留期内重复执行，远控成功内容不写入持久化终态。实时连接另有内存结果缓存，重复调用返回旧回包不能证明当前窗口状态或授权。离开网关 ready 会撤销两种本地会话。重连后需要用户重新开启，mailbox 不能补执行远控。
+
+2026-11-25 的 API 36 隔离模拟器与本地网关记录覆盖当时的状态调用、窗口操作与拒绝、单窗口截图上传，以及在线投信和前台取回离线邮件。v2 的发现、身份拒绝、动作回读与撤销需以对应版本单独留证；受保护对象取得引用和授权回读也须分别验证。[历史验收记录](../delivery/verification-evidence.mdx)
 
 ## iOS 与原 Expo 工程的已发布 SDK
 

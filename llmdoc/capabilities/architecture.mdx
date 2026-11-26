@@ -1,5 +1,5 @@
 ---
-description: Android 五分钟在线远控、单窗口截图及本地能力的平台实现与证据上限。
+description: Android 远控两种本机授权、App 列表与启动、窗口观察、动作回执和单窗口截图，以及其他本地能力的平台边界。
 kind: architecture
 relations:
   requires:
@@ -17,7 +17,19 @@ relations:
     - delivery/definition-of-done.mdx
 code:
   paths:
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/BroadAppControl.kt
     - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/ControlActivity.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/ControlStatus.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/PhoneControlService.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/SemanticEngine.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/SemanticLayout.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/SemanticTreeReader.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/SemanticSnapshots.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/ScopedActions.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/ScopedActionRequest.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/ScopedActionCall.kt
+    - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/ScopedActionEvidence.kt
+    - scripts/android-control-contracts.mjs
     - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/control/WindowCapture.kt
     - native-android/app/src/main/java/ai/tokenroll/toolbridge/mobile/runtime/CommandCatalog.kt
     - native-android/app/src/main/assets/contracts.json
@@ -41,15 +53,53 @@ adapter。registry 在展示与执行前读取真实 probe，并在返回 SDK �
 
 ## Android 原生远控
 
-在独立 Kotlin App 中，`phone/control` 提供五个仅限实时调用的工具。用户先在已解锁的手机上启用系统无障碍服务、允许显示结束通知，选择本次开放的可启动 App 并点“开始 5 分钟”。网关必须 ready，设备调用已启用。选择列表排除本 App、桌面及设置、系统 UI 等系统入口。
+**现状**　Android 原生 `phone/control` 仅接受实时调用。用户在已解锁的手机上启用无障碍服务和可见的结束通知，待网关在线且设备调用启用后，从本机控制页选择授权方式。候选 App 须有普通桌面启动入口，排除 Tool Bridge、桌面、设置等系统入口。
 
-| 工具 | 成功的含义与限制 |
-| --- | --- |
-| `observe` | 返回获准 App 当前活动应用窗口内可见节点的有限摘要和短期元素引用，跳过密码节点及系统标记的敏感节点。 |
-| `tap`、`type`、`scroll` | 仅接受本次观察所得的元素引用，复核窗口、包、可见性与支持的操作。内容变化或操作后须重新观察；成功表示控件接受操作。 |
-| `screenshot` | 仅 Android 14+ 注册。使用系统单窗口 API，回调及上传前复核会话、包名和窗口；系统拒绝时结束。通过本次调用的 Store 授权上传 JPEG，返回受保护 URI、媒体类型及尺寸。低版本和受保护窗口均无整屏回退。 |
+- **选择 App · 5 分钟**　至少勾选一个 App。单选时同时打开它，多选时可指定一个先打开，也可仅开始会话。本机启动目标失败会结束本次授权。五分钟按单调时钟计算，查询、切窗及操作均不会续期。
+- **全部可控 App · 不限时**　点「开启全部可控 App · 不限时」即授权当时全部候选包，此后新增的包名须在下次授权时才可能纳入。没有固定到期时间，调用方可列出本次获准 App 并请求打开其中一个。
 
-本机会话在首次授权检查时绑定调用主体标识（有网关 caller 时取其 keyId，缺失时回退当前凭证标识）；观察和截图是高风险读取，点击、输入和滚动是高风险写入。Direct call 或后台连接开关都不能代替本机开启会话。远控不接受 mailbox 投递，也不提供旧 Expo Android 的 `phone/system.exec_shell`。iOS 没有这组远控工具。真机拒绝路径与截图回读见[验收条件](../delivery/definition-of-done.mdx)。
+两种会话都只在内存中保留。页面或通知结束、熄屏或锁屏、断线、停用设备调用、无障碍服务中断或销毁、前台连接服务销毁或收到系统超时，以及进程死亡均使授权失效。恢复连接或重启后须在手机重新授权。窗口观察、操作与截图只作用于当前活动的获准应用窗口。
+
+### 查询授权与窗口状态
+
+`status({"v":2})` 是低风险只读查询，无需本机会话，也不会绑定调用方。结果含 `serviceConnected`、`state`、`remainingMs` 和 `supported`。
+
+| 调用方读到的状态 | 模式与剩余时间 | 可用工具与窗口信息 |
+| --- | --- | --- |
+| `ready` | 定时会话为 `selected_timed` 和剩余毫秒数，不限时为 `all_apps_until_stopped` 和 `null` | 返回当前获准的 `app`、`status` 和窗口工具。不限时会话另有 `apps`、`open_app`。 |
+| `awaiting_selected_app` | 同上 | 等待获准 App 成为活动窗口。定时会话只有 `status`，不限时另有 `apps`、`open_app`。省略 `app`。 |
+| `service_unavailable`、`locked`、`local_grant_required`、`session_in_use` | 省略 `mode`，`remainingMs` 为 0 | 只有 `status`，省略 `app`。 |
+
+### 不限时会话中列出和打开 App
+
+1. 用 `control/apps` 传入 `{"v":2}`。高风险读取仅列出本次授权范围内仍可启动的 App，按包名升序返回 `{v, session, apps:[{app, label}], nextCursor?}`。首页成功读取后，会话绑定到该调用方。每页默认 16 项，可传整数 `limit`（1–32）。有下一页时，将整个 `nextCursor`（含 `session` 与 `after`）作为下次的 `cursor` 原样传回。
+2. 用 `control/open_app` 传入 `{v:2, session, app}`，会话标识与目标包名取自本轮列表。该高风险写入在派发前再次检查会话及目标的普通桌面启动入口，并清除旧窗口引用。调用方只能指定包名，不能指定组件、URI、Intent 或启动参数。成功回执 `{v:2, app, dispatch:"sent"}` 只证明启动请求已发出。
+3. 用 `status` 确认状态为 `ready` 且 `app` 等于目标包名，再用 `observe({"v":2})` 获取新窗口的引用。失败、重复调用或回包丢失时先查状态，禁止自动重发启动请求。
+
+### 窗口观察与引用
+
+- **区域与引用**　`regions` 描述窗口和可滚动区域的层级、方位与支持的动作，`items` 给出元素所属区域、角色、名称、上下文和动作。边界是相对当前窗口的 0–1000 归一化坐标。位置供阅读；动作以 `snapshot` 和区域内的目标为准。不可见、密码、Android 14+ 标记敏感以及不属该窗口或 App 的子树均跳过。
+- **观察预算**　一次遍历最多检查 640 个子节点槽位，每个节点最多 256 个、深度最多 32。全窗口最多返回 24 个区域、合计 96 个元素；传入区域短引用 `region` 后，只返回该区，最多 192 个元素。区域和元素共用 52 KiB 序列化预算，运行时对完整内联结果另设 64 KiB 硬上限。调用方应检查窗口和区域的 `truncated`，被省略的元素仍可能在屏幕上。
+- **增量与失效**　以 `since` 传上次的 `snapshot`。同一会话、调用方、App、窗口内只保留最近 8 帧，动作回读也占帧数。只有基线仍在、观察范围相同且前后均未截断才返回 `kind: "delta"`。对照 `base` 按短引用更新 `regions`、`items`，再应用 `removedRegions`、`removedItems`。同域基线淘汰、范围改变或截断时，能解析请求范围就返回 `full` 并替换该范围的旧结果。跨授权域的快照被拒绝；无法唯一重认区域时须重新观察整个窗口。
+- **目标复核**　动作携带 `snapshot` 和 `target`。目标为 `{region, ref}` 或 `{region, role, name, context?}`，必须在原观察和当前窗口中都唯一。允许唯一目标在同区域内移位。导航会清除旧引用；滚动后，缺少稳定唯一标识的列表项需重新观察。目标消失返回 `target_missing`，歧义返回 `ambiguous_target`；所需区域截断或快照淘汰可返回 `stale_snapshot`。这些回执的 `dispatch` 均为 `not_sent`。
+
+### 动作与回读
+
+`tap`、`type`、`scroll`、`back`、`media` 都是高风险写入。输入文本上限 2048 个 UTF-16 代码单元，滚动方向为 `forward` 或 `backward`。`back` 和 `media` 只点击获准窗口内名称匹配、可点击的返回或播放／暂停按钮；后者要求 `operation` 为 `play` 或 `pause`。
+
+回执先看 `dispatch`（`not_sent`、`sent`、`unknown`），再看 `outcome`。发送后，只有同一授权窗口的前后两次完整、未截断观察满足显式 `expect`，才返回 `verified`。可验证的变化有三种：`visible` 指定角色和名称由无到唯一出现，`transition` 指定同名对象在同一区域由旧角色变为新角色，`regionChanged` 指定区域的可观察内容或状态发生变化。每项只证明所请求的界面变化。原本已可见、未传预期或等候超时，都不能据此认定操作达到目的。
+
+`waitMs` 默认 750，范围 0–2000；零表示立即采样一次。等待期间只回读，动作最多派发一次。v2 观察与动作调用还受网关截止时间及本地最多 6 秒等候限制。系统未接受或未观察到预期变化可返回 `sent / not_verified`；派发中或之后发生取消、失去窗口等情况，结果可能为 `result_unknown`。可选的 `changes` 是回读快照，回执过大会省略。遇到未知或未验证，调用方先重新观察当前状态，禁止自动重放动作。
+
+### 单窗口截图与旧版兼容
+
+`screenshot` 和 `observe` 属于高风险读取。截图仅在 Android 14+ 注册，使用系统单窗口 API 和本次调用的 Store 上传授权。截图回调与上传前复核会话、App、活动窗口、边界及旋转。系统拒绝时返回失败，禁止整屏回退。
+
+`screenshot({"v":2})` 返回受保护 JPEG 的 `uri` 和 `contentType`。`width`、`height` 是实际上传图的像素尺寸，保持比例，最长边至多 1280 像素且不放大。`sourcePx` 是系统截图缓冲区的原始宽高，`windowBoundsPx` 是窗口在屏幕像素空间的左、上、右、下边界。另有窗口短引用 `window`、采集时间 `capturedAt` 和可空的 `rotationDegrees`。
+
+限流按工具独立计算。每 60 秒默认全局最多 60 次、每调用方最多 30 次，截图分别为 12 次和 8 次。
+
+原有五项工具仍接受省略版本的旧输入。`observe({})` 返回 `package/elements`，旧写操作使用 `element` 并返回 `accepted`，旧截图返回 URI、媒体类型与成图尺寸。`status`、`back`、`media`、`apps`、`open_app` 仅接受 v2。iOS 没有这组工具。调用身份与断线处理见[网关集成](../integration/sdk-device-transport.mdx)，真机证据要求见[远控验收条件](../delivery/definition-of-done.mdx)。
 
 ## 其他能力与 Expo 实现
 
