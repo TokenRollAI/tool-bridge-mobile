@@ -149,8 +149,10 @@ internal fun NativePage.inbox(s: JSONObject) {
         val time = clock.relative(message.uiString("receivedAt"))
         val urgency = urgency(message)
         val item = column().apply {
-            pad(0, 12)
-            background = press(Color.TRANSPARENT, 6)
+            val paired = activity.resources.getBoolean(R.bool.inbox_two_pane)
+            isSelected = host.selectedMessageId == message.uiString("messageId")
+            pad(if (paired) 8 else 0, 12)
+            background = press(if (isSelected) selected else Color.TRANSPARENT, 6)
             isFocusable = true
             contentDescription = listOf(if (unread) "未读" else "已读", urgency, title, "来自 $caller", time)
                 .filter { it.isNotEmpty() }.joinToString("，")

@@ -36,13 +36,20 @@ class ControlActivity : Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         selected.addAll(state?.getStringArrayList("selection").orEmpty())
-        panel = LinearLayout(this).apply {
+        panel = object : LinearLayout(this) {
+            override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+                val width = minOf(MeasureSpec.getSize(widthSpec), dp(640))
+                super.onMeasure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), heightSpec)
+            }
+        }.apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(24), dp(20), dp(24), dp(24))
         }
         val scroll = ScrollView(this).apply {
             fitsSystemWindows = true
-            addView(panel)
+            addView(panel, android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.CENTER_HORIZONTAL))
         }
         setContentView(scroll)
     }

@@ -31,7 +31,7 @@ code:
 
 # 设备本地信箱参考
 
-Android 原生包使用自己的 SQLite 信箱和原生 Views 阅读页。下文涉及 SDK processor、RN Markdown 和 Expo 的实现细节适用于 iOS 及旧 Android 包；原生 Preview 独立安装后不会出现旧包信件。
+Android 原生包使用自己的 SQLite 信箱和原生 Views 阅读页。可用窗口宽度至少为 720dp 且高度至少为 480dp 时，消息列表与正文并排显示；任一尺寸不足时，列表与正文分别以单页显示。两种布局之间切换时，已选中的消息会保留。下文涉及 SDK processor、RN Markdown 和 Expo 的实现细节适用于 iOS 及旧 Android 包；原生 Preview 独立安装后不会出现旧包信件。
 
 ## 定义与边界
 

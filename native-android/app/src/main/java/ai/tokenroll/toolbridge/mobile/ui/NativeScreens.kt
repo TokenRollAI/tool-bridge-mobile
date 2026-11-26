@@ -19,6 +19,7 @@ import android.window.OnBackInvokedDispatcher
 import android.view.View
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
@@ -35,7 +36,9 @@ class NativeScreens(private val activity: Activity, internal val actions: Native
     private val root: LinearLayout = object : LinearLayout(activity) {
         override fun onSaveInstanceState(): Parcelable = Bundle().apply {
             putParcelable("parent", super.onSaveInstanceState())
-            page?.let {
+            putInt("listScroll", page?.takeIf { it.route == NativeRoute.INBOX }?.scroll?.scrollY
+                ?: positions[NativeRoute.INBOX] ?: 0)
+            currentPage?.let {
                 putString("route", it.route.name)
                 putString("message", it.messageId)
                 putInt("scroll", it.scroll.scrollY)
@@ -46,8 +49,10 @@ class NativeScreens(private val activity: Activity, internal val actions: Native
             if (state !is Bundle) { super.onRestoreInstanceState(state); return }
             super.onRestoreInstanceState(state.getParcelable<Parcelable>("parent"))
             val route = NativeRoute.values().firstOrNull { it.name == state.getString("route") } ?: return
+            positions[NativeRoute.INBOX] = state.getInt("listScroll")
             navigate(route, state.getString("message"))
-            page?.scroll?.let { scroll -> scroll.post { scroll.scrollTo(0, state.getInt("scroll")) } }
+            if (reader != null) restoreListPosition()
+            currentPage?.scroll?.let { scroll -> scroll.post { scroll.scrollTo(0, state.getInt("scroll")) } }
         }
     }.apply {
         id = R.id.tb_ui_pages
@@ -69,6 +74,10 @@ class NativeScreens(private val activity: Activity, internal val actions: Native
     }
     val view: View get() = root
     private var page: NativePage? = null
+    private var detail: NativePage? = null
+    private var reader: FrameLayout? = null
+    private val currentPage get() = detail ?: page
+    internal val selectedMessageId get() = detail?.messageId
     private var disposed = false
     private var unregisterBack: (() -> Unit)? = null
     private val pending = mutableSetOf<String>()
@@ -99,7 +108,16 @@ class NativeScreens(private val activity: Activity, internal val actions: Native
     fun openMessage(messageId: String) = navigate(NativeRoute.MESSAGE, messageId)
 
     internal fun navigate(route: NativeRoute, id: String? = null) {
-        if (disposed || (page?.route == route && page?.messageId == id)) return
+        if (disposed || (currentPage?.route == route && currentPage?.messageId == id)) return
+        val paired = activity.resources.getBoolean(R.bool.inbox_two_pane) &&
+            (route == NativeRoute.INBOX || route == NativeRoute.MESSAGE)
+        if (paired && reader != null) {
+            selectInReader(if (route == NativeRoute.MESSAGE) id else null)
+            return
+        }
+        detail?.close()
+        detail = null
+        reader = null
         page?.let {
             positions[it.route] = it.scroll.scrollY
             it.close()
@@ -107,26 +125,65 @@ class NativeScreens(private val activity: Activity, internal val actions: Native
                 .hideSoftInputFromWindow(root.windowToken, 0)
         }
         root.removeAllViews()
-        val next = NativePage(activity, this, route, id)
+        val next = if (paired) NativePage(activity, this, NativeRoute.INBOX, null)
+            else NativePage(activity, this, route, id)
         page = next
         root.setBackgroundColor(next.surface)
-        root.addView(next.shell, LinearLayout.LayoutParams(FILL, FILL))
+        if (paired) {
+            val row = LinearLayout(activity)
+            val listWidth = (activity.resources.configuration.screenWidthDp / 2.3).toInt().coerceIn(312, 400)
+            row.addView(next.shell, LinearLayout.LayoutParams(next.dp(listWidth), FILL))
+            row.addView(View(activity).apply { setBackgroundColor(next.border) }, 1, FILL)
+            val frame = FrameLayout(activity)
+            row.addView(frame, LinearLayout.LayoutParams(0, FILL, 1f))
+            reader = frame
+            root.addView(row, LinearLayout.LayoutParams(FILL, FILL))
+            selectInReader(if (route == NativeRoute.MESSAGE) id else null)
+        } else root.addView(next.shell, LinearLayout.LayoutParams(FILL, FILL))
         root.requestFocus()
         updateSystemBack()
         next.refresh(actions.snapshot())
-        if (route == NativeRoute.INBOX || route == NativeRoute.DEVICE) {
-            positions[route]?.let { position -> next.scroll.post { next.scroll.scrollTo(0, position) } }
+        if (next.route == NativeRoute.INBOX || next.route == NativeRoute.DEVICE) {
+            positions[next.route]?.let { position -> next.scroll.post { next.scroll.scrollTo(0, position) } }
         }
     }
 
+    private fun restoreListPosition() {
+        val scroll = page?.scroll ?: return
+        val y = positions[NativeRoute.INBOX] ?: return
+        scroll.post { scroll.scrollTo(0, y) }
+    }
+
+    private fun selectInReader(id: String?) {
+        val frame = reader ?: return
+        val list = page ?: return
+        detail?.close()
+        frame.removeAllViews()
+        detail = id?.let { NativePage(activity, this, NativeRoute.MESSAGE, it, embedded = true) }
+        val article = detail
+        if (article == null) {
+            frame.addView(list.text("选择一封消息以阅读正文", 16, list.muted),
+                FrameLayout.LayoutParams(WRAP, WRAP, Gravity.CENTER))
+        } else {
+            frame.addView(article.shell, FrameLayout.LayoutParams(FILL, FILL, Gravity.CENTER_HORIZONTAL))
+            if (root.windowToken != null) activity.getSystemService(InputMethodManager::class.java)
+                .hideSoftInputFromWindow(root.windowToken, 0)
+        }
+        updateSystemBack()
+        refresh()
+    }
+
     fun refresh() {
-        if (!disposed) page?.refresh(actions.snapshot())
+        if (disposed) return
+        val snapshot = actions.snapshot()
+        page?.refresh(snapshot)
+        detail?.refresh(snapshot)
     }
 
     private fun updateSystemBack() {
         unregisterBack?.invoke()
         unregisterBack = null
-        if (Build.VERSION.SDK_INT >= 33 && root.isAttachedToWindow && page?.route != NativeRoute.INBOX) {
+        if (Build.VERSION.SDK_INT >= 33 && root.isAttachedToWindow && currentPage?.route != NativeRoute.INBOX) {
             unregisterBack = registerBack()
         }
     }
@@ -139,7 +196,7 @@ class NativeScreens(private val activity: Activity, internal val actions: Native
     }
 
     fun onBackPressed(): Boolean {
-        when (page?.route) {
+        when (currentPage?.route) {
             NativeRoute.INBOX, null -> return false
             NativeRoute.MESSAGE, NativeRoute.DEVICE -> navigate(NativeRoute.INBOX)
             else -> showDevice()
@@ -152,11 +209,11 @@ class NativeScreens(private val activity: Activity, internal val actions: Native
     internal fun submit(origin: NativePage, action: NativeScreenAction, key: String,
                         success: String? = null, failure: String = "操作失败，请重试。",
                         finish: ((Boolean) -> Unit)? = null) {
-        if (disposed || origin !== page || !pending.add(key)) return
+        if (disposed || (origin !== page && origin !== detail) || !pending.add(key)) return
         val done: (Boolean) -> Unit = { ok ->
             main.post {
                 if (!disposed && pending.remove(key)) {
-                    if (page === origin) {
+                    if (page === origin || detail === origin) {
                         finish?.invoke(ok)
                         val feedback = if (ok) success else failure
                         if (feedback != null) Toast.makeText(activity, feedback, Toast.LENGTH_SHORT).show()
@@ -172,6 +229,9 @@ class NativeScreens(private val activity: Activity, internal val actions: Native
         disposed = true
         unregisterBack?.invoke()
         unregisterBack = null
+        detail?.close()
+        detail = null
+        reader = null
         page?.close()
         page = null
         root.removeAllViews()
@@ -180,7 +240,7 @@ class NativeScreens(private val activity: Activity, internal val actions: Native
 }
 
 internal class NativePage(activity: Activity, val host: NativeScreens, val route: NativeRoute,
-                          val messageId: String?) : NativeWidgets(activity) {
+                          val messageId: String?, private val embedded: Boolean = false) : NativeWidgets(activity) {
     val shell = object : LinearLayout(activity) {
         override fun onMeasure(w: Int, h: Int) {
             val width = minOf(MeasureSpec.getSize(w), dp(720))
@@ -208,7 +268,7 @@ internal class NativePage(activity: Activity, val host: NativeScreens, val route
     val topLevel = route == NativeRoute.INBOX || route == NativeRoute.DEVICE
 
     init {
-        shell.item(row().apply {
+        if (!embedded) shell.item(row().apply {
             pad(24, 10)
             if (!topLevel) {
                 val target = if (route == NativeRoute.MESSAGE) "信箱" else "设备"
@@ -253,7 +313,7 @@ internal class NativePage(activity: Activity, val host: NativeScreens, val route
             NativeRoute.STATUS -> listOf("deviceId", "mountPath", "controlMode", "transportIssue", "error",
                 "transportState", "reachability", "appState", "attentionSession", "timers", "backgroundRuntimeEnabled")
             NativeRoute.MESSAGE -> emptyList()
-        }.map { s.opt(it)?.toString().orEmpty() } + listOf(article?.toString().orEmpty())
+        }.map { s.opt(it)?.toString().orEmpty() } + listOf(article?.toString().orEmpty(), if (route == NativeRoute.INBOX) host.selectedMessageId.orEmpty() else "")
         if (signature == values) return
         signature = values
         if (route == NativeRoute.CONNECTION) {

@@ -1,0 +1,3 @@
+<resources>
+    <bool name="inbox_two_pane">true</bool>
+</resources>
