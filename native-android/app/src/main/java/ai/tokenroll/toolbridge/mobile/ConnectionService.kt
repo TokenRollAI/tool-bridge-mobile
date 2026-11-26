@@ -14,7 +14,13 @@ class ConnectionService : Service() {
     private var foregroundShown = false
     private var timedOut = false
     override fun onCreate() { super.onCreate(); running = this }
-    override fun onDestroy() { if (running === this) running = null; super.onDestroy() }
+    override fun onDestroy() {
+        if (running === this) {
+            running = null
+            if (RemoteSession.active) RemoteSession.stop()
+        }
+        super.onDestroy()
+    }
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == STOP) RemoteSession.stop()
@@ -23,7 +29,11 @@ class ConnectionService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL) else Notification.Builder(this)
         builder.setSmallIcon(android.R.drawable.stat_notify_sync).setContentIntent(open).setOngoing(true)
-            .setContentTitle(if (RemoteSession.active) "Tool Bridge 正在远程控制" else "Tool Bridge 后台连接")
+            .setContentTitle(when {
+                RemoteSession.unlimited -> "Tool Bridge 正在不限时控制全部可控 App"
+                RemoteSession.active -> "Tool Bridge 正在远程控制"
+                else -> "Tool Bridge 后台连接"
+            })
         if (RemoteSession.active) {
             val stop = PendingIntent.getService(this, 2, Intent(this, ConnectionService::class.java).setAction(STOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)

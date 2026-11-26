@@ -2,6 +2,7 @@ package ai.tokenroll.toolbridge.mobile
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -23,15 +24,18 @@ class ControlActivity : Activity() {
     private val selected = linkedSetOf<String>()
     private lateinit var panel: LinearLayout
     private var clock: TextView? = null
+    private var serviceWasConnected = false
     private val timer = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
         override fun run() {
-            if (clock != null && !RemoteSession.active) render()
-            clock?.text = "剩余 %d:%02d".format((remaining() / 60), remaining() % 60)
+            if ((clock != null) != RemoteSession.active || serviceWasConnected != (RemoteSession.service != null)) render()
+            clock?.text = RemoteSession.expiresAt?.let { expiry ->
+                val seconds = (expiry - SystemClock.elapsedRealtime()).coerceAtLeast(0) / 1000
+                "剩余 %d:%02d".format(seconds / 60, seconds % 60)
+            } ?: "不限时控制中"
             timer.postDelayed(this, 500)
         }
     }
-    private fun remaining() = ((RemoteSession.expiresAt - SystemClock.elapsedRealtime()).coerceAtLeast(0) / 1000)
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -68,16 +72,17 @@ class ControlActivity : Activity() {
     }
     private fun render() {
         panel.removeAllViews()
+        serviceWasConnected = RemoteSession.service != null
         clock = null
         label("远程控制", 28f).accessibilityHeadingCompat()
         val apps = PhoneControlService.allowedApps(this)
         if (RemoteSession.active) {
             clock = label("", 20f)
-            label(RemoteSession.packages.joinToString("、") { apps[it] ?: it }, 16f)
+            label(if (RemoteSession.unlimited) "已允许全部 ${RemoteSession.packages.size} 个可控 App，Agent 可切换应用。"
+                else RemoteSession.packages.joinToString("、") { apps[it] ?: it }, 16f)
             button("结束控制") { RemoteSession.stop(); render() }
             return
         }
-        label("只有本次选择的 App 能被读取和操作。控制将在 5 分钟后结束。", 16f)
         if (RemoteSession.service == null) {
             button("前往系统开启无障碍服务") { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
             return
@@ -90,31 +95,64 @@ class ControlActivity : Activity() {
             }
             return
         }
+        label("全部可控 App", 20f)
+        label("允许 Agent 打开和操作当前列出的全部 ${apps.size} 个 App。锁屏、断线或点「结束控制」时停止。", 16f)
+        button("开启全部可控 App · 不限时") { beginAndOpen(null, unlimited = true) }.isEnabled = apps.isNotEmpty()
+        label("选择 App · 5 分钟", 20f)
+        selected.retainAll(apps.keys)
         val start = button("开始 5 分钟") {
-            val runtime = (application as PhoneApp).runtime
-            if (!runtime.readyForControl()) {
-                Toast.makeText(this, "请先连接网关并启用设备调用", Toast.LENGTH_LONG).show()
-            } else {
-                runCatching {
-                    RemoteSession.begin(this, selected)
-                }.onFailure {
-                    RemoteSession.stop()
-                    Toast.makeText(this, "未能开始远控，请检查设备和通知设置", Toast.LENGTH_LONG).show()
-                }
-                render()
+            val targets = selected.filter { it in apps }.sortedBy { apps[it] }
+            when (targets.size) {
+                0 -> render()
+                1 -> beginAndOpen(targets.single())
+                else -> AlertDialog.Builder(this)
+                    .setTitle("开始后打开哪个 App？")
+                    .setItems(targets.map { apps.getValue(it) }.toTypedArray()) { _, index ->
+                        beginAndOpen(targets[index])
+                    }
+                    .setNeutralButton("仅开始会话") { _, _ -> beginAndOpen(null) }
+                    .setNegativeButton("取消", null)
+                    .show()
             }
         }
-        selected.retainAll(apps.keys)
-        start.isEnabled = selected.isNotEmpty()
+        fun updateStart() {
+            start.isEnabled = selected.isNotEmpty()
+            start.text = when (selected.size) {
+                0 -> "开始 5 分钟"
+                1 -> "开始 5 分钟并打开" + apps.getValue(selected.single())
+                else -> "开始 5 分钟并选择要打开的 App"
+            }
+        }
+        updateStart()
         apps.entries.sortedBy { it.value }.forEach { (pkg, name) ->
             panel.addView(CheckBox(this).apply {
                 text = "$name\n$pkg"; isChecked = pkg in selected
                 setOnCheckedChangeListener { _, enabled ->
                     if (enabled) selected.add(pkg) else selected.remove(pkg)
-                    start.isEnabled = selected.isNotEmpty()
+                    updateStart()
                 }
             })
         }
+    }
+    private fun beginAndOpen(packageName: String?, unlimited: Boolean = false) {
+        if (!(application as PhoneApp).runtime.readyForControl()) {
+            Toast.makeText(this, "请先连接网关并启用设备调用", Toast.LENGTH_LONG).show()
+            return
+        }
+        try {
+            val launch = packageName?.let { target ->
+                require(target in selected)
+                requireNotNull(packageManager.getLaunchIntentForPackage(target)).also {
+                    require(it.component?.packageName == target)
+                }
+            }
+            if (unlimited) RemoteSession.beginUnlimited(this) else RemoteSession.begin(this, selected)
+            if (launch != null) startActivity(launch)
+        } catch (_: RuntimeException) {
+            RemoteSession.stop()
+            Toast.makeText(this, "未能开始远控，请重新检查所选 App 和授权", Toast.LENGTH_LONG).show()
+        }
+        render()
     }
     private fun View.accessibilityHeadingCompat() { if (Build.VERSION.SDK_INT >= 28) isAccessibilityHeading = true }
     override fun onRequestPermissionsResult(code: Int, permissions: Array<out String>, results: IntArray) {

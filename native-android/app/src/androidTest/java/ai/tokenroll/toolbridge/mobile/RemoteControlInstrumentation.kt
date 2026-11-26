@@ -50,10 +50,13 @@ class RemoteControlInstrumentation : Instrumentation() {
     }
 
     private fun exercise() {
+        val v2 = V2RemoteControlChecks(targetContext, notes, ::call)
         check(notes in PhoneControlService.allowedApps(targetContext))
         openNotes()
         expectFailure("permission_denied") { call("observe") }
         expectFailure("permission_denied") { call("tap", JSONObject().put("element", "no-grant")) }
+        v2.denied()
+        v2.appsDenied("local_grant_required")
         status("未授权读取和点击被拒绝")
 
         openControl()
@@ -69,31 +72,43 @@ class RemoteControlInstrumentation : Instrumentation() {
         await("滚动后出现新的历史便签") { lastVisibleRow() > before }
         status("选中便签完成读取、输入、保存和滚动")
 
+        val v2Prior = v2.noteRef()
         val prior = saveRef()
         openControl()
         check(RemoteSession.active)
         expectFailure("permission_denied") { call("observe") }
         expectFailure("permission_denied") { call("tap", prior) }
+        v2.denied(v2Prior)
         openNotes()
+        val v2AtStop = v2.noteRef()
         val atStop = saveRef()
         main { RemoteSession.stop() }
         check(RemoteSession.unlocked(targetContext))
         expectFailure("permission_denied") { call("tap", atStop) }
         expectFailure("permission_denied") { call("observe") }
+        v2.denied(v2AtStop)
         status("未选中窗口和手动结束后的调用被拒绝")
 
         openControl()
         val started = SystemClock.elapsedRealtime()
         begin()
-        val deadline = RemoteSession.expiresAt
+        val deadline = requireNotNull(RemoteSession.expiresAt)
         check(deadline in (started + 300_000)..(SystemClock.elapsedRealtime() + 300_000)) {
             "授权时长应为五分钟"
         }
         openNotes()
+        v2.appsDenied("ready")
         expectFailure("unavailable") { call("tap", atStop) }
         saveRef()
+        v2.previousGrant(v2AtStop)
+        openControl()
+        v2.feed({ awaitWindow(notes) }, { awaitWindow(phone) })
+        v2.denied(v2AtStop)
+        status("动态双栏已通过单次派发、歧义拒绝、分栏滚动与授权边界检查")
+        openNotes()
         status("等待五分钟授权自然到期")
         SystemClock.sleep((deadline - SystemClock.elapsedRealtime() - 5_000).coerceAtLeast(0))
+        val v2AtExpiry = v2.noteRef()
         val atExpiry = saveRef()
         SystemClock.sleep((deadline - SystemClock.elapsedRealtime()).coerceAtLeast(0))
         await("到期回收授权") { main { RemoteSession.packages.isEmpty() } }
@@ -101,7 +116,59 @@ class RemoteControlInstrumentation : Instrumentation() {
         check(RemoteSession.unlocked(targetContext))
         expectFailure("permission_denied") { call("tap", atExpiry) }
         expectFailure("permission_denied") { call("observe") }
+        v2.denied(v2AtExpiry)
+        v2.appsDenied("local_grant_required")
         status("到期后读取和旧控件操作被拒绝")
+
+        unlimitedSession(v2)
+
+        openControl()
+        begin()
+        openNotes()
+        v2.lockIsolatedAvd { lock -> main(lock) }
+        status("模拟器锁屏已撤销授权和旧引用")
+    }
+
+    private fun unlimitedSession(v2: V2RemoteControlChecks) {
+        openControl()
+        main { RemoteSession.beginUnlimited(targetContext) }
+        val started = SystemClock.elapsedRealtime()
+        val session = v2.openListedNotes()
+        awaitWindow(notes)
+        v2.unlimitedReady(session)
+        v2.noteRef()
+        status("等待不限时授权跨过第二个真实五分钟")
+        SystemClock.sleep((started + 300_001 - SystemClock.elapsedRealtime()).coerceAtLeast(0))
+        v2.unlimitedReady(session)
+        val beforeStop = v2.noteRef()
+        main { RemoteSession.stop() }
+        checkEnded()
+        v2.denied(beforeStop)
+        v2.appsDenied("local_grant_required", session)
+
+        openControl()
+        checkEnded()
+        main { RemoteSession.beginUnlimited(targetContext) }
+        val nextSession = v2.openListedNotes()
+        check(nextSession != session)
+        v2.rejectOldSession(session)
+        awaitWindow(notes)
+        v2.previousGrant(beforeStop)
+        val beforeLock = v2.lockIsolatedAvd { lock -> main(lock) }
+        checkEnded()
+        v2.appsDenied("locked", nextSession)
+        status("wake_isolated_avd")
+        await("模拟器解锁") { RemoteSession.unlocked(targetContext) }
+        openNotes()
+        checkEnded()
+        v2.denied(beforeLock)
+        v2.appsDenied("local_grant_required", nextSession)
+        status("不限时授权跨过五分钟，手动停止及锁屏解锁后均已回收")
+    }
+
+    private fun checkEnded() {
+        check(!RemoteSession.active && !RemoteSession.unlimited && RemoteSession.expiresAt == 0L &&
+            RemoteSession.packages.isEmpty()) { "已结束的授权应清空应用范围并将截止时间归零" }
     }
 
     private fun status(message: String) = sendStatus(1, Bundle().apply { putString("remoteControl", message) })
@@ -116,22 +183,38 @@ class RemoteControlInstrumentation : Instrumentation() {
         awaitWindow(pkg)
     }
 
-    private fun awaitWindow(pkg: String) = await("活动窗口 $pkg") {
-        main {
-            val service = checkNotNull(RemoteSession.service)
-            val root = service.rootInActiveWindow ?: return@main false
-            try {
-                root.packageName == pkg && service.windows.any {
-                    it.id == root.windowId && it.isActive && it.type == AccessibilityWindowInfo.TYPE_APPLICATION
+    private fun awaitWindow(pkg: String) {
+        var last: android.graphics.Rect? = null
+        var steadySince = 0L
+        await("活动窗口 $pkg 完成入场") {
+            val bounds = main {
+                val service = checkNotNull(RemoteSession.service)
+                val root = service.rootInActiveWindow ?: return@main null
+                val windows = service.windows
+                try {
+                    if (root.packageName != pkg || !root.refresh()) return@main null
+                    val active = windows.singleOrNull {
+                        it.id == root.windowId && it.isActive && it.type == AccessibilityWindowInfo.TYPE_APPLICATION
+                    } ?: return@main null
+                    val frame = android.graphics.Rect().also(active::getBoundsInScreen)
+                    val content = android.graphics.Rect().also(root::getBoundsInScreen)
+                    content.takeIf { !it.isEmpty && frame.contains(it) }
+                } finally {
+                    windows.forEach { it.recycle() }
+                    root.recycle()
                 }
-            } finally { root.recycle() }
+            }
+            val now = SystemClock.elapsedRealtime()
+            if (bounds == null || bounds != last) steadySince = now
+            last = bounds
+            bounds != null && now - steadySince >= 450L
         }
     }
 
-    private fun call(tool: String, args: JSONObject = JSONObject()): JSONObject {
+    private fun call(tool: String, args: JSONObject = JSONObject(), caller: String = "notes-tester"): JSONObject {
         val now = System.currentTimeMillis()
         return RemoteSession.invoke(WireCall(UUID.randomUUID().toString(), "phone/control", tool, args,
-            "notes-tester", "便签验收", now, now + 10_000, "realtime", WireSignal(), null))
+            caller, "便签验收", now, now + 10_000, "realtime", WireSignal(), null))
     }
 
     private val JSONObject.label: String get() = getString("label")

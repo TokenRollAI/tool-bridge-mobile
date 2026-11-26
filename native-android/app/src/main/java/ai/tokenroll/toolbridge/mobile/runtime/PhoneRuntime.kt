@@ -86,8 +86,10 @@ class PhoneRuntime(private val ctx: Context) {
         val unavailable = { reason: String -> obj("status" to "unavailable", "reason" to reason) }
         val required = { perm: String, reason: String -> obj("status" to "permission_required", "permission" to perm, "reason" to reason) }
         return when {
+            key == "control/status" -> obj("status" to "available")
             key.startsWith("control/") && RemoteSession.service == null -> required("accessibility", "accessibility_disabled")
             key.startsWith("control/") && !RemoteSession.active -> unavailable("local_session_required")
+            key in setOf("control/apps", "control/open_app") && !RemoteSession.unlimited -> unavailable("all_apps_session_required")
             key == "camera/capture_photo" && ctx.checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED ->
                 required("camera","camera_permission_required")
             key == "productivity/notify" && !ctx.getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled() ->

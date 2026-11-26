@@ -53,7 +53,12 @@ internal class CommandCatalog(ctx: Context, private val exposed: (String) -> Boo
         PhoneCommand("media/seek","修改当前播放进度","write","low","never",120,60,60000,8192),
         PhoneCommand("media/stop","停止播放","write","low","never",120,60,60000,8192),
         PhoneCommand("media/status","读取当前媒体会话","read","low","never",120,60,60000,8192),
-        PhoneCommand("control/observe","读取本次获准 App 的当前界面元素","read","high","always"),
+        PhoneCommand("control/status","查询本机远控就绪状态与剩余时间（v:2）；不会占用会话","read","low"),
+        PhoneCommand("control/apps","在本机不限时授权中分页列出可启动 App；翻页传回 nextCursor","read","high","always"),
+        PhoneCommand("control/open_app","以 apps 返回的 session 和包名启动普通桌面入口；发送后用 status 检查就绪","write","high","always"),
+        PhoneCommand("control/back","点击授权窗口内唯一匹配的返回控件（v:2）","write","high","always"),
+        PhoneCommand("control/media","操作授权窗口内明确的播放或暂停控件（v:2）","write","high","always"),
+        PhoneCommand("control/observe","读取授权窗口；v:2 返回区域、短引用和可用动作，since 可请求增量","read","high","always"),
         PhoneCommand("control/screenshot","获取已授权 App 当前窗口的受保护截图引用","read","high","always",12,8),
         PhoneCommand("control/tap","点击刚观察到的控件","write","high","always"),
         PhoneCommand("control/type","向刚观察到的输入框写入文字","write","high","always"),
@@ -87,7 +92,7 @@ internal class CommandCatalog(ctx: Context, private val exposed: (String) -> Boo
         if (ui) obj("descriptor" to c.descriptor(), "availability" to available)
         else c.descriptor().apply {
             remove("queuePolicy"); put("availability", available)
-            put("effectiveConfirmation", if (c.prompt(mode,active) || c.key.startsWith("control/")) "required" else "not_required")
+            put("effectiveConfirmation", if (c.prompt(mode,active) || (c.key.startsWith("control/") && c.key != "control/status")) "required" else "not_required")
         }
     })
 }

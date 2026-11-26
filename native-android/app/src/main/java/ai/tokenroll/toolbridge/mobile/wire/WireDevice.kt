@@ -95,6 +95,10 @@ class WireCall internal constructor(
     val createdAtMs: Long, val expiresAtMs: Long, val delivery: String,
     val signal: WireSignal, val upload: WireUpload?,
 ) {
+    // Pin local admission before the gateway worker queue, including an absent grant.
+    internal val appGrantAtReceipt = if (path == "phone/control" && (tool == "apps" || tool == "open_app"))
+        RemoteSession.packages else null
+
     fun checkActive() {
         signal.checkActive()
         if (System.currentTimeMillis() >= expiresAtMs) throw WireFailure("expired", "Device call expired")

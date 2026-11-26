@@ -14,7 +14,29 @@
 
 信箱支持实时投递和显式前台拉取，正文保存在设备本地。响铃、媒体、位置、相机、通知和计时器的可用性取决于本机配置、系统权限与设备状态，调用方可通过能力列表查询。只有收到网关 ready 才显示在线。
 
-**Android 远控**　在手机解锁且网关在线时，用户进入“设备 → 远控配置”，在系统设置中启用无障碍服务，允许显示结束控制通知，勾选本次允许的 App，再点“开始 5 分钟”。Agent 只能实时读取或操作所选 App 当前的应用窗口。手机页面或通知都能结束控制；到时、熄屏或断线后需在本机重新开始。Android 14 及以上可对该窗口截图，调用方收到受保护的图片引用。旧版的 `phone/system.exec_shell` 未在原生 App 注册。iOS 沿用原有能力集。
+**Android 远控**　在设备解锁、网关在线时，进入「设备 → 远控配置」，按页面提示启用无障碍服务和结束控制通知。
+
+- **全部可控 App · 不限时**　点一次即可授权 Agent 列出、打开和操作开启时已有的可控应用。可以从通知或配置页结束。锁屏、断开连接或服务退出也会结束，重连后需在本机再次开启。
+- **选择 App · 5 分钟**　只勾选这一次允许的应用。选一个时直接打开它，选多个时可以选择先打开哪一个。
+
+**用 Agent 操作平板**　以设备 ID 为 `mi-pad` 的平板为例：
+
+```sh
+tb call device/phone/mi-pad/control/status '{"v":2}'
+tb call device/phone/mi-pad/control/observe '{"v":2}'
+```
+
+在不限时模式中，先调用 `control/apps` 取得可控应用的包名与本次 `session`，再把两者传给 `control/open_app`。例如在这台平板打开哔哩哔哩 HD：
+
+```sh
+tb call device/phone/mi-pad/control/apps '{"v":2}'
+# 将 SESSION 替换为上一步返回的 session，包名使用列表中的 app 值
+tb call device/phone/mi-pad/control/open_app '{"v":2,"session":"SESSION","app":"tv.danmaku.bilibilihd"}'
+```
+
+`open_app` 的 `sent` 表示已向系统提出启动请求。看到 `status` 中的 `app` 变为目标包名并且 `state` 为 `ready` 后，再读取新窗口。
+
+当状态为 `ready`，从观察结果的 `regions` 找到推荐栏，再从属于该栏的 `items` 里选择卡片。点击时传同次观察的 `snapshot` 和 `target: {region, ref}`。没有足够信息就重新观察。可用 `observe({v:2,region})` 展开一栏，或传 `since` 获取变化。动作回执区分已派发和已验证；需要验证页面变化时传 `expect`。遇到 `dispatch: "unknown"` 时先观察当前页面。返回及播放、暂停分别走该窗口内可识别的按钮。Android 14 及以上支持窗口截图，返回受保护的图片引用。已有的无版本调用保留原有格式。
 
 **安装原生 Preview**　旧 Expo Preview（`ai.tokenroll.toolbridgemobile.preview`）使用 Expo 模板随附的公开调试证书。原生 Preview 的包名为 `ai.tokenroll.toolbridgemobile.nativepreview`，对外分发须使用项目私有发布签名。安装新包时保留旧 App 即可，原有信箱、设置和凭证继续留在旧包内；首次打开新包需重新配置连接和授权。
 

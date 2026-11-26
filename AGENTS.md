@@ -20,7 +20,7 @@
 ## 产品与安全底线
 
 - 系统权限、用户拒绝、设备状态和平台限制高于远程命令。
-- Android 远控须由用户在已解锁的手机上选择 App 并开始五分钟在线会话。仅操作所选 App 的活动窗口；截图限 Android 14+ 单窗口。禁止远程开启、离线补执行、整屏回退或提供旧版 shell 命令。
+- Android 远控须由用户在已解锁手机上开启在线会话。可勾选 App 授权五分钟，也可明确开启「全部可控 App · 不限时」，固定当时的候选包名。仅后者允许远程列出获准 App、请求打开其普通桌面入口。窗口操作仅限获准 App 的活动窗口，截图限 Android 14+ 单窗口。两种授权均不持久化。禁止远程开启、离线补执行、整屏回退或提供旧版 shell 命令。
 - 不实现隐藏录音、隐藏拍摄、绕过锁屏、后台常驻监控或任意 App UI 自动化。
 - SK、设备私钥、push token 等凭证只进入系统安全存储，不进 AsyncStorage、日志、崩溃报告或仓库。
 - 高风险能力默认拒绝；每个能力必须声明 effect、确认策略、前台/后台条件和平台支持。
@@ -39,7 +39,7 @@
 - 文档阶段：`pnpm verify` 全绿。
 - App 代码阶段：`pnpm verify` 至少覆盖 typecheck、lint、unit、协议契约测试。
 - 改原生代码或权限配置：Android 与 iOS 构建都要过；平台专有代码至少过对应平台构建。
-- Android 另跑 `pnpm test:android` 与对应 Gradle 构建；远控、跨窗口拒绝、锁屏/断线撤销及单窗口截图须有适用 Android 真机证据。
+- Android 另跑 `pnpm test:android` 与对应 Gradle 构建。两种远控授权、应用列表与启动、跨窗口拒绝、会话撤销及单窗口截图须按 `llmdoc/delivery/definition-of-done.mdx` 留下适用 Android 真机证据。
 - 改 push、相机、音频、后台任务或深链：模拟器不足以验收，必须按
   `llmdoc/delivery/definition-of-done.mdx` 留下真机证据。
 - 测试失败或未执行必须明确报告，不能用文字宣称替代验证结果。

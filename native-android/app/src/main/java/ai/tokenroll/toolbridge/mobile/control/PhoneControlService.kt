@@ -1,6 +1,7 @@
 package ai.tokenroll.toolbridge.mobile
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -28,46 +29,78 @@ object RemoteSession {
     private val main = Handler(Looper.getMainLooper())
     @Volatile var service: PhoneControlService? = null
         internal set
-    @Volatile var packages: Set<String> = emptySet()
-        private set
-    @Volatile var expiresAt = 0L
-        private set
-    private var epoch = ""
+    private data class Grant(val packages: Set<String>, val deadline: Long?, val epoch: String)
+    @Volatile private var grant: Grant? = null
+    val packages: Set<String> get() = grant?.packages.orEmpty()
+    val unlimited: Boolean get() = grant?.let { it.deadline == null } == true
+    val expiresAt: Long? get() {
+        val current = grant ?: return 0L
+        return current.deadline
+    }
+    private val epoch: String get() = grant?.epoch.orEmpty()
     private var owner: String? = null
     private val stopTimer = Runnable { stop() }
     var onChange: (() -> Unit)? = null
-    val active get() = packages.isNotEmpty() && SystemClock.elapsedRealtime() < expiresAt
+    val active: Boolean get() {
+        val current = grant ?: return false
+        return current.deadline == null || SystemClock.elapsedRealtime() < current.deadline
+    }
 
     fun begin(context: Context, selected: Set<String>) {
         check(Looper.myLooper() == Looper.getMainLooper())
-        require(selected.isNotEmpty() && PhoneControlService.allowedApps(context).keys.containsAll(selected))
-        check(service != null && unlocked(context))
+        require(PhoneControlService.allowedApps(context).keys.containsAll(selected))
+        start(context, selected, SystemClock.elapsedRealtime() + DURATION_MS)
+    }
+
+    fun beginUnlimited(context: Context) {
+        check(Looper.myLooper() == Looper.getMainLooper())
+        start(context, PhoneControlService.allowedApps(context).keys, null)
+    }
+
+    private fun start(context: Context, selected: Set<String>, deadline: Long?) {
+        require(selected.isNotEmpty())
+        check(service != null && unlocked(context) && ConnectionService.canShowControls(context))
         main.removeCallbacks(stopTimer)
         service?.discardObservation()
         owner = null
-        packages = selected.toSet()
-        epoch = UUID.randomUUID().toString()
-        expiresAt = SystemClock.elapsedRealtime() + DURATION_MS
-        main.postDelayed(stopTimer, DURATION_MS)
+        grant = Grant(selected.toSet(), deadline, UUID.randomUUID().toString())
+        if (deadline != null) main.postDelayed(stopTimer, (deadline - SystemClock.elapsedRealtime()).coerceAtLeast(0))
         onChange?.invoke()
     }
 
     fun stop() {
         check(Looper.myLooper() == Looper.getMainLooper())
         main.removeCallbacks(stopTimer)
-        packages = emptySet()
-        epoch = ""
+        grant = null
         owner = null
-        expiresAt = 0L
         service?.discardObservation()
         onChange?.invoke()
     }
 
-    fun requireGrant(context: Context, caller: String): String {
-        if (!active || !unlocked(context) || caller.isBlank()) throw WireFailure("permission_denied", "请在已解锁的手机上开始远控")
-        if (owner == null) owner = caller
-        if (owner != caller) throw WireFailure("permission_denied", "会话已绑定另一调用者")
+    // Main-thread queries for the status reader and continuations of an existing operation.
+    fun availableTo(caller: String) = owner == null || owner == caller
+
+    private fun activeUnlocked(context: Context): Boolean {
+        if (!active) return false
+        if (unlocked(context)) return true
+        stop()
+        return false
+    }
+
+    internal fun holds(context: Context, scope: SemanticScope) =
+        activeUnlocked(context) && epoch == scope.epoch && owner == scope.caller && scope.app in packages
+
+    internal fun checkGrant(context: Context, caller: String, allowUnbound: Boolean): String {
+        if (!activeUnlocked(context) || caller.isBlank()) throw WireFailure("permission_denied", "请在已解锁的手机上开始远控")
+        if (owner != caller && !(allowUnbound && owner == null))
+            throw WireFailure("permission_denied", "调用者没有本次授权")
         return epoch
+    }
+
+    fun requireGrant(context: Context, caller: String): String {
+        val current = checkGrant(context, caller, allowUnbound = true)
+        owner = caller
+        return current
     }
 
     fun unlocked(context: Context) = context.getSystemService(PowerManager::class.java).isInteractive &&
@@ -75,7 +108,14 @@ object RemoteSession {
 
     fun invoke(call: WireCall): JSONObject {
         if (call.delivery != "realtime") throw WireFailure("permission_denied", "远控仅接受实时操作")
+        val v2 = (call.arguments.opt("v") as? Number)?.toDouble() == 2.0
+        if (call.arguments.has("v") && !v2) invalidWire()
+        if (call.tool in setOf("status", "back", "media") && !v2) invalidWire()
+        if (call.tool == "status") return ControlStatus.read(call)
+        if (call.tool == "apps") return BroadAppControl.invoke(call, main)
+        if (call.tool == "open_app") return BroadAppControl.invoke(call, main)
         if (call.tool == "screenshot") return WindowCapture.capture(call)
+        if (v2) return ScopedActionCall.invoke(call, main)
         val task = FutureTask(Callable {
             call.checkActive()
             val target = service ?: throw WireFailure("unavailable", "请在系统设置中开启无障碍服务")
@@ -96,6 +136,7 @@ object RemoteSession {
 }
 
 class PhoneControlService : AccessibilityService() {
+    internal val scopedActions = ScopedActions(this)
     private val refs = mutableMapOf<String, AccessibilityNodeInfo>()
     private var observedWindow = -1
     private var observedPackage = ""
@@ -105,6 +146,10 @@ class PhoneControlService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        serviceInfo = serviceInfo.apply {
+            eventTypes = eventTypes or AccessibilityEvent.TYPE_VIEW_SCROLLED
+            flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+        }
         RemoteSession.service = this
         val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(locked, filter, RECEIVER_NOT_EXPORTED)
@@ -123,14 +168,28 @@ class PhoneControlService : AccessibilityService() {
     }
 
     fun discardObservation() {
+        scopedActions.reset()
+        discardLegacyObservation()
+    }
+
+    private fun discardLegacyObservation() {
         refs.values.forEach { it.recycle() }
         refs.clear()
         observedWindow = -1
         observedPackage = ""
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // A snapshot is single-use and valid only while its window and content remain current.
-        if (refs.isNotEmpty() && event != null) discardObservation()
+        // Legacy references still expire on every event in the original service subscription.
+        if (event == null) return
+        if (refs.isNotEmpty() && event.eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED) discardLegacyObservation()
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                if (RemoteSession.active && !RemoteSession.unlocked(this)) RemoteSession.stop()
+                else scopedActions.navigation(event)
+            }
+            else -> scopedActions.contentChanged(event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED)
+        }
     }
 
     internal fun performCall(call: WireCall): JSONObject {
@@ -150,7 +209,7 @@ class PhoneControlService : AccessibilityService() {
             if (node == null || observedWindow != root.windowId || observedPackage != pkg ||
                 !node.refresh() || node.windowId != root.windowId || node.packageName?.toString() != pkg ||
                 !node.isVisibleToUser || !node.isEnabled || sensitive(node)) {
-                discardObservation()
+                discardLegacyObservation()
                 throw WireFailure("unavailable", "界面已变化，请重新读取")
             }
             val action = when (call.tool) {
@@ -171,14 +230,15 @@ class PhoneControlService : AccessibilityService() {
             } else null
             call.checkActive()
             RemoteSession.requireGrant(this, call.callerSubjectId)
-            val accepted = try { node.performAction(action, params) } finally { discardObservation() }
+            scopedActions.otherAction(scrolled = call.tool == "scroll")
+            val accepted = try { node.performAction(action, params) } finally { discardLegacyObservation() }
             if (!accepted) throw WireFailure("unavailable", "目标 App 拒绝操作")
             return JSONObject().put("accepted", true)
         } finally { root.recycle() }
     }
 
     private fun observe(root: AccessibilityNodeInfo, pkg: String, epoch: String): JSONObject {
-        discardObservation()
+        discardLegacyObservation()
         observedWindow = root.windowId
         observedPackage = pkg
         val prefix = epoch + "." + UUID.randomUUID().toString() + "."

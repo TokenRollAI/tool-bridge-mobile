@@ -14,6 +14,7 @@ public final class ControlTargetActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (V2FeedFixture.showIfRequested(this)) return;
         LinearLayout page = new LinearLayout(this);
         page.setFitsSystemWindows(true);
         page.setOrientation(LinearLayout.VERTICAL);

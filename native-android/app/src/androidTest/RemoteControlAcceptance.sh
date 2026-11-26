@@ -100,10 +100,17 @@ done
 our_avd
 device shell settings put secure enabled_accessibility_services "$pkg/$classes.PhoneControlService"
 device shell settings put secure accessibility_enabled 1
-echo "Running the remote-control checks, including the real five-minute expiry."
-deadline=$((SECONDS + 450))
+echo "Checking timed expiry and an unlimited session over two real five-minute intervals."
+deadline=$((SECONDS + 800))
+woke_after_lock=false
 while kill -0 "$run_pid" 2>/dev/null; do
     if (( SECONDS >= deadline )); then cat "$work/result"; exit 1; fi
+    if [[ "$woke_after_lock" == false ]] && grep -q '^INSTRUMENTATION_STATUS: remoteControl=wake_isolated_avd[[:space:]]*$' "$work/result"; then
+        our_avd
+        device shell input keyevent KEYCODE_WAKEUP
+        device shell wm dismiss-keyguard
+        woke_after_lock=true
+    fi
     sleep 1
 done
 rc=0

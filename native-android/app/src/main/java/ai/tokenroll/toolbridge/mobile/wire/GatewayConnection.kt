@@ -47,6 +47,7 @@ class GatewayConnection internal constructor(
     private val calls = mutableMapOf<String, Pending>()
     private class Pending(val signal: WireSignal, val link: Closeable, var replyTo: WebSocket) {
         var deadline: ScheduledFuture<*>? = null
+        var appGrantAtReceipt: Set<String>? = null
     }
 
     fun setEnabled(enabled: Boolean) {
@@ -215,6 +216,7 @@ class GatewayConnection internal constructor(
             finish(id, pending, failure(id, e.safeFailure(signal)))
             return
         }
+        pending.appGrantAtReceipt = call.appGrantAtReceipt
         pending.deadline = control.schedule({ signal.cancel() },
             maxOf(0, call.expiresAtMs - System.currentTimeMillis()), MILLISECONDS)
         try {
@@ -237,8 +239,11 @@ class GatewayConnection internal constructor(
         pending.deadline?.cancel(false)
         pending.link.close()
         calls.remove(id)
-        val reply = result.toString()
-        results[id] = reply
+        val grant = pending.appGrantAtReceipt
+        val reply = if (grant != null && grant !== RemoteSession.packages)
+            failure(id, WireFailure("permission_denied", "本次远控授权已结束")).toString() else result.toString()
+        // A duplicate must neither launch again nor retrieve a previous grant's app list.
+        results[id] = if (grant == null) reply else failure(id, WireFailure("conflict", "请求已处理，请重新查询状态")).toString()
         if (results.size > 1000) results.remove(results.keys.first())
         if (socketScope != null && socketScope === scope && state == GatewayState.READY && socket === pending.replyTo) {
             if (!pending.replyTo.send(reply)) scope?.let(::retry)

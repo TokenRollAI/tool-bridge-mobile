@@ -2012,200 +2012,3340 @@
       "additionalProperties": false
     }
   },
-  "control/observe": {
+  "control/apps": {
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",
-      "properties": {},
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 2
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "cursor": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "after": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+            }
+          },
+          "required": [
+            "session",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v"
+      ],
       "additionalProperties": false
     },
     "outputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",
       "properties": {
-        "package": {
-          "type": "string"
+        "v": {
+          "type": "number",
+          "const": 2
         },
-        "elements": {
+        "session": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "apps": {
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema1"
+          }
+        },
+        "nextCursor": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "after": {
+              "$ref": "#/$defs/__schema2"
+            }
+          },
+          "required": [
+            "session",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "session",
+        "apps"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "__schema0": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema1": {
+          "type": "object",
+          "properties": {
+            "app": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "label": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "required": [
+            "app",
+            "label"
+          ],
+          "additionalProperties": false
+        },
+        "__schema2": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+        }
+      }
+    }
+  },
+  "control/open_app": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 2
+        },
+        "session": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+        }
+      },
+      "required": [
+        "v",
+        "session",
+        "app"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 2
+        },
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+        },
+        "dispatch": {
+          "type": "string",
+          "const": "sent"
+        }
+      },
+      "required": [
+        "v",
+        "app",
+        "dispatch"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "control/status": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 2
+        }
+      },
+      "required": [
+        "v"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 2
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "service_unavailable",
+            "locked",
+            "local_grant_required",
+            "session_in_use",
+            "awaiting_selected_app",
+            "ready"
+          ]
+        },
+        "serviceConnected": {
+          "type": "boolean"
+        },
+        "remainingMs": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "selected_timed",
+            "all_apps_until_stopped"
+          ]
+        },
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "supported": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "v",
+        "state",
+        "serviceConnected",
+        "remainingMs",
+        "supported"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "control/observe": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 2
+            },
+            "region": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "since": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "v"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "package": {
+              "type": "string"
+            },
+            "elements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "element": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "clickable": {
+                    "type": "boolean"
+                  },
+                  "editable": {
+                    "type": "boolean"
+                  },
+                  "scrollable": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "element",
+                  "label",
+                  "clickable",
+                  "editable",
+                  "scrollable"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "package",
+            "elements"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "v": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "snapshot": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "window": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "regions": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "items": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "truncated": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "full"
+                }
+              },
+              "required": [
+                "v",
+                "snapshot",
+                "window",
+                "regions",
+                "items",
+                "truncated",
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "v": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "snapshot": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "window": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "regions": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "items": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "truncated": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                },
+                "base": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "removedItems": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                "removedRegions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                }
+              },
+              "required": [
+                "v",
+                "snapshot",
+                "window",
+                "regions",
+                "items",
+                "truncated",
+                "kind",
+                "base",
+                "removedItems",
+                "removedRegions"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema1": {
+          "type": "number",
+          "const": 2
+        },
+        "__schema2": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "app": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "boundsSpace": {
+              "type": "string",
+              "const": "window_normalized_1000"
+            }
+          },
+          "required": [
+            "ref",
+            "app",
+            "boundsSpace"
+          ],
+          "additionalProperties": false
+        },
+        "__schema3": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "element": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 128
+              "ref": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "position": {
+                "type": "string"
               },
               "label": {
                 "type": "string"
               },
-              "clickable": {
-                "type": "boolean"
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
               },
-              "editable": {
-                "type": "boolean"
+              "actions": {
+                "$ref": "#/$defs/__schema6"
               },
-              "scrollable": {
+              "depth": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "parent": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "truncated": {
                 "type": "boolean"
               }
             },
             "required": [
-              "element",
+              "ref",
+              "position",
               "label",
-              "clickable",
-              "editable",
-              "scrollable"
+              "bounds",
+              "actions",
+              "depth",
+              "truncated"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema4": {
+          "minItems": 4,
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema5"
+          }
+        },
+        "__schema5": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "__schema6": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "tap",
+              "type",
+              "scroll_forward",
+              "scroll_backward"
+            ]
+          }
+        },
+        "__schema7": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "region": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "role": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "name": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "selected": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "region",
+              "role",
+              "name",
+              "context",
+              "bounds",
+              "actions",
+              "enabled",
+              "selected"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema8": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "control/screenshot": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 2
+            }
+          },
+          "required": [
+            "v"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "uri": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "width": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "height": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "contentType": {
+              "$ref": "#/$defs/__schema3"
+            }
+          },
+          "required": [
+            "uri",
+            "width",
+            "height",
+            "contentType"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "uri": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "width": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "height": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "contentType": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "v": {
+              "type": "number",
+              "const": 2
+            },
+            "window": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "capturedAt": {
+              "type": "string"
+            },
+            "sourcePx": {
+              "type": "object",
+              "properties": {
+                "width": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "height": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "width",
+                "height"
+              ],
+              "additionalProperties": false
+            },
+            "windowBoundsPx": {
+              "minItems": 4,
+              "maxItems": 4,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema4"
+              }
+            },
+            "rotationDegrees": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "const": 0
+                    },
+                    {
+                      "type": "number",
+                      "const": 90
+                    },
+                    {
+                      "type": "number",
+                      "const": 180
+                    },
+                    {
+                      "type": "number",
+                      "const": 270
+                    }
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "uri",
+            "width",
+            "height",
+            "contentType",
+            "v",
+            "window",
+            "capturedAt",
+            "sourcePx",
+            "windowBoundsPx",
+            "rotationDegrees"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "type": "string"
+        },
+        "__schema1": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "__schema2": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "__schema3": {
+          "type": "string",
+          "const": "image/jpeg"
+        },
+        "__schema4": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      }
+    }
+  },
+  "control/tap": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "element"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 2
+            },
+            "snapshot": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "ref": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "region": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "ref",
+                    "region"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "region": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "role": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "context": {
+                      "type": "string",
+                      "maxLength": 512
+                    }
+                  },
+                  "required": [
+                    "region",
+                    "role",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "expect": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "visible": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "name": {
+                          "$ref": "#/$defs/__schema2"
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "visible"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "transition": {
+                      "type": "object",
+                      "properties": {
+                        "fromRole": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "toRole": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "name": {
+                          "$ref": "#/$defs/__schema2"
+                        }
+                      },
+                      "required": [
+                        "fromRole",
+                        "toRole",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "transition"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "regionChanged": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "regionChanged"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "waitMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000
+            }
+          },
+          "required": [
+            "v",
+            "snapshot",
+            "target"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema1": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "__schema2": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "accepted": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "accepted"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "dispatch": {
+              "type": "string",
+              "enum": [
+                "not_sent",
+                "sent",
+                "unknown"
+              ]
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "verified",
+                "not_verified",
+                "ambiguous_target",
+                "target_missing",
+                "stale_snapshot",
+                "unsupported",
+                "result_unknown"
+              ]
+            },
+            "resolution": {
+              "type": "string",
+              "enum": [
+                "direct",
+                "relocated_unique",
+                "selector"
+              ]
+            },
+            "changes": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "v": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "snapshot": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "window": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "regions": {
+                      "$ref": "#/$defs/__schema3"
+                    },
+                    "items": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "truncated": {
+                      "$ref": "#/$defs/__schema9"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "full"
+                    }
+                  },
+                  "required": [
+                    "v",
+                    "snapshot",
+                    "window",
+                    "regions",
+                    "items",
+                    "truncated",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "v": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "snapshot": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "window": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "regions": {
+                      "$ref": "#/$defs/__schema3"
+                    },
+                    "items": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "truncated": {
+                      "$ref": "#/$defs/__schema9"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "delta"
+                    },
+                    "base": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "removedItems": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    },
+                    "removedRegions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    }
+                  },
+                  "required": [
+                    "v",
+                    "snapshot",
+                    "window",
+                    "regions",
+                    "items",
+                    "truncated",
+                    "kind",
+                    "base",
+                    "removedItems",
+                    "removedRegions"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "region": {
+                    "$ref": "#/$defs/__schema1"
+                  }
+                },
+                "required": [
+                  "ref",
+                  "region"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "v",
+            "dispatch",
+            "outcome"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "type": "number",
+          "const": 2
+        },
+        "__schema1": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema2": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "app": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "boundsSpace": {
+              "type": "string",
+              "const": "window_normalized_1000"
+            }
+          },
+          "required": [
+            "ref",
+            "app",
+            "boundsSpace"
+          ],
+          "additionalProperties": false
+        },
+        "__schema3": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "position": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "depth": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "parent": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "position",
+              "label",
+              "bounds",
+              "actions",
+              "depth",
+              "truncated"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema4": {
+          "minItems": 4,
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema5"
+          }
+        },
+        "__schema5": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "__schema6": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "tap",
+              "type",
+              "scroll_forward",
+              "scroll_backward"
+            ]
+          }
+        },
+        "__schema7": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "region": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "role": {
+                "$ref": "#/$defs/__schema8"
+              },
+              "name": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "selected": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "region",
+              "role",
+              "name",
+              "context",
+              "bounds",
+              "actions",
+              "enabled",
+              "selected"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema8": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "__schema9": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "control/type": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "text": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "element",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 2
+            },
+            "snapshot": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "ref": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "region": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "ref",
+                    "region"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "region": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "role": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema3"
+                    },
+                    "context": {
+                      "type": "string",
+                      "maxLength": 512
+                    }
+                  },
+                  "required": [
+                    "region",
+                    "role",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "expect": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "visible": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "$ref": "#/$defs/__schema2"
+                        },
+                        "name": {
+                          "$ref": "#/$defs/__schema3"
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "visible"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "transition": {
+                      "type": "object",
+                      "properties": {
+                        "fromRole": {
+                          "$ref": "#/$defs/__schema2"
+                        },
+                        "toRole": {
+                          "$ref": "#/$defs/__schema2"
+                        },
+                        "name": {
+                          "$ref": "#/$defs/__schema3"
+                        }
+                      },
+                      "required": [
+                        "fromRole",
+                        "toRole",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "transition"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "regionChanged": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "regionChanged"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "waitMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000
+            },
+            "text": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "v",
+            "snapshot",
+            "target",
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema1": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "__schema2": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "__schema3": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "accepted": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "accepted"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "dispatch": {
+              "type": "string",
+              "enum": [
+                "not_sent",
+                "sent",
+                "unknown"
+              ]
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "verified",
+                "not_verified",
+                "ambiguous_target",
+                "target_missing",
+                "stale_snapshot",
+                "unsupported",
+                "result_unknown"
+              ]
+            },
+            "resolution": {
+              "type": "string",
+              "enum": [
+                "direct",
+                "relocated_unique",
+                "selector"
+              ]
+            },
+            "changes": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "v": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "snapshot": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "window": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "regions": {
+                      "$ref": "#/$defs/__schema3"
+                    },
+                    "items": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "truncated": {
+                      "$ref": "#/$defs/__schema9"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "full"
+                    }
+                  },
+                  "required": [
+                    "v",
+                    "snapshot",
+                    "window",
+                    "regions",
+                    "items",
+                    "truncated",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "v": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "snapshot": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "window": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "regions": {
+                      "$ref": "#/$defs/__schema3"
+                    },
+                    "items": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "truncated": {
+                      "$ref": "#/$defs/__schema9"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "delta"
+                    },
+                    "base": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "removedItems": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    },
+                    "removedRegions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    }
+                  },
+                  "required": [
+                    "v",
+                    "snapshot",
+                    "window",
+                    "regions",
+                    "items",
+                    "truncated",
+                    "kind",
+                    "base",
+                    "removedItems",
+                    "removedRegions"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "region": {
+                    "$ref": "#/$defs/__schema1"
+                  }
+                },
+                "required": [
+                  "ref",
+                  "region"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "v",
+            "dispatch",
+            "outcome"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "type": "number",
+          "const": 2
+        },
+        "__schema1": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema2": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "app": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "boundsSpace": {
+              "type": "string",
+              "const": "window_normalized_1000"
+            }
+          },
+          "required": [
+            "ref",
+            "app",
+            "boundsSpace"
+          ],
+          "additionalProperties": false
+        },
+        "__schema3": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "position": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "depth": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "parent": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "position",
+              "label",
+              "bounds",
+              "actions",
+              "depth",
+              "truncated"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema4": {
+          "minItems": 4,
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema5"
+          }
+        },
+        "__schema5": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "__schema6": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "tap",
+              "type",
+              "scroll_forward",
+              "scroll_backward"
+            ]
+          }
+        },
+        "__schema7": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "region": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "role": {
+                "$ref": "#/$defs/__schema8"
+              },
+              "name": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "selected": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "region",
+              "role",
+              "name",
+              "context",
+              "bounds",
+              "actions",
+              "enabled",
+              "selected"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema8": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "__schema9": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "control/scroll": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "direction": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "element",
+            "direction"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 2
+            },
+            "snapshot": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "ref": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "region": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "ref",
+                    "region"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "region": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "role": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema3"
+                    },
+                    "context": {
+                      "type": "string",
+                      "maxLength": 512
+                    }
+                  },
+                  "required": [
+                    "region",
+                    "role",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "expect": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "visible": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "$ref": "#/$defs/__schema2"
+                        },
+                        "name": {
+                          "$ref": "#/$defs/__schema3"
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "visible"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "transition": {
+                      "type": "object",
+                      "properties": {
+                        "fromRole": {
+                          "$ref": "#/$defs/__schema2"
+                        },
+                        "toRole": {
+                          "$ref": "#/$defs/__schema2"
+                        },
+                        "name": {
+                          "$ref": "#/$defs/__schema3"
+                        }
+                      },
+                      "required": [
+                        "fromRole",
+                        "toRole",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "transition"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "regionChanged": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "regionChanged"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "waitMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000
+            },
+            "direction": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "v",
+            "snapshot",
+            "target",
+            "direction"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema1": {
+          "type": "string",
+          "enum": [
+            "forward",
+            "backward"
+          ]
+        },
+        "__schema2": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "__schema3": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "accepted": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "accepted"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "dispatch": {
+              "type": "string",
+              "enum": [
+                "not_sent",
+                "sent",
+                "unknown"
+              ]
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "verified",
+                "not_verified",
+                "ambiguous_target",
+                "target_missing",
+                "stale_snapshot",
+                "unsupported",
+                "result_unknown"
+              ]
+            },
+            "resolution": {
+              "type": "string",
+              "enum": [
+                "direct",
+                "relocated_unique",
+                "selector"
+              ]
+            },
+            "changes": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "v": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "snapshot": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "window": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "regions": {
+                      "$ref": "#/$defs/__schema3"
+                    },
+                    "items": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "truncated": {
+                      "$ref": "#/$defs/__schema9"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "full"
+                    }
+                  },
+                  "required": [
+                    "v",
+                    "snapshot",
+                    "window",
+                    "regions",
+                    "items",
+                    "truncated",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "v": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "snapshot": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "window": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "regions": {
+                      "$ref": "#/$defs/__schema3"
+                    },
+                    "items": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "truncated": {
+                      "$ref": "#/$defs/__schema9"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "delta"
+                    },
+                    "base": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "removedItems": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    },
+                    "removedRegions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    }
+                  },
+                  "required": [
+                    "v",
+                    "snapshot",
+                    "window",
+                    "regions",
+                    "items",
+                    "truncated",
+                    "kind",
+                    "base",
+                    "removedItems",
+                    "removedRegions"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "region": {
+                    "$ref": "#/$defs/__schema1"
+                  }
+                },
+                "required": [
+                  "ref",
+                  "region"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "v",
+            "dispatch",
+            "outcome"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "type": "number",
+          "const": 2
+        },
+        "__schema1": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema2": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "app": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "boundsSpace": {
+              "type": "string",
+              "const": "window_normalized_1000"
+            }
+          },
+          "required": [
+            "ref",
+            "app",
+            "boundsSpace"
+          ],
+          "additionalProperties": false
+        },
+        "__schema3": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "position": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "depth": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "parent": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "position",
+              "label",
+              "bounds",
+              "actions",
+              "depth",
+              "truncated"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema4": {
+          "minItems": 4,
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema5"
+          }
+        },
+        "__schema5": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "__schema6": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "tap",
+              "type",
+              "scroll_forward",
+              "scroll_backward"
+            ]
+          }
+        },
+        "__schema7": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "region": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "role": {
+                "$ref": "#/$defs/__schema8"
+              },
+              "name": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "selected": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "region",
+              "role",
+              "name",
+              "context",
+              "bounds",
+              "actions",
+              "enabled",
+              "selected"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema8": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "__schema9": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "control/back": {
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 2
+        },
+        "snapshot": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "region": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "ref",
+                "region"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "region": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "role": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "context": {
+                  "type": "string",
+                  "maxLength": 512
+                }
+              },
+              "required": [
+                "region",
+                "role",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "expect": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "visible": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema2"
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "visible"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "transition": {
+                  "type": "object",
+                  "properties": {
+                    "fromRole": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "toRole": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema2"
+                    }
+                  },
+                  "required": [
+                    "fromRole",
+                    "toRole",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "transition"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "regionChanged": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "regionChanged"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "waitMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        }
+      },
+      "required": [
+        "v",
+        "snapshot",
+        "target"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "__schema0": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema1": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "__schema2": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "outputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "dispatch": {
+          "type": "string",
+          "enum": [
+            "not_sent",
+            "sent",
+            "unknown"
+          ]
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "not_verified",
+            "ambiguous_target",
+            "target_missing",
+            "stale_snapshot",
+            "unsupported",
+            "result_unknown"
+          ]
+        },
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "direct",
+            "relocated_unique",
+            "selector"
+          ]
+        },
+        "changes": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "v": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "snapshot": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "window": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "regions": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "items": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "truncated": {
+                  "$ref": "#/$defs/__schema9"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "full"
+                }
+              },
+              "required": [
+                "v",
+                "snapshot",
+                "window",
+                "regions",
+                "items",
+                "truncated",
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "v": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "snapshot": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "window": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "regions": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "items": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "truncated": {
+                  "$ref": "#/$defs/__schema9"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                },
+                "base": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "removedItems": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema1"
+                  }
+                },
+                "removedRegions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema1"
+                  }
+                }
+              },
+              "required": [
+                "v",
+                "snapshot",
+                "window",
+                "regions",
+                "items",
+                "truncated",
+                "kind",
+                "base",
+                "removedItems",
+                "removedRegions"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "evidence": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "role",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "region": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "required": [
+              "ref",
+              "region"
             ],
             "additionalProperties": false
           }
         }
       },
       "required": [
-        "package",
-        "elements"
+        "v",
+        "dispatch",
+        "outcome"
       ],
-      "additionalProperties": false
-    }
-  },
-  "control/screenshot": {
-    "inputSchema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "type": "object",
-      "properties": {},
-      "additionalProperties": false
-    },
-    "outputSchema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "type": "object",
-      "properties": {
-        "uri": {
-          "type": "string"
+      "additionalProperties": false,
+      "$defs": {
+        "__schema0": {
+          "type": "number",
+          "const": 2
         },
-        "width": {
-          "type": "integer",
-          "minimum": -9007199254740991,
-          "maximum": 9007199254740991
-        },
-        "height": {
-          "type": "integer",
-          "minimum": -9007199254740991,
-          "maximum": 9007199254740991
-        },
-        "contentType": {
-          "type": "string",
-          "const": "image/jpeg"
-        }
-      },
-      "required": [
-        "uri",
-        "width",
-        "height",
-        "contentType"
-      ],
-      "additionalProperties": false
-    }
-  },
-  "control/tap": {
-    "inputSchema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "type": "object",
-      "properties": {
-        "element": {
+        "__schema1": {
           "type": "string",
           "minLength": 1,
           "maxLength": 128
-        }
-      },
-      "required": [
-        "element"
-      ],
-      "additionalProperties": false
-    },
-    "outputSchema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "type": "object",
-      "properties": {
-        "accepted": {
+        },
+        "__schema2": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "app": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "boundsSpace": {
+              "type": "string",
+              "const": "window_normalized_1000"
+            }
+          },
+          "required": [
+            "ref",
+            "app",
+            "boundsSpace"
+          ],
+          "additionalProperties": false
+        },
+        "__schema3": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "position": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "depth": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "parent": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "position",
+              "label",
+              "bounds",
+              "actions",
+              "depth",
+              "truncated"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema4": {
+          "minItems": 4,
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema5"
+          }
+        },
+        "__schema5": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "__schema6": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "tap",
+              "type",
+              "scroll_forward",
+              "scroll_backward"
+            ]
+          }
+        },
+        "__schema7": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "region": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "role": {
+                "$ref": "#/$defs/__schema8"
+              },
+              "name": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "selected": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "region",
+              "role",
+              "name",
+              "context",
+              "bounds",
+              "actions",
+              "enabled",
+              "selected"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema8": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "__schema9": {
           "type": "boolean"
         }
-      },
-      "required": [
-        "accepted"
-      ],
-      "additionalProperties": false
+      }
     }
   },
-  "control/type": {
+  "control/media": {
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",
       "properties": {
-        "element": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 128
+        "v": {
+          "type": "number",
+          "const": 2
         },
-        "text": {
-          "type": "string",
-          "maxLength": 2048
-        }
-      },
-      "required": [
-        "element",
-        "text"
-      ],
-      "additionalProperties": false
-    },
-    "outputSchema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "type": "object",
-      "properties": {
-        "accepted": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "accepted"
-      ],
-      "additionalProperties": false
-    }
-  },
-  "control/scroll": {
-    "inputSchema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "type": "object",
-      "properties": {
-        "element": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 128
+        "snapshot": {
+          "$ref": "#/$defs/__schema0"
         },
-        "direction": {
+        "target": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "region": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "ref",
+                "region"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "region": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "role": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "context": {
+                  "type": "string",
+                  "maxLength": 512
+                }
+              },
+              "required": [
+                "region",
+                "role",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "expect": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "visible": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema2"
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "visible"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "transition": {
+                  "type": "object",
+                  "properties": {
+                    "fromRole": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "toRole": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema2"
+                    }
+                  },
+                  "required": [
+                    "fromRole",
+                    "toRole",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "transition"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "regionChanged": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "regionChanged"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "waitMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "operation": {
           "type": "string",
           "enum": [
-            "forward",
-            "backward"
+            "play",
+            "pause"
           ]
         }
       },
       "required": [
-        "element",
-        "direction"
+        "v",
+        "snapshot",
+        "target",
+        "operation"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "$defs": {
+        "__schema0": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema1": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "__schema2": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
     },
     "outputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",
       "properties": {
-        "accepted": {
-          "type": "boolean"
+        "v": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "dispatch": {
+          "type": "string",
+          "enum": [
+            "not_sent",
+            "sent",
+            "unknown"
+          ]
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "not_verified",
+            "ambiguous_target",
+            "target_missing",
+            "stale_snapshot",
+            "unsupported",
+            "result_unknown"
+          ]
+        },
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "direct",
+            "relocated_unique",
+            "selector"
+          ]
+        },
+        "changes": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "v": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "snapshot": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "window": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "regions": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "items": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "truncated": {
+                  "$ref": "#/$defs/__schema9"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "full"
+                }
+              },
+              "required": [
+                "v",
+                "snapshot",
+                "window",
+                "regions",
+                "items",
+                "truncated",
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "v": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "snapshot": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "window": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "regions": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "items": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "truncated": {
+                  "$ref": "#/$defs/__schema9"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                },
+                "base": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "removedItems": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema1"
+                  }
+                },
+                "removedRegions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema1"
+                  }
+                }
+              },
+              "required": [
+                "v",
+                "snapshot",
+                "window",
+                "regions",
+                "items",
+                "truncated",
+                "kind",
+                "base",
+                "removedItems",
+                "removedRegions"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "evidence": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "$ref": "#/$defs/__schema8"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "role",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "region": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "required": [
+              "ref",
+              "region"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "required": [
-        "accepted"
+        "v",
+        "dispatch",
+        "outcome"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "$defs": {
+        "__schema0": {
+          "type": "number",
+          "const": 2
+        },
+        "__schema1": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "__schema2": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "app": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "boundsSpace": {
+              "type": "string",
+              "const": "window_normalized_1000"
+            }
+          },
+          "required": [
+            "ref",
+            "app",
+            "boundsSpace"
+          ],
+          "additionalProperties": false
+        },
+        "__schema3": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "position": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "depth": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "parent": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "position",
+              "label",
+              "bounds",
+              "actions",
+              "depth",
+              "truncated"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema4": {
+          "minItems": 4,
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema5"
+          }
+        },
+        "__schema5": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "__schema6": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "tap",
+              "type",
+              "scroll_forward",
+              "scroll_backward"
+            ]
+          }
+        },
+        "__schema7": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "region": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "role": {
+                "$ref": "#/$defs/__schema8"
+              },
+              "name": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "bounds": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "actions": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "selected": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ref",
+              "region",
+              "role",
+              "name",
+              "context",
+              "bounds",
+              "actions",
+              "enabled",
+              "selected"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "__schema8": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "__schema9": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }

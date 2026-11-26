@@ -1,6 +1,8 @@
 package ai.tokenroll.toolbridge.mobile
 
 import android.accessibilityservice.AccessibilityService
+import android.graphics.Rect
+import android.hardware.display.DisplayManager
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.Handler
@@ -9,28 +11,36 @@ import android.view.accessibility.AccessibilityWindowInfo
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import org.json.JSONArray
 import org.json.JSONObject
 
 /** Only capture a particular application window. A whole-display fallback could include other apps. */
 internal object WindowCapture {
     private val main = Handler(Looper.getMainLooper())
-    private data class Target(val epoch: String, val packageName: String, val windowId: Int)
+    private data class Target(val epoch: String, val packageName: String, val windowId: Int, val bounds: Rect, val rotation: Int?)
     private fun target(s: PhoneControlService, call: WireCall): Target {
         call.checkActive()
         val epoch = RemoteSession.requireGrant(s,call.callerSubjectId)
         val node = s.rootInActiveWindow ?: throw WireFailure("unavailable","当前窗口不可用")
         try {
             val pkg = node.packageName?.toString().orEmpty()
-            if (pkg !in RemoteSession.packages || s.windows.none {
-                    it.id == node.windowId && it.isActive && it.type == AccessibilityWindowInfo.TYPE_APPLICATION
-                }) throw WireFailure("permission_denied","当前窗口不在授权范围")
-            return Target(epoch,pkg,node.windowId)
+            if (pkg !in RemoteSession.packages) throw WireFailure("permission_denied","当前窗口不在授权范围")
+            val windows = s.windows
+            try {
+                val window = windows.firstOrNull { it.id == node.windowId && it.isActive && it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+                    ?: throw WireFailure("permission_denied","当前窗口不在授权范围")
+                val bounds = Rect().also(window::getBoundsInScreen)
+                val rotation = if (Build.VERSION.SDK_INT >= 30)
+                    s.getSystemService(DisplayManager::class.java).getDisplay(window.displayId)?.rotation?.times(90)
+                    else null
+                return Target(epoch,pkg,node.windowId,bounds,rotation)
+            } finally { windows.forEach { it.recycle() } }
         } finally { node.recycle() }
     }
     fun capture(call: WireCall): JSONObject {
         if (Build.VERSION.SDK_INT < 34) throw WireFailure("unavailable","按窗口截图需要 Android 14")
         val upload = call.upload ?: throw WireFailure("permission_denied","本次调用没有图片上传授权")
-        val result = CompletableFuture<Bitmap>()
+        val result = CompletableFuture<Pair<Bitmap, String>>()
         val selected = CompletableFuture<Target>()
         val sub = call.signal.onCancel { result.cancel(false) }
         try {
@@ -47,7 +57,7 @@ internal object WindowCapture {
                                 try {
                                     if (target(s,call) != initial) throw WireFailure("permission_denied","授权窗口已变化")
                                     val bmp = Bitmap.wrapHardwareBuffer(buffer,image.colorSpace) ?: error("capture")
-                                    if (!result.complete(bmp)) bmp.recycle()
+                                    if (!result.complete(bmp to NativeJson.now())) bmp.recycle()
                                 } catch (e: Exception) { result.completeExceptionally(e) }
                             }
                         }
@@ -57,7 +67,9 @@ internal object WindowCapture {
                     })
                 } catch (e: Exception) { result.completeExceptionally(e) }
             }
-            val source = result.get(4,TimeUnit.SECONDS)
+            val (source, capturedAt) = result.get(4,TimeUnit.SECONDS)
+            val sourceWidth = source.width
+            val sourceHeight = source.height
             val original = try { source.copy(Bitmap.Config.ARGB_8888,false) } finally { source.recycle() }
             val scale = minOf(1.0, 1280.0/maxOf(original.width,original.height))
             val bitmap = Bitmap.createScaledBitmap(original,(original.width*scale).toInt().coerceAtLeast(1),
@@ -73,7 +85,16 @@ internal object WindowCapture {
             if (!check.get(2,TimeUnit.SECONDS)) throw WireFailure("permission_denied","本次授权已结束")
             call.checkActive()
             val descriptor = upload.put(bytes,"image/jpeg","window.jpg",call.id)
-            return obj("uri" to descriptor.getString("uri"),"contentType" to "image/jpeg","width" to width,"height" to height)
+            val output = obj("uri" to descriptor.getString("uri"),"contentType" to "image/jpeg","width" to width,"height" to height)
+            if (call.arguments.optInt("v") == 2) {
+                val frame = selected.get()
+                val bounds = frame.bounds
+                output.put("v", 2).put("window", semanticWindowRef(frame.epoch,frame.packageName,frame.windowId))
+                    .put("capturedAt", capturedAt).put("sourcePx", obj("width" to sourceWidth, "height" to sourceHeight))
+                    .put("windowBoundsPx", JSONArray(listOf(bounds.left, bounds.top, bounds.right, bounds.bottom)))
+                    .put("rotationDegrees", frame.rotation ?: JSONObject.NULL)
+            }
+            return output
         } catch (e: java.util.concurrent.ExecutionException) {
             throw e.cause ?: e
         } finally { result.cancel(false); sub.close() }

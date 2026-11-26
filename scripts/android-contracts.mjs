@@ -5,6 +5,8 @@ import { pathToFileURL } from 'node:url'
 
 import { z } from 'zod'
 
+import { androidControlContracts } from './android-control-contracts.mjs'
+
 const specs = {
   'inbox/schema': [['inbox/deliver', 'inboxDeliveryArguments', 'inboxDeliveryResult']],
   'capabilities/status/schema': [['status/get', 'statusArguments', 'statusResult']],
@@ -48,18 +50,5 @@ for (const [file, entries] of Object.entries(specs)) {
     }
   }
 }
-const element = z.string().min(1).max(128)
-const accepted = z.strictObject({ accepted: z.boolean() })
-const remote = {
-  observe: [z.strictObject({}), z.strictObject({package:z.string(),elements:z.array(z.strictObject({
-    element,label:z.string(),clickable:z.boolean(),editable:z.boolean(),scrollable:z.boolean()
-  }))})],
-  screenshot: [z.strictObject({}), z.strictObject({uri:z.string(),width:z.number().int(),height:z.number().int(),contentType:z.literal("image/jpeg")})],
-  tap: [z.strictObject({element}),accepted],
-  type: [z.strictObject({element,text:z.string().max(2048)}),accepted],
-  scroll: [z.strictObject({element,direction:z.enum(['forward','backward'])}),accepted],
-}
-for (const [key,[input,output]] of Object.entries(remote)) {
-  pairs['control/'+key] = {inputSchema:z.toJSONSchema(input),outputSchema:z.toJSONSchema(output)}
-}
+Object.assign(pairs, androidControlContracts())
 await writeFile('native-android/app/src/main/assets/contracts.json', JSON.stringify(pairs, null, 2)+'\n')
